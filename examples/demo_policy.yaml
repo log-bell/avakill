@@ -1,0 +1,51 @@
+# AgentGuard Demo Policy
+# Used by all example scripts. Covers common real-world patterns:
+#   - Allow read/search operations
+#   - Block destructive SQL (DROP, DELETE, TRUNCATE, ALTER)
+#   - Block dangerous shell commands (rm -rf, sudo, etc.)
+#   - Rate-limit web searches
+#   - Deny destructive operations (delete_*, remove_*, destroy_*)
+
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "allow-searches"
+    tools: ["search_*", "*_search", "*_query", "*_get", "*_list", "*_read"]
+    action: allow
+
+  - name: "block-destructive-sql"
+    tools: ["execute_sql", "database_execute", "run_query"]
+    action: deny
+    conditions:
+      args_match:
+        query: ["DROP", "DELETE", "TRUNCATE", "ALTER"]
+    message: "Destructive SQL blocked. Use manual migration instead."
+
+  - name: "allow-safe-sql"
+    tools: ["execute_sql", "database_execute", "run_query"]
+    action: allow
+
+  - name: "block-dangerous-shells"
+    tools: ["shell_execute", "run_command", "execute_command"]
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "sudo", "chmod 777", "> /dev/"]
+    message: "Dangerous shell command blocked."
+
+  - name: "allow-safe-shells"
+    tools: ["shell_execute", "run_command", "execute_command"]
+    action: allow
+
+  - name: "rate-limit-search"
+    tools: ["web_search"]
+    action: allow
+    rate_limit:
+      max_calls: 10
+      window: "60s"
+
+  - name: "require-approval-writes"
+    tools: ["delete_*", "remove_*", "destroy_*"]
+    action: deny
+    message: "Destructive operations require manual execution."
