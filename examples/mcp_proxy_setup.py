@@ -1,4 +1,4 @@
-"""AgentGuard MCP Proxy — protect any MCP server transparently.
+"""AvaKill MCP Proxy — protect any MCP server transparently.
 
 Demonstrates:
   1. How the MCP proxy intercepts tools/call requests
@@ -22,8 +22,8 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
-from agentguard import Guard
-from agentguard.mcp.proxy import MCPProxyServer
+from avakill import Guard
+from avakill.mcp.proxy import MCPProxyServer
 
 console = Console()
 POLICY_PATH = Path(__file__).parent / "demo_policy.yaml"
@@ -185,7 +185,7 @@ def generate_config_snippet() -> None:
     console.print(Panel(
         "[bold]Claude Desktop Configuration[/]\n"
         "Add this to your claude_desktop_config.json to protect\n"
-        "an MCP server with AgentGuard.",
+        "an MCP server with AvaKill.",
         title="Configuration", border_style="green",
     ))
 
@@ -207,22 +207,22 @@ def generate_config_snippet() -> None:
         padding=1,
     ))
 
-    # After: AgentGuard proxy in front
+    # After: AvaKill proxy in front
     after = {
         "mcpServers": {
             "database": {
-                "command": "agentguard",
+                "command": "avakill",
                 "args": [
                     "mcp-proxy",
                     "--upstream-cmd", "python",
                     "--upstream-args", "db_server.py",
-                    "--policy", "agentguard.yaml",
+                    "--policy", "avakill.yaml",
                 ],
             }
         }
     }
 
-    console.print("\n  [bold]After[/] (protected by AgentGuard):")
+    console.print("\n  [bold]After[/] (protected by AvaKill):")
     console.print(Syntax(
         json.dumps(after, indent=2),
         "json",
@@ -234,7 +234,7 @@ def generate_config_snippet() -> None:
     multi = {
         "mcpServers": {
             "database": {
-                "command": "agentguard",
+                "command": "avakill",
                 "args": [
                     "mcp-proxy",
                     "--upstream-cmd", "python",
@@ -243,7 +243,7 @@ def generate_config_snippet() -> None:
                 ],
             },
             "filesystem": {
-                "command": "agentguard",
+                "command": "avakill",
                 "args": [
                     "mcp-proxy",
                     "--upstream-cmd", "npx",
@@ -357,7 +357,7 @@ async def demo_full_relay() -> None:
 
 def main() -> None:
     console.print(Panel.fit(
-        "[bold]AgentGuard MCP Proxy Demo[/]",
+        "[bold]AvaKill MCP Proxy Demo[/]",
         border_style="bright_blue",
     ))
 

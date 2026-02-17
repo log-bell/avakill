@@ -7,10 +7,10 @@ from uuid import UUID
 
 import pytest
 
-from agentguard.core.engine import Guard, GuardSession
-from agentguard.core.exceptions import ConfigError, PolicyViolation, RateLimitExceeded
-from agentguard.core.models import AuditEvent, PolicyConfig, PolicyRule, RateLimit
-from agentguard.logging.event_bus import EventBus
+from avakill.core.engine import Guard, GuardSession
+from avakill.core.exceptions import ConfigError, PolicyViolation, RateLimitExceeded
+from avakill.core.models import AuditEvent, PolicyConfig, PolicyRule, RateLimit
+from avakill.logging.event_bus import EventBus
 
 
 @pytest.fixture(autouse=True)
@@ -67,7 +67,7 @@ class TestGuardInit:
         assert guard.engine.config.default_action == "allow"
 
     def test_create_none_auto_detect(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        policy_file = tmp_path / "agentguard.yaml"
+        policy_file = tmp_path / "avakill.yaml"
         policy_file.write_text(
             "version: '1.0'\ndefault_action: allow\npolicies:\n"
             "  - name: test\n    tools: ['*']\n    action: allow\n"
@@ -86,6 +86,14 @@ class TestGuardInit:
     def test_agent_id_stored(self, sample_policy: PolicyConfig) -> None:
         guard = Guard(policy=sample_policy, agent_id="my-agent")
         assert guard._agent_id == "my-agent"
+
+    def test_self_protection_enabled_by_default(self, sample_policy: PolicyConfig) -> None:
+        guard = Guard(policy=sample_policy)
+        assert guard._self_protection is not None
+
+    def test_self_protection_disabled(self, sample_policy: PolicyConfig) -> None:
+        guard = Guard(policy=sample_policy, self_protection=False)
+        assert guard._self_protection is None
 
 
 class TestGuardEvaluate:
@@ -304,7 +312,7 @@ class TestEventBus:
         bus.subscribe(received.append)
 
         # Create a minimal event
-        from agentguard.core.models import Decision, ToolCall
+        from avakill.core.models import Decision, ToolCall
 
         tc = ToolCall(tool_name="test", arguments={})
         d = Decision(allowed=True, action="allow")
@@ -319,7 +327,7 @@ class TestEventBus:
         received: list[AuditEvent] = []
         unsub = bus.subscribe(received.append)
 
-        from agentguard.core.models import Decision, ToolCall
+        from avakill.core.models import Decision, ToolCall
 
         tc = ToolCall(tool_name="test", arguments={})
         d = Decision(allowed=True, action="allow")
@@ -342,7 +350,7 @@ class TestEventBus:
         bus.subscribe(bad_callback)
         bus.subscribe(received.append)
 
-        from agentguard.core.models import Decision, ToolCall
+        from avakill.core.models import Decision, ToolCall
 
         tc = ToolCall(tool_name="test", arguments={})
         d = Decision(allowed=True, action="allow")

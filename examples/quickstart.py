@@ -1,8 +1,8 @@
-"""AgentGuard Quickstart — protect any function in 2 lines of code."""
+"""AvaKill Quickstart — protect any function in 2 lines of code."""
 
 from pathlib import Path
 
-from agentguard import Guard, protect
+from avakill import Guard, protect
 
 POLICY_PATH = Path(__file__).parent / "demo_policy.yaml"
 

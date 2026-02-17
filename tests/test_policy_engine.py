@@ -1,4 +1,4 @@
-"""Comprehensive tests for AgentGuard data models, exceptions, and policy engine."""
+"""Comprehensive tests for AvaKill data models, exceptions, and policy engine."""
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,13 +7,13 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from agentguard.core.exceptions import (
-    AgentGuardError,
+from avakill.core.exceptions import (
+    AvaKillError,
     ConfigError,
     PolicyViolation,
     RateLimitExceeded,
 )
-from agentguard.core.models import (
+from avakill.core.models import (
     AuditEvent,
     Decision,
     PolicyConfig,
@@ -22,7 +22,7 @@ from agentguard.core.models import (
     RuleConditions,
     ToolCall,
 )
-from agentguard.core.policy import PolicyEngine, load_policy
+from avakill.core.policy import PolicyEngine, load_policy
 
 # ---------------------------------------------------------------------------
 # ToolCall
@@ -268,23 +268,23 @@ class TestRateLimit:
         assert rl.window_seconds() == 3600
 
     def test_invalid_window_no_unit(self) -> None:
-        with pytest.raises(ValidationError, match="Invalid window format"):
+        with pytest.raises(ValidationError, match="string_pattern_mismatch|Invalid window format"):
             RateLimit(max_calls=10, window="30")
 
     def test_invalid_window_bad_unit(self) -> None:
-        with pytest.raises(ValidationError, match="Invalid window format"):
+        with pytest.raises(ValidationError, match="string_pattern_mismatch|Invalid window format"):
             RateLimit(max_calls=10, window="30d")
 
     def test_invalid_window_empty(self) -> None:
-        with pytest.raises(ValidationError, match="Invalid window format"):
+        with pytest.raises(ValidationError, match="string_pattern_mismatch|Invalid window format"):
             RateLimit(max_calls=10, window="")
 
     def test_invalid_window_letters_only(self) -> None:
-        with pytest.raises(ValidationError, match="Invalid window format"):
+        with pytest.raises(ValidationError, match="string_pattern_mismatch|Invalid window format"):
             RateLimit(max_calls=10, window="abc")
 
     def test_invalid_window_negative(self) -> None:
-        with pytest.raises(ValidationError, match="Invalid window format"):
+        with pytest.raises(ValidationError, match="string_pattern_mismatch|Invalid window format"):
             RateLimit(max_calls=10, window="-5s")
 
     def test_serialize_roundtrip(self) -> None:
@@ -334,7 +334,7 @@ class TestPolicyRule:
         assert rule.tools == ["database_*"]
 
     def test_empty_tools_rejected(self) -> None:
-        with pytest.raises(ValidationError, match="tools must have at least one entry"):
+        with pytest.raises(ValidationError, match="too_short|tools must have at least one entry"):
             PolicyRule(name="bad-rule", tools=[], action="allow")
 
     def test_invalid_action_rejected(self) -> None:
@@ -453,7 +453,7 @@ class TestPolicyViolation:
         exc = PolicyViolation("delete_user", decision)
         result = str(exc)
         assert result == (
-            "AgentGuard blocked 'delete_user': "
+            "AvaKill blocked 'delete_user': "
             "Destructive SQL operations require manual execution "
             "[policy: block-destructive-sql]"
         )
@@ -466,7 +466,7 @@ class TestPolicyViolation:
         )
         exc = PolicyViolation("shell_exec", decision)
         result = str(exc)
-        assert result == "AgentGuard blocked 'shell_exec': Not allowed"
+        assert result == "AvaKill blocked 'shell_exec': Not allowed"
         assert "[policy:" not in result
 
     def test_str_with_custom_message(self) -> None:
@@ -496,7 +496,7 @@ class TestPolicyViolation:
     def test_is_agent_guard_error(self) -> None:
         decision = Decision(allowed=False, action="deny")
         exc = PolicyViolation("t", decision)
-        assert isinstance(exc, AgentGuardError)
+        assert isinstance(exc, AvaKillError)
         assert isinstance(exc, Exception)
 
     def test_can_be_caught_as_exception(self) -> None:
@@ -515,7 +515,7 @@ class TestConfigError:
 
     def test_is_agent_guard_error(self) -> None:
         exc = ConfigError("err")
-        assert isinstance(exc, AgentGuardError)
+        assert isinstance(exc, AvaKillError)
 
 
 class TestRateLimitExceeded:
@@ -530,7 +530,7 @@ class TestRateLimitExceeded:
         )
         exc = RateLimitExceeded("api_call", decision)
         assert isinstance(exc, PolicyViolation)
-        assert isinstance(exc, AgentGuardError)
+        assert isinstance(exc, AvaKillError)
         assert "rate-limit-api" in str(exc)
 
     def test_can_be_caught_as_policy_violation(self) -> None:
@@ -632,7 +632,7 @@ class TestPolicyEngineLoading:
 
     def test_load_templates(self) -> None:
         """Verify all three bundled templates parse correctly."""
-        templates_dir = Path(__file__).resolve().parent.parent / "src" / "agentguard" / "templates"
+        templates_dir = Path(__file__).resolve().parent.parent / "src" / "avakill" / "templates"
         for name in ("default.yaml", "strict.yaml", "permissive.yaml"):
             engine = PolicyEngine.from_yaml(templates_dir / name)
             assert len(engine.config.policies) > 0
@@ -1185,7 +1185,7 @@ class TestLoadPolicy:
         assert engine.config.default_action == "deny"
 
     def test_load_auto_detect(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        policy_file = tmp_path / "agentguard.yaml"
+        policy_file = tmp_path / "avakill.yaml"
         policy_file.write_text(
             "version: '1.0'\n"
             "default_action: allow\n"
@@ -1201,7 +1201,7 @@ class TestLoadPolicy:
     def test_load_auto_detect_yml_extension(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        policy_file = tmp_path / "agentguard.yml"
+        policy_file = tmp_path / "avakill.yml"
         policy_file.write_text(
             "version: '1.0'\n"
             "default_action: deny\n"

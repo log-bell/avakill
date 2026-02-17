@@ -6,10 +6,10 @@ import inspect
 
 import pytest
 
-from agentguard.core.engine import Guard
-from agentguard.core.exceptions import PolicyViolation
-from agentguard.core.models import PolicyConfig, PolicyRule
-from agentguard.interceptors.decorator import protect
+from avakill.core.engine import Guard
+from avakill.core.exceptions import PolicyViolation
+from avakill.core.models import PolicyConfig, PolicyRule
+from avakill.interceptors.decorator import protect
 
 
 @pytest.fixture
@@ -155,7 +155,7 @@ class TestProtectBareDecorator:
     def test_bare_decorator_with_auto_detect(
         self, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        policy_file = tmp_path / "agentguard.yaml"  # type: ignore[operator]
+        policy_file = tmp_path / "avakill.yaml"  # type: ignore[operator]
         policy_file.write_text(
             "version: '1.0'\ndefault_action: allow\npolicies:\n"
             "  - name: allow-all\n    tools: ['*']\n    action: allow\n"

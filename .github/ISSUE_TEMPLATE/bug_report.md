@@ -12,7 +12,7 @@ A clear, concise description of the bug.
 
 ## Environment
 
-- **AgentGuard version:** (run `agentguard --version` or `pip show agentguard`)
+- **AvaKill version:** (run `avakill --version` or `pip show avakill`)
 - **Python version:** (run `python --version`)
 - **OS:** (e.g. macOS 14, Ubuntu 22.04, Windows 11)
 - **Framework:** (e.g. OpenAI 1.x, Anthropic 0.40, LangChain 0.3, MCP 1.x)
@@ -26,7 +26,7 @@ A clear, concise description of the bug.
 ## Policy File (if relevant)
 
 ```yaml
-# Paste your agentguard.yaml here (remove any sensitive values)
+# Paste your avakill.yaml here (remove any sensitive values)
 ```
 
 ## Expected Behavior

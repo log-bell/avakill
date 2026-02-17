@@ -1,6 +1,6 @@
-"""AgentGuard + Anthropic Tool Use
+"""AvaKill + Anthropic Tool Use
 
-Demonstrates how to protect Anthropic tool use with AgentGuard.
+Demonstrates how to protect Anthropic tool use with AvaKill.
 Run with --live flag to use real Anthropic API, or without for mock demo.
 
 Usage:
@@ -18,8 +18,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from agentguard import Guard
-from agentguard.interceptors.anthropic_wrapper import (
+from avakill import Guard
+from avakill.interceptors.anthropic_wrapper import (
     GuardedAnthropicClient,
     evaluate_tool_use_blocks,
 )
@@ -182,7 +182,7 @@ def demo_guarded_client() -> None:
             messages=[{"role": "user", "content": "demo"}],
         )
 
-        print_decisions(response.agentguard_decisions, "Decisions")
+        print_decisions(response.avakill_decisions, "Decisions")
 
         # Show what remains
         remaining_tools = [b for b in response.content if b.type == "tool_use"]
@@ -206,7 +206,7 @@ def demo_live() -> None:
     try:
         from anthropic import Anthropic
     except ImportError:
-        console.print("[red]Install anthropic: pip install 'agentguard[anthropic]'[/]")
+        console.print("[red]Install anthropic: pip install 'avakill[anthropic]'[/]")
         return
 
     console.print(Panel("[bold]Live Mode: Real Anthropic API[/]", border_style="magenta"))
@@ -242,8 +242,8 @@ def demo_live() -> None:
         tools=tools,
     )
 
-    if response.agentguard_decisions:
-        print_decisions(response.agentguard_decisions, "Live Decisions")
+    if response.avakill_decisions:
+        print_decisions(response.avakill_decisions, "Live Decisions")
     else:
         console.print("[dim]No tool_use blocks in response[/]")
 
@@ -255,7 +255,7 @@ def demo_live() -> None:
 
 def main() -> None:
     console.print(Panel.fit(
-        "[bold]AgentGuard + Anthropic Tool Use Demo[/]",
+        "[bold]AvaKill + Anthropic Tool Use Demo[/]",
         border_style="bright_blue",
     ))
 

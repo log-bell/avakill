@@ -1,53 +1,53 @@
 # Getting Started
 
-AgentGuard is a safety firewall for AI agents. You define policies in YAML; AgentGuard intercepts tool calls and blocks anything outside those boundaries.
+AvaKill is a safety firewall for AI agents. You define policies in YAML; AvaKill intercepts tool calls and kills anything outside those boundaries.
 
 This guide gets you from zero to a working policy in under 5 minutes.
 
 ## Installation
 
 ```bash
-pip install agentguard
+pip install avakill
 ```
 
 Install with framework-specific extras:
 
 ```bash
-pip install agentguard[openai]       # OpenAI function calling
-pip install agentguard[anthropic]    # Anthropic tool use
-pip install agentguard[langchain]    # LangChain / LangGraph
-pip install agentguard[mcp]          # MCP proxy
-pip install agentguard[all]          # Everything
+pip install avakill[openai]       # OpenAI function calling
+pip install avakill[anthropic]    # Anthropic tool use
+pip install avakill[langchain]    # LangChain / LangGraph
+pip install avakill[mcp]          # MCP proxy
+pip install avakill[all]          # Everything
 ```
 
 From source:
 
 ```bash
-git clone https://github.com/agentguard/agentguard.git
-cd agentguard
+git clone https://github.com/avakill/avakill.git
+cd avakill
 pip install -e ".[dev]"
 ```
 
 ## 1. Initialize Your First Policy
 
-Run `agentguard init` to generate a starter policy file:
+Run `avakill init` to generate a starter policy file:
 
 ```bash
-$ agentguard init
+$ avakill init
 Which policy template? [default/strict/permissive] (default): default
 
-╭──── AgentGuard Initialized ────╮
+╭──── AvaKill Initialized ────╮
 │                                │
-│  Policy file created: agentguard.yaml
+│  Policy file created: avakill.yaml
 │  Template: default             │
 │                                │
 ╰────────────────────────────────╯
 
 Next steps:
-  1. Review and customise agentguard.yaml
-  2. Add AgentGuard to your agent code (see snippet above)
-  3. Run agentguard dashboard to monitor in real-time
-  4. Run agentguard validate to check your policy
+  1. Review and customise avakill.yaml
+  2. Add AvaKill to your agent code (see snippet above)
+  3. Run avakill dashboard to monitor in real-time
+  4. Run avakill validate to check your policy
 ```
 
 Three templates are available:
@@ -59,19 +59,39 @@ Three templates are available:
 | `permissive` | `allow` | Audit mode — logs everything, blocks only catastrophic operations |
 
 ```bash
-agentguard init --template strict
-agentguard init --template permissive
+avakill init --template strict
+avakill init --template permissive
 ```
 
 You can also specify the output path:
 
 ```bash
-agentguard init --template strict --output policies/production.yaml
+avakill init --template strict --output policies/production.yaml
 ```
+
+### LLM-Assisted Policy Creation
+
+Instead of writing YAML manually, you can use any LLM to generate a policy:
+
+```bash
+# Generate a self-contained prompt and paste it into any LLM
+avakill schema --format=prompt
+
+# Include your tool names for a tailored policy
+avakill schema --format=prompt --tools="execute_sql,shell_exec,file_read" --use-case="data pipeline"
+```
+
+The prompt includes the full JSON Schema, evaluation rules, examples, and common mistakes to avoid. Copy it into ChatGPT, Claude, Gemini, or any other LLM, then describe your agent and its tools. Validate the output with:
+
+```bash
+avakill validate generated-policy.yaml
+```
+
+> See [`llm-policy-prompt.md`](llm-policy-prompt.md) for a paste-ready prompt you can use without installing AvaKill.
 
 ## 2. Review the Policy
 
-Open `agentguard.yaml`. Here's what the default template looks like:
+Open `avakill.yaml`. Here's what the default template looks like:
 
 ```yaml
 version: "1.0"
@@ -119,7 +139,7 @@ Rules are evaluated top-to-bottom. The first matching rule wins. If nothing matc
 Validate your policy file at any time:
 
 ```bash
-$ agentguard validate agentguard.yaml
+$ avakill validate avakill.yaml
 
 ┌─────────────────────────────── Policy Rules ───────────────────────────────┐
 │  #  │ Name                      │ Action           │ Rate Limit │
@@ -143,10 +163,10 @@ Policy is valid.
 The fastest integration path is the `@protect` decorator. It wraps any function with a policy check — if the policy denies the call, the function body never runs.
 
 ```python
-from agentguard import Guard, protect, PolicyViolation
+from avakill import Guard, protect, PolicyViolation
 
 # Load the policy
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 @protect(guard=guard)
 def delete_user(user_id: str) -> str:
@@ -168,7 +188,7 @@ try:
     delete_user(user_id="123")
 except PolicyViolation as e:
     print(e)
-# → AgentGuard blocked 'delete_user': No matching rule; default action is 'deny'
+# → AvaKill blocked 'delete_user': No matching rule; default action is 'deny'
 ```
 
 ### How the decorator works
@@ -181,7 +201,7 @@ except PolicyViolation as e:
 ### Decorator options
 
 ```python
-# Auto-detect policy from agentguard.yaml in the current directory
+# Auto-detect policy from avakill.yaml in the current directory
 @protect
 def my_tool():
     ...
@@ -225,9 +245,9 @@ async def async_search(query: str) -> str:
 For more control, use `Guard.evaluate()` directly in your agent loop:
 
 ```python
-from agentguard import Guard, PolicyViolation
+from avakill import Guard, PolicyViolation
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 def agent_loop(tool_name: str, args: dict):
     # Check before executing
@@ -264,11 +284,11 @@ with guard.session(agent_id="my-agent") as session:
 Add a `SQLiteLogger` to persist every decision to a local database:
 
 ```python
-from agentguard import Guard
-from agentguard.logging.sqlite_logger import SQLiteLogger
+from avakill import Guard
+from avakill.logging.sqlite_logger import SQLiteLogger
 
-logger = SQLiteLogger("agentguard_audit.db")
-guard = Guard(policy="agentguard.yaml", logger=logger)
+logger = SQLiteLogger("avakill_audit.db")
+guard = Guard(policy="avakill.yaml", logger=logger)
 
 # Every evaluate() call is now logged automatically
 guard.evaluate(tool="search_users", args={"query": "test"})
@@ -280,9 +300,9 @@ Query the audit log from the CLI:
 
 ```bash
 # Show the last 50 events
-$ agentguard logs
+$ avakill logs
 
-┌──────────────────────── AgentGuard Audit Log ────────────────────────┐
+┌──────────────────────── AvaKill Audit Log ────────────────────────┐
 │ Time                │ Tool          │ Action │ Policy               │
 │ 2025-01-15 14:32:01 │ search_users  │ ALLOW  │ allow-read-operations│
 │ 2025-01-15 14:32:03 │ delete_user   │ DENY   │                     │
@@ -295,22 +315,22 @@ Filter and format options:
 
 ```bash
 # Only denied events
-agentguard logs --denied-only
+avakill logs --denied-only
 
 # Filter by tool name (supports globs)
-agentguard logs --tool "database_*"
+avakill logs --tool "database_*"
 
 # Events from the last hour
-agentguard logs --since 1h
+avakill logs --since 1h
 
 # Filter by agent
-agentguard logs --agent my-agent
+avakill logs --agent my-agent
 
 # JSON output for piping to jq
-agentguard logs --json
+avakill logs --json
 
 # Follow new events in real-time (like tail -f)
-agentguard logs tail
+avakill logs tail
 ```
 
 ## 7. Run the Dashboard
@@ -318,7 +338,7 @@ agentguard logs tail
 Launch the real-time terminal dashboard:
 
 ```bash
-$ agentguard dashboard
+$ avakill dashboard
 ```
 
 The dashboard shows:
@@ -338,13 +358,13 @@ Keyboard shortcuts:
 Options:
 
 ```bash
-agentguard dashboard --db agentguard_audit.db  # Custom database path
-agentguard dashboard --refresh 1.0              # Refresh interval in seconds
-agentguard dashboard --policy agentguard.yaml   # Policy file to monitor
+avakill dashboard --db avakill_audit.db  # Custom database path
+avakill dashboard --refresh 1.0              # Refresh interval in seconds
+avakill dashboard --policy avakill.yaml   # Policy file to monitor
 ```
 
 ## Next Steps
 
 - **[Policy Reference](policy-reference.md)** — full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
 - **[Framework Integrations](framework-integrations.md)** — drop-in wrappers for OpenAI, Anthropic, LangChain, CrewAI, and MCP.
-- **[MCP Proxy](mcp-proxy.md)** — deploy AgentGuard as a transparent proxy for any MCP server.
+- **[MCP Proxy](mcp-proxy.md)** — deploy AvaKill as a transparent proxy for any MCP server.

@@ -1,14 +1,16 @@
 <div align="center">
 
-# :shield: AgentGuard
+# :shield: AvaKill
 
-### Open-source safety firewall for AI agents
+### She doesn't guard. She kills.
 
-[![PyPI version](https://img.shields.io/pypi/v/agentguard?color=blue)](https://pypi.org/project/agentguard/)
-[![Python](https://img.shields.io/pypi/pyversions/agentguard)](https://pypi.org/project/agentguard/)
+*Open-source safety firewall for AI agents*
+
+[![PyPI version](https://img.shields.io/pypi/v/avakill?color=blue)](https://pypi.org/project/avakill/)
+[![Python](https://img.shields.io/pypi/pyversions/avakill)](https://pypi.org/project/avakill/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/agentguard/agentguard/ci.yml?branch=main&label=tests)](https://github.com/agentguard/agentguard/actions)
-[![GitHub stars](https://img.shields.io/github/stars/agentguard/agentguard?style=social)](https://github.com/agentguard/agentguard)
+[![CI](https://img.shields.io/github/actions/workflow/status/avakill/avakill/ci.yml?branch=main&label=tests)](https://github.com/avakill/avakill/actions)
+[![GitHub stars](https://img.shields.io/github/stars/avakill/avakill?style=social)](https://github.com/avakill/avakill)
 
 **Stop your AI agents from deleting your database, wiping your files, or going rogue.**
 
@@ -28,18 +30,18 @@ AI agents are shipping to production with **zero safety controls** on their tool
 
 These aren't edge cases. Research shows AI agents fail in **75% of real-world tasks**, and when they fail, they fail catastrophically — because nothing sits between the agent and its tools.
 
-**AgentGuard is that missing layer.** A firewall that intercepts every tool call, evaluates it against your safety policies, and blocks dangerous operations before they execute. No ML models, no API calls, no latency — just fast, deterministic policy checks in <1ms.
+**AvaKill is that missing layer.** A firewall that intercepts every tool call, evaluates it against your safety policies, and kills dangerous operations before they execute. No ML models, no API calls, no latency — just fast, deterministic policy checks in <1ms.
 
 ## Quickstart
 
 ```bash
-pip install agentguard
+pip install avakill
 ```
 
 ```python
-from agentguard import Guard, protect
+from avakill import Guard, protect
 
-guard = Guard()  # Auto-detects agentguard.yaml
+guard = Guard()  # Auto-detects avakill.yaml
 
 @protect(guard=guard)
 def delete_user(user_id: str):
@@ -52,7 +54,7 @@ def delete_user(user_id: str):
 Create a policy file:
 
 ```bash
-agentguard init
+avakill init
 ```
 
 That's it. Every call to `delete_user` is now evaluated against your policy before executing.
@@ -118,9 +120,9 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 </tr>
 </table>
 
-## Why AgentGuard?
+## Why AvaKill?
 
-|  | No Protection | Prompt Guardrails | **AgentGuard** |
+|  | No Protection | Prompt Guardrails | **AvaKill** |
 |---|:---:|:---:|:---:|
 | Stops destructive tool calls | :x: | :x: | :white_check_mark: |
 | Works across all frameworks | — | Partial | :white_check_mark: |
@@ -137,21 +139,21 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 
 ```python
 from openai import OpenAI
-from agentguard.interceptors.openai_wrapper import GuardedOpenAIClient
+from avakill.interceptors.openai_wrapper import GuardedOpenAIClient
 
-client = GuardedOpenAIClient(OpenAI(), policy="agentguard.yaml")
+client = GuardedOpenAIClient(OpenAI(), policy="avakill.yaml")
 response = client.chat.completions.create(model="gpt-4o", tools=[...], messages=[...])
 # Denied tool_calls are automatically removed from the response
-# All decisions available at: response.agentguard_decisions
+# All decisions available at: response.avakill_decisions
 ```
 
 ### Anthropic
 
 ```python
 from anthropic import Anthropic
-from agentguard.interceptors.anthropic_wrapper import GuardedAnthropicClient
+from avakill.interceptors.anthropic_wrapper import GuardedAnthropicClient
 
-client = GuardedAnthropicClient(Anthropic(), policy="agentguard.yaml")
+client = GuardedAnthropicClient(Anthropic(), policy="avakill.yaml")
 response = client.messages.create(model="claude-sonnet-4-5-20250514", tools=[...], messages=[...])
 # Denied tool_use blocks are removed from response.content
 ```
@@ -159,9 +161,9 @@ response = client.messages.create(model="claude-sonnet-4-5-20250514", tools=[...
 ### LangChain / LangGraph
 
 ```python
-from agentguard.interceptors.langchain_handler import AgentGuardCallbackHandler
+from avakill.interceptors.langchain_handler import AvaKillCallbackHandler
 
-handler = AgentGuardCallbackHandler(policy="agentguard.yaml")
+handler = AvaKillCallbackHandler(policy="avakill.yaml")
 agent.invoke({"input": "..."}, config={"callbacks": [handler]})
 # Raises PolicyViolation before the tool executes
 ```
@@ -175,12 +177,12 @@ One config change — no code modifications to the MCP server:
 {
   "mcpServers": {
     "database": {
-      "command": "agentguard",
+      "command": "avakill",
       "args": [
         "mcp-proxy",
         "--upstream-cmd", "python",
         "--upstream-args", "db_server.py",
-        "--policy", "agentguard.yaml"
+        "--policy", "avakill.yaml"
       ]
     }
   }
@@ -190,9 +192,9 @@ One config change — no code modifications to the MCP server:
 ### Decorator (any Python function)
 
 ```python
-from agentguard import Guard, protect
+from avakill import Guard, protect
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 @protect(guard=guard, on_deny="return_none")  # or "raise" (default), "callback"
 def execute_sql(query: str) -> str:
@@ -267,25 +269,58 @@ policies:
 
 > Full reference: [`docs/policy-reference.md`](docs/policy-reference.md)
 
+## Generate Policies with Any LLM
+
+Don't want to write YAML by hand? Use any LLM to generate policies for you:
+
+```bash
+# Generate a prompt, paste it into ChatGPT/Claude/Gemini, describe your agent
+avakill schema --format=prompt
+
+# Include your actual tool names for a tailored prompt
+avakill schema --format=prompt --tools="execute_sql,shell_exec,file_write" --use-case="data pipeline"
+
+# Validate the LLM's output
+avakill validate generated-policy.yaml
+```
+
+Or use the JSON Schema directly with structured output APIs:
+
+```python
+from avakill import get_json_schema, generate_prompt
+
+schema = get_json_schema()          # For structured output / validation
+prompt = generate_prompt()           # Self-contained LLM prompt
+```
+
+> See [`docs/llm-policy-prompt.md`](docs/llm-policy-prompt.md) for a paste-ready prompt.
+
 ## CLI
 
 ```bash
 # Initialize a new policy file (auto-detects your framework)
-agentguard init
+avakill init
 
 # Validate your policy file
-agentguard validate agentguard.yaml
+avakill validate avakill.yaml
 
 # Launch the real-time terminal dashboard
-agentguard dashboard
+avakill dashboard
 
 # Query audit logs
-agentguard logs --denied-only --since 1h
-agentguard logs --tool "execute_sql" --json
-agentguard logs tail  # Follow in real-time
+avakill logs --denied-only --since 1h
+avakill logs --tool "execute_sql" --json
+avakill logs tail  # Follow in real-time
 
 # Start the MCP proxy
-agentguard mcp-proxy --upstream-cmd python --upstream-args server.py --policy agentguard.yaml
+avakill mcp-proxy --upstream-cmd python --upstream-args server.py --policy avakill.yaml
+
+# Export JSON Schema for the policy format
+avakill schema
+
+# Generate an LLM prompt for policy creation
+avakill schema --format=prompt
+avakill schema --format=prompt --tools="file_read,shell_exec" --use-case="code assistant"
 ```
 
 ## Dashboard
@@ -304,7 +339,7 @@ The dashboard shows:
 
 ```
 ┌──────────────┐     ┌──────────────────────────────────────┐     ┌──────────┐
-│              │     │           AgentGuard                 │     │          │
+│              │     │           AvaKill                 │     │          │
 │  Your Agent  │────>│  Intercept ─> Policy Check ─> Log   │────>│   Tool   │
 │  (any LLM)   │     │                  │                   │     │          │
 │              │     │            ┌─────┴─────┐            │     │          │
@@ -316,7 +351,7 @@ The dashboard shows:
                      └──────────────────────────────────────┘
 ```
 
-AgentGuard evaluates tool calls **in-process** — no network hop, no sidecar, no external service. The policy engine is a pure Python function that runs in <1ms.
+AvaKill protects your agents by killing dangerous tool calls **in-process** — no network hop, no sidecar, no external service. The policy engine is a pure Python function that runs in <1ms.
 
 **Core components:**
 - **`Guard`** — the main entry point. Wraps a `PolicyEngine`, records audit events.
@@ -345,11 +380,11 @@ AgentGuard evaluates tool calls **in-process** — no network hop, no sidecar, n
 
 ## Contributing
 
-We welcome contributions! AgentGuard is early-stage and there's a lot to build.
+We welcome contributions! AvaKill is early-stage and there's a lot to build.
 
 ```bash
-git clone https://github.com/agentguard/agentguard.git
-cd agentguard
+git clone https://github.com/avakill/avakill.git
+cd avakill
 make dev    # Install in dev mode with all dependencies
 make test   # Run the test suite (322 tests)
 ```
@@ -364,7 +399,7 @@ See [**CONTRIBUTING.md**](CONTRIBUTING.md) for the full guide — architecture o
 
 <div align="center">
 
-**If AgentGuard would have saved you from an AI agent disaster, [give it a star](https://github.com/agentguard/agentguard).**
+**If AvaKill would have saved you from an AI agent disaster, [give it a star](https://github.com/avakill/avakill).**
 
 Built because an AI agent tried to `DROP TABLE users` on a Friday afternoon.
 

@@ -1,8 +1,8 @@
-"""AgentGuard + LangChain / LangGraph
+"""AvaKill + LangChain / LangGraph
 
 Demonstrates two integration approaches:
-  1. AgentGuardCallbackHandler — intercept on_tool_start in any LangChain agent
-  2. create_agentguard_wrapper — validate tool calls in a LangGraph ToolNode
+  1. AvaKillCallbackHandler — intercept on_tool_start in any LangChain agent
+  2. create_avakill_wrapper — validate tool calls in a LangGraph ToolNode
 
 No LangChain installation needed — uses mock objects for the demo.
 
@@ -19,10 +19,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from agentguard import Guard, PolicyViolation
-from agentguard.interceptors.langchain_handler import (
-    AgentGuardCallbackHandler,
-    create_agentguard_wrapper,
+from avakill import Guard, PolicyViolation
+from avakill.interceptors.langchain_handler import (
+    AvaKillCallbackHandler,
+    create_avakill_wrapper,
 )
 
 console = Console()
@@ -50,15 +50,15 @@ TOOL_CALLS = [
 
 
 def demo_callback_handler() -> None:
-    """Use AgentGuardCallbackHandler.on_tool_start() to gate every tool call."""
+    """Use AvaKillCallbackHandler.on_tool_start() to gate every tool call."""
     console.print(Panel(
-        "[bold]Approach 1: AgentGuardCallbackHandler[/]\n"
+        "[bold]Approach 1: AvaKillCallbackHandler[/]\n"
         "Register as a LangChain callback. Every tool invocation is\n"
         "evaluated before the tool runs. Denied calls raise PolicyViolation.",
         title="Callback Handler", border_style="blue",
     ))
 
-    handler = AgentGuardCallbackHandler(policy=POLICY_PATH)
+    handler = AvaKillCallbackHandler(policy=POLICY_PATH)
 
     table = Table(title="Callback Handler Results", show_lines=True)
     table.add_column("Tool", style="cyan")
@@ -84,7 +84,7 @@ def demo_callback_handler() -> None:
 
 
 def demo_langgraph_wrapper() -> None:
-    """Use create_agentguard_wrapper() to validate tool calls in a ToolNode."""
+    """Use create_avakill_wrapper() to validate tool calls in a ToolNode."""
     console.print(Panel(
         "[bold]Approach 2: LangGraph ToolNode Wrapper[/]\n"
         "Pass the wrapper to ToolNode's handle_tool_call parameter.\n"
@@ -93,7 +93,7 @@ def demo_langgraph_wrapper() -> None:
     ))
 
     guard = Guard(policy=POLICY_PATH)
-    wrapper = create_agentguard_wrapper(guard)
+    wrapper = create_avakill_wrapper(guard)
 
     # Simulate tool calls as dicts (the shape LangGraph uses)
     graph_tool_calls = [
@@ -128,16 +128,16 @@ def demo_langgraph_wrapper() -> None:
 
 
 def demo_agent_loop() -> None:
-    """Simulate a ReAct agent loop with AgentGuard protecting each step."""
+    """Simulate a ReAct agent loop with AvaKill protecting each step."""
     console.print(Panel(
         "[bold]Simulated Agent Loop[/]\n"
-        "A mock agent plans multiple tool calls. AgentGuard evaluates\n"
+        "A mock agent plans multiple tool calls. AvaKill evaluates\n"
         "each one before execution, blocking dangerous operations.",
         title="Agent Loop", border_style="magenta",
     ))
 
     guard = Guard(policy=POLICY_PATH)
-    handler = AgentGuardCallbackHandler(guard=guard)
+    handler = AvaKillCallbackHandler(guard=guard)
 
     # Simulated agent plan: research -> query -> cleanup -> delete
     agent_plan = [
@@ -159,7 +159,7 @@ def demo_agent_loop() -> None:
             )
             console.print(f"    -> [green]Executed successfully[/]")
         except PolicyViolation as e:
-            console.print(f"    -> [red]BLOCKED by AgentGuard[/]: {e.message}")
+            console.print(f"    -> [red]BLOCKED by AvaKill[/]: {e.message}")
             console.print(f"       [dim]Agent must find an alternative approach[/]")
 
     allowed = sum(1 for d in handler.decisions if d.allowed)
@@ -174,7 +174,7 @@ def demo_agent_loop() -> None:
 
 def main() -> None:
     console.print(Panel.fit(
-        "[bold]AgentGuard + LangChain / LangGraph Demo[/]",
+        "[bold]AvaKill + LangChain / LangGraph Demo[/]",
         border_style="bright_blue",
     ))
 

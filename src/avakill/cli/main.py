@@ -1,0 +1,33 @@
+"""AvaKill CLI entry point."""
+
+import click
+
+
+@click.group()
+@click.version_option(package_name="avakill")
+def cli() -> None:
+    """AvaKill — Open-source safety firewall for AI agents.
+
+    Intercept tool calls. Enforce policies. Kill dangerous operations.
+    """
+    pass
+
+
+# Import and register subcommands
+from avakill.cli.approve_cmd import approve  # noqa: E402
+from avakill.cli.dashboard_cmd import dashboard  # noqa: E402
+from avakill.cli.init_cmd import init  # noqa: E402
+from avakill.cli.logs_cmd import logs  # noqa: E402
+from avakill.cli.mcp_proxy_cmd import mcp_proxy  # noqa: E402
+from avakill.cli.review_cmd import review  # noqa: E402
+from avakill.cli.schema_cmd import schema  # noqa: E402
+from avakill.cli.validate_cmd import validate  # noqa: E402
+
+cli.add_command(approve)
+cli.add_command(init)
+cli.add_command(dashboard)
+cli.add_command(logs)
+cli.add_command(mcp_proxy)
+cli.add_command(review)
+cli.add_command(schema)
+cli.add_command(validate)

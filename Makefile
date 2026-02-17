@@ -11,7 +11,7 @@ test:
 	pytest
 
 test-cov:
-	pytest --cov=agentguard --cov-report=term-missing
+	pytest --cov=avakill --cov-report=term-missing
 
 lint:
 	ruff check src tests
@@ -42,11 +42,11 @@ publish: build
 
 # ─── Publishing Checklist ───────────────────────────────────────────
 #
-# 1. Update version in pyproject.toml and src/agentguard/__init__.py
+# 1. Update version in pyproject.toml and src/avakill/__init__.py
 # 2. Run:  make check          (lint + typecheck + tests)
 # 3. Run:  make build           (creates dist/)
 # 4. Run:  make publish-test    (upload to TestPyPI first)
-# 5. Verify: pip install -i https://test.pypi.org/simple/ agentguard
+# 5. Verify: pip install -i https://test.pypi.org/simple/ avakill
 # 6. Run:  make publish         (upload to PyPI)
 #
 # Requires ~/.pypirc or TWINE_USERNAME/TWINE_PASSWORD env vars.

@@ -1,6 +1,6 @@
-"""AgentGuard + OpenAI Function Calling
+"""AvaKill + OpenAI Function Calling
 
-Demonstrates how to protect OpenAI function calling with AgentGuard.
+Demonstrates how to protect OpenAI function calling with AvaKill.
 Run with --live flag to use real OpenAI API, or without for mock demo.
 
 Usage:
@@ -19,8 +19,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from agentguard import Guard
-from agentguard.interceptors.openai_wrapper import (
+from avakill import Guard
+from avakill.interceptors.openai_wrapper import (
     GuardedOpenAIClient,
     evaluate_tool_calls,
 )
@@ -112,7 +112,7 @@ SCENARIOS = [
 
 
 def print_decisions(decisions: list, label: str) -> None:
-    """Print a table of decisions from AgentGuard."""
+    """Print a table of decisions from AvaKill."""
     table = Table(title=label, show_lines=True)
     table.add_column("Tool", style="cyan")
     table.add_column("Args", style="dim")
@@ -181,8 +181,8 @@ def demo_guarded_client() -> None:
             messages=[{"role": "user", "content": "demo"}],
         )
 
-        # Show what AgentGuard decided
-        print_decisions(response.agentguard_decisions, "Decisions")
+        # Show what AvaKill decided
+        print_decisions(response.avakill_decisions, "Decisions")
 
         # Show what remains in the response
         remaining = response.choices[0].message.tool_calls
@@ -203,7 +203,7 @@ def demo_live() -> None:
     try:
         from openai import OpenAI
     except ImportError:
-        console.print("[red]Install openai: pip install 'agentguard[openai]'[/]")
+        console.print("[red]Install openai: pip install 'avakill[openai]'[/]")
         return
 
     console.print(Panel("[bold]Live Mode: Real OpenAI API[/]", border_style="magenta"))
@@ -244,8 +244,8 @@ def demo_live() -> None:
         tools=tools,
     )
 
-    if response.agentguard_decisions:
-        print_decisions(response.agentguard_decisions, "Live Decisions")
+    if response.avakill_decisions:
+        print_decisions(response.avakill_decisions, "Live Decisions")
     else:
         console.print("[dim]No tool calls in response[/]")
 
@@ -257,7 +257,7 @@ def demo_live() -> None:
 
 def main() -> None:
     console.print(Panel.fit(
-        "[bold]AgentGuard + OpenAI Function Calling Demo[/]",
+        "[bold]AvaKill + OpenAI Function Calling Demo[/]",
         border_style="bright_blue",
     ))
 

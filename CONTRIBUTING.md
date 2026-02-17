@@ -1,6 +1,6 @@
-# Contributing to AgentGuard
+# Contributing to AvaKill
 
-Thank you for your interest in contributing to AgentGuard! This project is early-stage and there's a lot to build. Whether it's a bug fix, new interceptor, or documentation improvement — we appreciate every contribution.
+Thank you for your interest in contributing to AvaKill! This project is early-stage and there's a lot to build. Whether it's a bug fix, new interceptor, or documentation improvement — we appreciate every contribution.
 
 ## Table of Contents
 
@@ -18,8 +18,8 @@ Thank you for your interest in contributing to AgentGuard! This project is early
 
 ```bash
 # Clone the repository
-git clone https://github.com/agentguard/agentguard.git
-cd agentguard
+git clone https://github.com/avakill/avakill.git
+cd avakill
 
 # Create a virtual environment
 python -m venv .venv
@@ -49,7 +49,7 @@ make test
 ## Architecture Overview
 
 ```
-src/agentguard/
+src/avakill/
 ├── __init__.py              # Public API: Guard, protect, exceptions
 ├── core/
 │   ├── engine.py            # Guard class (main entry point) + GuardSession
@@ -60,7 +60,7 @@ src/agentguard/
 │   ├── decorator.py         # @protect decorator for any Python function
 │   ├── openai_wrapper.py    # GuardedOpenAIClient — wraps OpenAI client
 │   ├── anthropic_wrapper.py # GuardedAnthropicClient — wraps Anthropic client
-│   └── langchain_handler.py # AgentGuardCallbackHandler + LangGraph wrapper
+│   └── langchain_handler.py # AvaKillCallbackHandler + LangGraph wrapper
 ├── mcp/
 │   └── proxy.py             # MCPProxyServer — stdio transparent proxy
 ├── logging/
@@ -69,11 +69,11 @@ src/agentguard/
 │   └── event_bus.py         # EventBus — in-process pub/sub singleton
 └── cli/
     ├── main.py              # Click CLI entry point
-    ├── init_cmd.py          # agentguard init — generate policy files
-    ├── validate_cmd.py      # agentguard validate — check policy syntax
-    ├── logs_cmd.py          # agentguard logs — query audit trail
-    ├── dashboard_cmd.py     # agentguard dashboard — Rich terminal UI
-    └── mcp_proxy_cmd.py     # agentguard mcp-proxy — start the proxy
+    ├── init_cmd.py          # avakill init — generate policy files
+    ├── validate_cmd.py      # avakill validate — check policy syntax
+    ├── logs_cmd.py          # avakill logs — query audit trail
+    ├── dashboard_cmd.py     # avakill dashboard — Rich terminal UI
+    └── mcp_proxy_cmd.py     # avakill mcp-proxy — start the proxy
 ```
 
 ### How It Works
@@ -131,7 +131,7 @@ Pre-commit hooks run Ruff automatically on each commit. They are installed by `m
 make test
 
 # Run with coverage
-pytest --cov=agentguard --cov-report=term-missing tests/
+pytest --cov=avakill --cov-report=term-missing tests/
 
 # Run a specific test file
 pytest tests/test_policy_engine.py
@@ -189,7 +189,7 @@ We use two issue templates:
 ### Bug Reports
 
 Include:
-- AgentGuard version (`agentguard --version`)
+- AvaKill version (`avakill --version`)
 - Python version
 - Framework and version (OpenAI, Anthropic, etc.)
 - Steps to reproduce
@@ -208,7 +208,7 @@ Include:
 
 Want to add support for a new framework (CrewAI, AutoGen, etc.)? Here's the pattern:
 
-1. **Create the interceptor** in `src/agentguard/interceptors/<framework>_wrapper.py`
+1. **Create the interceptor** in `src/avakill/interceptors/<framework>_wrapper.py`
 2. **Follow the existing pattern** — look at `openai_wrapper.py` for the proxy approach or `langchain_handler.py` for the callback approach
 3. **Core contract:** Extract `tool_name` and `args` from the framework's format, call `guard.evaluate(tool=name, args=args)`, handle the decision
 4. **Add tests** in `tests/test_<framework>_interceptor.py` — use `SimpleNamespace` / `MagicMock`, no real API calls

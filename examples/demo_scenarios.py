@@ -1,6 +1,6 @@
-"""AgentGuard Demo — Watch AgentGuard prevent real-world AI agent disasters.
+"""AvaKill Demo — Watch AvaKill prevent real-world AI agent disasters.
 
-Simulates the actual incidents that inspired AgentGuard:
+Simulates the actual incidents that inspired AvaKill:
   1. Replit: AI agent drops production database
   2. Gemini CLI: Agent deletes user files
   3. Amazon Q: Agent terminates cloud infrastructure
@@ -22,8 +22,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from agentguard import Guard, PolicyViolation
-from agentguard.core.models import PolicyConfig, PolicyRule, RuleConditions
+from avakill import Guard, PolicyViolation
+from avakill.core.models import PolicyConfig, PolicyRule, RuleConditions
 
 console = Console()
 
@@ -51,7 +51,7 @@ DEMO_POLICY = PolicyConfig(
             conditions=RuleConditions(
                 args_match={"query": ["DROP", "DELETE", "TRUNCATE", "ALTER"]},
             ),
-            message="Destructive SQL blocked by AgentGuard.",
+            message="Destructive SQL blocked by AvaKill.",
         ),
         # Allow safe SQL
         PolicyRule(
@@ -68,7 +68,7 @@ DEMO_POLICY = PolicyConfig(
                 args_match={"command": ["rm -rf", "rm -r", "sudo", "chmod 777",
                                         "> /dev/", "mkfs", "dd if="]},
             ),
-            message="Dangerous shell command blocked by AgentGuard.",
+            message="Dangerous shell command blocked by AvaKill.",
         ),
         # Allow safe shell
         PolicyRule(
@@ -81,14 +81,14 @@ DEMO_POLICY = PolicyConfig(
             name="block-destructive-ops",
             tools=["delete_*", "remove_*", "destroy_*", "terminate_*", "drop_*", "kill_*"],
             action="deny",
-            message="Destructive operation blocked by AgentGuard.",
+            message="Destructive operation blocked by AvaKill.",
         ),
         # Block email/messaging without approval
         PolicyRule(
             name="block-outbound-comms",
             tools=["send_email", "send_message", "send_slack", "post_*"],
             action="deny",
-            message="Outbound communication blocked by AgentGuard.",
+            message="Outbound communication blocked by AvaKill.",
         ),
     ],
 )
@@ -229,7 +229,7 @@ def run_scenario(guard: Guard, scenario: dict, number: int) -> dict:
     # Audit log entry
     if blocked_count > 0:
         console.print(Panel(
-            f"[green]AgentGuard prevented {blocked_count} dangerous operation(s).[/]\n"
+            f"[green]AvaKill prevented {blocked_count} dangerous operation(s).[/]\n"
             f"[dim]{allowed_count} safe operation(s) were allowed to proceed.[/]",
             title="Audit Summary",
             border_style="green",
@@ -247,8 +247,8 @@ def run_scenario(guard: Guard, scenario: dict, number: int) -> dict:
 def main() -> None:
     console.print()
     console.print(Panel.fit(
-        "[bold]AgentGuard Demo[/]\n"
-        "[dim]Watch AgentGuard prevent real-world AI agent disasters[/]",
+        "[bold]AvaKill Demo[/]\n"
+        "[dim]Watch AvaKill prevent real-world AI agent disasters[/]",
         border_style="bright_blue",
         padding=(1, 4),
     ))
@@ -278,12 +278,12 @@ def main() -> None:
 
     console.print()
     console.print(
-        "  [dim]Add AgentGuard to your project:[/] "
-        "[bold]pip install agentguard[/]"
+        "  [dim]Add AvaKill to your project:[/] "
+        "[bold]pip install avakill[/]"
     )
     console.print(
         "  [dim]Protect your first function:[/]     "
-        "[bold]from agentguard import protect[/]"
+        "[bold]from avakill import protect[/]"
     )
     console.print()
 

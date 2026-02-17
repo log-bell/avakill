@@ -1,4 +1,4 @@
-# AgentGuard Demo Policy
+# AvaKill Demo Policy
 # Used by all example scripts. Covers common real-world patterns:
 #   - Allow read/search operations
 #   - Block destructive SQL (DROP, DELETE, TRUNCATE, ALTER)

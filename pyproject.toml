@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentguard"
+name = "avakill"
 version = "0.1.0"
-description = "Open-source safety firewall for AI agents. Intercept tool calls. Enforce policies. Prevent disasters."
+description = "Open-source safety firewall for AI agents. Intercept tool calls. Enforce policies. Kill dangerous operations."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
-    { name = "AgentGuard Contributors" },
+    { name = "Copyright 2026 AvaKill Contributors" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -34,10 +34,10 @@ anthropic = ["anthropic>=0.40"]
 langchain = ["langchain-core>=0.3"]
 mcp = ["mcp>=1.0"]
 all = [
-    "agentguard[openai]",
-    "agentguard[anthropic]",
-    "agentguard[langchain]",
-    "agentguard[mcp]",
+    "avakill[openai]",
+    "avakill[anthropic]",
+    "avakill[langchain]",
+    "avakill[mcp]",
 ]
 dev = [
     "pytest",
@@ -49,15 +49,15 @@ dev = [
 ]
 
 [project.scripts]
-agentguard = "agentguard.cli.main:cli"
+avakill = "avakill.cli.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/agentguard/agentguard"
-Repository = "https://github.com/agentguard/agentguard"
-Issues = "https://github.com/agentguard/agentguard/issues"
+Homepage = "https://github.com/avakill/avakill"
+Repository = "https://github.com/avakill/avakill"
+Issues = "https://github.com/avakill/avakill/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agentguard"]
+packages = ["src/avakill"]
 
 [tool.ruff]
 line-length = 100

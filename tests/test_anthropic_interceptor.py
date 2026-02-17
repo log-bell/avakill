@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agentguard.core.engine import Guard
-from agentguard.core.models import PolicyConfig, PolicyRule
-from agentguard.interceptors.anthropic_wrapper import (
+from avakill.core.engine import Guard
+from avakill.core.models import PolicyConfig, PolicyRule
+from avakill.interceptors.anthropic_wrapper import (
     GuardedAnthropicClient,
     evaluate_tool_use_blocks,
 )
@@ -117,7 +117,7 @@ class TestGuardedAnthropicClient:
         guarded = GuardedAnthropicClient(client, guard=guard)
 
         result = guarded.messages.create(model="claude-sonnet-4-5-20250514", messages=[])
-        assert result.agentguard_decisions == []
+        assert result.avakill_decisions == []
 
     def test_text_only_passes_through(self, guard: Guard) -> None:
         response = _make_response(content=[_text_block("hello world")])
@@ -127,7 +127,7 @@ class TestGuardedAnthropicClient:
         result = guarded.messages.create(model="claude-sonnet-4-5-20250514", messages=[])
         assert len(result.content) == 1
         assert result.content[0].text == "hello world"
-        assert result.agentguard_decisions == []
+        assert result.avakill_decisions == []
 
     def test_allowed_tool_use_preserved(self, guard: Guard) -> None:
         tu = _tool_use_block("search", {"q": "test"})
@@ -139,8 +139,8 @@ class TestGuardedAnthropicClient:
         # Both text and tool_use should remain
         assert len(result.content) == 2
         assert result.content[1].name == "search"
-        assert len(result.agentguard_decisions) == 1
-        assert result.agentguard_decisions[0][1].allowed is True
+        assert len(result.avakill_decisions) == 1
+        assert result.avakill_decisions[0][1].allowed is True
 
     def test_denied_tool_use_removed(self, guard: Guard) -> None:
         tu = _tool_use_block("delete_file", {"path": "/etc"})
@@ -152,8 +152,8 @@ class TestGuardedAnthropicClient:
         # Only text block should remain
         assert len(result.content) == 1
         assert result.content[0].type == "text"
-        assert len(result.agentguard_decisions) == 1
-        assert result.agentguard_decisions[0][1].allowed is False
+        assert len(result.avakill_decisions) == 1
+        assert result.avakill_decisions[0][1].allowed is False
 
     def test_mixed_tool_use_filtered(self, guard: Guard) -> None:
         allowed = _tool_use_block("search", {"q": "hello"})
@@ -168,7 +168,7 @@ class TestGuardedAnthropicClient:
         tool_blocks = [b for b in result.content if b.type == "tool_use"]
         assert len(tool_blocks) == 1
         assert tool_blocks[0].name == "search"
-        assert len(result.agentguard_decisions) == 2
+        assert len(result.avakill_decisions) == 2
 
     def test_all_tool_use_denied(self, guard: Guard) -> None:
         d1 = _tool_use_block("delete_file", {"path": "/a"})
@@ -179,7 +179,7 @@ class TestGuardedAnthropicClient:
 
         result = guarded.messages.create(model="claude-sonnet-4-5-20250514", messages=[])
         assert result.content == []
-        assert len(result.agentguard_decisions) == 2
+        assert len(result.avakill_decisions) == 2
 
     def test_passthrough_attributes(self, guard: Guard) -> None:
         client = MagicMock()
@@ -207,4 +207,4 @@ class TestGuardedAnthropicClient:
 
         result = guarded.messages.create(model="claude-sonnet-4-5-20250514", messages=[])
         assert len(result.content) == 1
-        assert result.agentguard_decisions[0][1].allowed is True
+        assert result.avakill_decisions[0][1].allowed is True

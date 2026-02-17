@@ -1,18 +1,18 @@
 # MCP Proxy
 
-AgentGuard's MCP proxy is a transparent man-in-the-middle that sits between an MCP client (Claude Desktop, Cursor, Claude Code, or any custom host) and an upstream MCP server. It intercepts `tools/call` requests, evaluates them against your policy, and blocks anything that violates it — all without modifying the upstream server or the client.
+AvaKill's MCP proxy is a transparent man-in-the-middle that sits between an MCP client (Claude Desktop, Cursor, Claude Code, or any custom host) and an upstream MCP server. It intercepts `tools/call` requests, evaluates them against your policy, and kills anything that violates it — all without modifying the upstream server or the client.
 
 ## Architecture
 
 ```
 ┌─────────────────────┐          ┌──────────────────────────────┐          ┌──────────────────┐
 │                     │  stdin   │                              │  stdin   │                  │
-│    MCP Client       │ ──────→ │    AgentGuard MCP Proxy       │ ──────→ │  Upstream MCP    │
+│    MCP Client       │ ──────→ │    AvaKill MCP Proxy       │ ──────→ │  Upstream MCP    │
 │  (Claude Desktop,   │          │                              │          │     Server       │
 │   Cursor, etc.)     │ ←────── │  ┌────────────────────────┐  │ ←────── │  (your server)   │
 │                     │  stdout  │  │   Policy Engine        │  │  stdout  │                  │
 └─────────────────────┘          │  │                        │  │          └──────────────────┘
-                                 │  │  agentguard.yaml       │  │
+                                 │  │  avakill.yaml       │  │
                                  │  │  ┌──────────────────┐  │  │
                                  │  │  │ tools/call?      │  │  │
                                  │  │  │                  │  │  │
@@ -30,7 +30,7 @@ AgentGuard's MCP proxy is a transparent man-in-the-middle that sits between an M
 
 ## How It Works
 
-1. **The proxy replaces the server command.** Instead of the MCP client launching the upstream server directly, it launches the AgentGuard proxy. The proxy then spawns the upstream server as a child process.
+1. **The proxy replaces the server command.** Instead of the MCP client launching the upstream server directly, it launches the AvaKill proxy. The proxy then spawns the upstream server as a child process.
 
 2. **Bidirectional stdio relay.** The proxy reads JSON-RPC messages from the client's stdin, processes them, and writes them to the upstream server's stdin. Responses from the upstream's stdout flow back to the client's stdout. Stderr from the upstream is captured and logged.
 
@@ -46,15 +46,15 @@ AgentGuard's MCP proxy is a transparent man-in-the-middle that sits between an M
 
 The MCP proxy currently supports **stdio transport** — the standard MCP communication method where client and server exchange JSON-RPC messages over stdin/stdout.
 
-### 1. Install AgentGuard
+### 1. Install AvaKill
 
 ```bash
-pip install agentguard
+pip install avakill
 ```
 
 ### 2. Create a policy file
 
-Create `agentguard.yaml` with rules for the tools your MCP server exposes:
+Create `avakill.yaml` with rules for the tools your MCP server exposes:
 
 ```yaml
 version: "1.0"
@@ -68,7 +68,7 @@ policies:
   - name: block-destructive
     tools: ["*_delete", "*_drop", "*_destroy"]
     action: deny
-    message: "Destructive operations blocked by AgentGuard"
+    message: "Destructive operations blocked by AvaKill"
 
   - name: block-dangerous-sql
     tools: ["execute_sql", "query"]
@@ -95,18 +95,18 @@ policies:
 #### CLI
 
 ```bash
-agentguard mcp-proxy \
+avakill mcp-proxy \
   --upstream-cmd python \
   --upstream-args "my_mcp_server.py" \
-  --policy agentguard.yaml
+  --policy avakill.yaml
 ```
 
 The proxy prints a startup banner to stderr (since stdout is the MCP protocol channel):
 
 ```
 ╭──────────────────────────────────────╮
-│ AgentGuard MCP Proxy                 │
-│ Policy:   /path/to/agentguard.yaml   │
+│ AvaKill MCP Proxy                 │
+│ Policy:   /path/to/avakill.yaml   │
 │ Upstream: python my_mcp_server.py    │
 ╰──────────────────────────────────────╯
 ```
@@ -114,21 +114,21 @@ The proxy prints a startup banner to stderr (since stdout is the MCP protocol ch
 #### With audit logging
 
 ```bash
-agentguard mcp-proxy \
+avakill mcp-proxy \
   --upstream-cmd python \
   --upstream-args "my_mcp_server.py" \
-  --policy agentguard.yaml \
-  --log-db agentguard_audit.db
+  --policy avakill.yaml \
+  --log-db avakill_audit.db
 ```
 
 #### Python API
 
 ```python
 import asyncio
-from agentguard.core.engine import Guard
-from agentguard.mcp.proxy import MCPProxyServer
+from avakill.core.engine import Guard
+from avakill.mcp.proxy import MCPProxyServer
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 proxy = MCPProxyServer(
     upstream_cmd="python",
     upstream_args=["my_mcp_server.py"],
@@ -140,7 +140,7 @@ asyncio.run(proxy.start())
 
 ## Client Configuration
 
-The key insight: you replace the original MCP server command with the AgentGuard proxy command. The proxy then launches the original server itself.
+The key insight: you replace the original MCP server command with the AvaKill proxy command. The proxy then launches the original server itself.
 
 ### Claude Desktop
 
@@ -159,18 +159,18 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 }
 ```
 
-**After** (through AgentGuard):
+**After** (through AvaKill):
 
 ```json
 {
   "mcpServers": {
     "my-database": {
-      "command": "agentguard",
+      "command": "avakill",
       "args": [
         "mcp-proxy",
         "--upstream-cmd", "python",
         "--upstream-args", "db_server.py",
-        "--policy", "agentguard.yaml"
+        "--policy", "avakill.yaml"
       ]
     }
   }
@@ -185,12 +185,12 @@ Edit `.cursor/mcp.json` in your project root:
 {
   "mcpServers": {
     "my-database": {
-      "command": "agentguard",
+      "command": "avakill",
       "args": [
         "mcp-proxy",
         "--upstream-cmd", "python",
         "--upstream-args", "db_server.py",
-        "--policy", "/absolute/path/to/agentguard.yaml"
+        "--policy", "/absolute/path/to/avakill.yaml"
       ]
     }
   }
@@ -207,12 +207,12 @@ In your project's `.mcp.json`:
 {
   "mcpServers": {
     "my-database": {
-      "command": "agentguard",
+      "command": "avakill",
       "args": [
         "mcp-proxy",
         "--upstream-cmd", "python",
         "--upstream-args", "db_server.py",
-        "--policy", "agentguard.yaml"
+        "--policy", "avakill.yaml"
       ]
     }
   }
@@ -223,7 +223,7 @@ In your project's `.mcp.json`:
 
 Any MCP host that supports stdio transport can use the proxy. The pattern is always the same:
 
-1. Replace the server `command` with `agentguard`.
+1. Replace the server `command` with `avakill`.
 2. Set `args` to `["mcp-proxy", "--upstream-cmd", "<original-command>", "--upstream-args", "<original-args>", "--policy", "<policy-path>"]`.
 3. The proxy handles everything else.
 
@@ -231,12 +231,12 @@ For upstream servers that take multiple arguments, pass them space-separated in 
 
 ```json
 {
-  "command": "agentguard",
+  "command": "avakill",
   "args": [
     "mcp-proxy",
     "--upstream-cmd", "node",
     "--upstream-args", "server.js --port 3000 --verbose",
-    "--policy", "agentguard.yaml"
+    "--policy", "avakill.yaml"
   ]
 }
 ```
@@ -251,7 +251,7 @@ The `--upstream-args` value is parsed with shell-style splitting (respecting quo
 |--------|----------|---------|-------------|
 | `--upstream-cmd` | Yes | — | Command to run the upstream MCP server |
 | `--upstream-args` | No | `""` | Arguments for the upstream command (space-separated) |
-| `--policy` | No | `agentguard.yaml` | Path to the policy file |
+| `--policy` | No | `avakill.yaml` | Path to the policy file |
 | `--log-db` | No | `None` | Path to the SQLite audit database. If omitted, no audit logging |
 
 ### MCPProxyServer constructor
@@ -276,7 +276,7 @@ When a tool call is denied, the proxy sends a valid MCP response back to the cli
     "content": [
       {
         "type": "text",
-        "text": "⛔ AgentGuard blocked this tool call: Destructive SQL blocked. Policy: block-dangerous-sql"
+        "text": "⛔ AvaKill blocked this tool call: Destructive SQL blocked. Policy: block-dangerous-sql"
       }
     ],
     "isError": true
@@ -300,7 +300,7 @@ The proxy auto-detects the format per-message, so it works with both styles and 
 HTTP-based MCP transport is planned for v1.1. The `MCPHTTPProxy` class exists as a placeholder:
 
 ```python
-from agentguard.mcp.proxy import MCPHTTPProxy
+from avakill.mcp.proxy import MCPHTTPProxy
 
 proxy = MCPHTTPProxy(
     upstream_url="http://localhost:3000",
@@ -325,16 +325,16 @@ import logging
 import asyncio
 logging.basicConfig(level=logging.DEBUG)
 
-from agentguard.core.engine import Guard
-from agentguard.mcp.proxy import MCPProxyServer
+from avakill.core.engine import Guard
+from avakill.mcp.proxy import MCPProxyServer
 
-guard = Guard(policy='agentguard.yaml')
+guard = Guard(policy='avakill.yaml')
 proxy = MCPProxyServer('python', ['my_server.py'], guard)
 asyncio.run(proxy.start())
 "
 ```
 
-The `agentguard.mcp` logger emits:
+The `avakill.mcp` logger emits:
 
 | Level | Messages |
 |-------|----------|
@@ -347,7 +347,7 @@ The `agentguard.mcp` logger emits:
 Before deploying the proxy, confirm your policy is valid:
 
 ```bash
-agentguard validate agentguard.yaml
+avakill validate avakill.yaml
 ```
 
 A bad policy file will cause the proxy to exit immediately with a `ConfigError`.
@@ -358,14 +358,14 @@ Run the proxy with `--log-db` and the dashboard side by side:
 
 Terminal 1:
 ```bash
-agentguard mcp-proxy \
+avakill mcp-proxy \
   --upstream-cmd python --upstream-args "server.py" \
-  --policy agentguard.yaml --log-db audit.db
+  --policy avakill.yaml --log-db audit.db
 ```
 
 Terminal 2:
 ```bash
-agentguard dashboard --db audit.db
+avakill dashboard --db audit.db
 ```
 
 You'll see every tool call decision in real-time.
@@ -382,22 +382,22 @@ The proxy resolves the `--policy` path relative to the working directory at laun
 {
   "args": [
     "mcp-proxy",
-    "--policy", "/Users/you/project/agentguard.yaml",
+    "--policy", "/Users/you/project/avakill.yaml",
     "--upstream-cmd", "python",
     "--upstream-args", "server.py"
   ]
 }
 ```
 
-### "agentguard: command not found"
+### "avakill: command not found"
 
-The `agentguard` CLI must be on the system PATH used by the MCP client.
+The `avakill` CLI must be on the system PATH used by the MCP client.
 
-**Fix**: use the full path to the `agentguard` binary:
+**Fix**: use the full path to the `avakill` binary:
 
 ```json
 {
-  "command": "/Users/you/.venv/bin/agentguard",
+  "command": "/Users/you/.venv/bin/avakill",
   "args": ["mcp-proxy", "..."]
 }
 ```
@@ -408,7 +408,7 @@ Or ensure the virtualenv is activated for the MCP client's environment.
 
 Check stderr output. Common causes:
 
-1. **Invalid policy YAML** — run `agentguard validate` to check.
+1. **Invalid policy YAML** — run `avakill validate` to check.
 2. **Upstream command not found** — verify the `--upstream-cmd` exists and is executable.
 3. **Upstream server crashes on startup** — test the upstream server independently first.
 
@@ -437,6 +437,6 @@ The proxy handles `SIGINT` and `SIGTERM`:
 2. Sends `SIGTERM` to the upstream process.
 3. Waits up to 5 seconds for the upstream to exit.
 4. If the upstream doesn't exit, sends `SIGKILL`.
-5. Logs "AgentGuard MCP proxy shut down."
+5. Logs "AvaKill MCP proxy shut down."
 
 `Ctrl+C` in the terminal triggers a clean shutdown.

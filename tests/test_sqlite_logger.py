@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from agentguard.core.models import AuditEvent, Decision, ToolCall
-from agentguard.logging.sqlite_logger import (
+from avakill.core.models import AuditEvent, Decision, ToolCall
+from avakill.logging.sqlite_logger import (
     SQLiteLogger,
     SyncSQLiteLogger,
     get_default_logger,
@@ -362,7 +362,7 @@ class TestBatching:
             await logger.close()
 
     async def test_batch_auto_flush_at_threshold(self, tmp_db_path: Path) -> None:
-        import agentguard.logging.sqlite_logger as mod
+        import avakill.logging.sqlite_logger as mod
 
         orig = mod._BATCH_SIZE
         mod._BATCH_SIZE = 3

@@ -1,10 +1,10 @@
-"""Shared test fixtures for AgentGuard."""
+"""Shared test fixtures for AvaKill."""
 
 from pathlib import Path
 
 import pytest
 
-from agentguard.core.models import PolicyConfig, PolicyRule
+from avakill.core.models import PolicyConfig, PolicyRule
 
 
 @pytest.fixture

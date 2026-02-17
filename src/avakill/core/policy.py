@@ -1,0 +1,305 @@
+"""Policy engine for parsing YAML configs and evaluating tool calls against rules."""
+
+from __future__ import annotations
+
+import os
+import re
+import threading
+import time
+from collections import defaultdict, deque
+from fnmatch import fnmatch
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import ValidationError
+
+from avakill.core.exceptions import ConfigError, RateLimitExceeded
+from avakill.core.models import (
+    Decision,
+    PolicyConfig,
+    RateLimit,
+    RuleConditions,
+    ToolCall,
+)
+
+_ENV_VAR_PATTERN = re.compile(r"\$\{(\w+)\}")
+
+
+class PolicyEngine:
+    """Parses YAML policy files and evaluates tool calls against rules.
+
+    Evaluation logic:
+    1. Iterate through policies in order (first match wins)
+    2. For each rule, check if the tool_name matches any pattern in rule.tools
+       - Support exact match: "database_query"
+       - Support glob patterns: "database_*", "*_execute"
+       - Support "all" or "*" to match everything
+    3. If tool matches, check conditions (if any):
+       - args_match: For each key in args_match, check if the corresponding
+         argument value (converted to string) contains any of the specified
+         substrings (case-insensitive). ALL keys must match (AND logic).
+       - args_not_match: Same as args_match but inverted — if ANY match,
+         the condition FAILS (deny)
+    4. If conditions pass, check rate limit (if any):
+       - Track call counts per (tool_name) in a sliding window
+       - If exceeded, deny with RateLimitExceeded
+    5. Return the rule's action as the Decision
+    6. If no rule matches, use default_action
+    """
+
+    def __init__(self, config: PolicyConfig) -> None:
+        """Initialise the engine with a parsed policy config.
+
+        Args:
+            config: The validated policy configuration.
+        """
+        self._config = config
+        self._rate_limit_windows: dict[str, deque[float]] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    @property
+    def config(self) -> PolicyConfig:
+        """The underlying policy configuration."""
+        return self._config
+
+    @classmethod
+    def from_yaml(cls, path: str | Path) -> PolicyEngine:
+        """Create a PolicyEngine by parsing a YAML policy file.
+
+        Environment variables in the form ``${VAR_NAME}`` are substituted
+        from ``os.environ`` before parsing.
+
+        Args:
+            path: Filesystem path to a YAML policy file.
+
+        Returns:
+            A new PolicyEngine instance.
+
+        Raises:
+            ConfigError: If the file is missing or the YAML is invalid.
+        """
+        filepath = Path(path)
+        if not filepath.exists():
+            raise ConfigError(f"Policy file not found: {filepath}")
+        try:
+            raw = filepath.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ConfigError(f"Failed to read policy file: {exc}") from exc
+        return cls.from_string(raw)
+
+    @classmethod
+    def from_string(cls, yaml_string: str) -> PolicyEngine:
+        """Create a PolicyEngine from a YAML string.
+
+        Environment variables in the form ``${VAR_NAME}`` are substituted
+        from ``os.environ`` before parsing.
+
+        Args:
+            yaml_string: A YAML-formatted policy string.
+
+        Returns:
+            A new PolicyEngine instance.
+
+        Raises:
+            ConfigError: If the string cannot be parsed as a valid policy.
+        """
+        substituted = _ENV_VAR_PATTERN.sub(
+            lambda m: os.environ.get(m.group(1), m.group(0)),
+            yaml_string,
+        )
+        try:
+            data = yaml.safe_load(substituted)
+        except yaml.YAMLError as exc:
+            raise ConfigError(f"Invalid YAML: {exc}") from exc
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise ConfigError("Policy YAML must be a mapping at the top level")
+        return cls.from_dict(data)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PolicyEngine:
+        """Create a PolicyEngine from a raw dictionary.
+
+        Args:
+            data: Dictionary matching the ``PolicyConfig`` schema.
+
+        Returns:
+            A new PolicyEngine instance.
+
+        Raises:
+            ConfigError: If the dictionary cannot be parsed as a valid policy.
+        """
+        try:
+            config = PolicyConfig.model_validate(data)
+        except ValidationError as exc:
+            raise ConfigError(f"Invalid policy configuration: {exc}") from exc
+        return cls(config)
+
+    def evaluate(self, tool_call: ToolCall) -> Decision:
+        """Evaluate a tool call against the loaded policy rules.
+
+        Rules are checked in order; the first matching rule determines the
+        decision.  If no rule matches, ``PolicyConfig.default_action`` is used.
+
+        Args:
+            tool_call: The tool call to evaluate.
+
+        Returns:
+            A ``Decision`` indicating whether the call is allowed.
+
+        Raises:
+            RateLimitExceeded: If a matching rule's rate limit is exceeded.
+        """
+        start = time.monotonic()
+
+        for rule in self._config.policies:
+            if not self._match_tool(tool_call.tool_name, rule.tools):
+                continue
+
+            if rule.conditions and not self._check_conditions(tool_call, rule.conditions):
+                continue
+
+            # Rule matches — check rate limit before returning decision
+            if rule.rate_limit and not self._check_rate_limit(tool_call.tool_name, rule.rate_limit):
+                elapsed = (time.monotonic() - start) * 1000
+                decision = Decision(
+                    allowed=False,
+                    action="deny",
+                    policy_name=rule.name,
+                    reason=(
+                        f"Rate limit exceeded: {rule.rate_limit.max_calls} calls "
+                        f"per {rule.rate_limit.window}"
+                    ),
+                    latency_ms=elapsed,
+                )
+                raise RateLimitExceeded(tool_call.tool_name, decision)
+
+            elapsed = (time.monotonic() - start) * 1000
+            allowed = rule.action == "allow"
+            return Decision(
+                allowed=allowed,
+                action=rule.action,
+                policy_name=rule.name,
+                reason=rule.message or f"Matched rule '{rule.name}'",
+                latency_ms=elapsed,
+            )
+
+        # No rule matched — use default action
+        elapsed = (time.monotonic() - start) * 1000
+        action = self._config.default_action
+        allowed = action == "allow"
+        return Decision(
+            allowed=allowed,
+            action=action,
+            reason=f"No matching rule; default action is '{action}'",
+            latency_ms=elapsed,
+        )
+
+    def _match_tool(self, tool_name: str, patterns: list[str]) -> bool:
+        """Check if a tool name matches any of the given patterns.
+
+        Supports exact match, fnmatch glob patterns, and the special
+        value ``"all"`` which matches everything.
+
+        Args:
+            tool_name: The tool name to check.
+            patterns: List of patterns (exact names or globs).
+
+        Returns:
+            True if any pattern matches the tool name.
+        """
+        for pattern in patterns:
+            if pattern in ("*", "all"):
+                return True
+            if fnmatch(tool_name, pattern):
+                return True
+        return False
+
+    def _check_conditions(self, tool_call: ToolCall, conditions: RuleConditions) -> bool:
+        """Evaluate rule conditions against a tool call's arguments.
+
+        - ``args_match``: ALL keys must match (AND). For each key the
+          argument value (as a string, case-insensitive) must contain at
+          least one of the specified substrings.
+        - ``args_not_match``: If ANY key's argument value contains any
+          of the specified substrings, the condition fails.
+
+        Args:
+            tool_call: The tool call to check.
+            conditions: The conditions to evaluate.
+
+        Returns:
+            True if all conditions are satisfied.
+        """
+        args = tool_call.arguments
+
+        if conditions.args_match:
+            for key, substrings in conditions.args_match.items():
+                value = str(args.get(key, "")).lower()
+                if not any(s.lower() in value for s in substrings):
+                    return False
+
+        if conditions.args_not_match:
+            for key, substrings in conditions.args_not_match.items():
+                value = str(args.get(key, "")).lower()
+                if any(s.lower() in value for s in substrings):
+                    return False
+
+        return True
+
+    def _check_rate_limit(self, tool_name: str, rate_limit: RateLimit) -> bool:
+        """Check whether a tool call is within the configured rate limit.
+
+        Uses a sliding-window approach with an in-memory deque of
+        timestamps, protected by a thread lock.
+
+        Args:
+            tool_name: The tool name to track.
+            rate_limit: The rate limit configuration.
+
+        Returns:
+            True if the call is within the limit, False if exceeded.
+        """
+        window_secs = rate_limit.window_seconds()
+        now = time.monotonic()
+
+        with self._lock:
+            timestamps = self._rate_limit_windows[tool_name]
+
+            # Purge expired entries
+            while timestamps and (now - timestamps[0]) > window_secs:
+                timestamps.popleft()
+
+            if len(timestamps) >= rate_limit.max_calls:
+                return False
+
+            timestamps.append(now)
+            return True
+
+
+def load_policy(path: str | Path | None = None) -> PolicyEngine:
+    """Load a policy from a file path or auto-detect in the current directory.
+
+    If no path is given, looks for ``avakill.yaml`` or
+    ``avakill.yml`` in the current working directory.
+
+    Args:
+        path: Optional explicit path to a policy file.
+
+    Returns:
+        A PolicyEngine loaded from the file.
+
+    Raises:
+        ConfigError: If no policy file is found or the file is invalid.
+    """
+    if path is not None:
+        return PolicyEngine.from_yaml(path)
+
+    for name in ("avakill.yaml", "avakill.yml"):
+        candidate = Path.cwd() / name
+        if candidate.exists():
+            return PolicyEngine.from_yaml(candidate)
+
+    raise ConfigError("No policy file found. Create an avakill.yaml or pass an explicit path.")

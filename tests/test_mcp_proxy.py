@@ -8,15 +8,15 @@ from typing import Any
 
 import pytest
 
-from agentguard.core.engine import Guard
-from agentguard.core.models import (
+from avakill.core.engine import Guard
+from avakill.core.models import (
     PolicyConfig,
     PolicyRule,
     RateLimit,
     RuleConditions,
 )
-from agentguard.logging.event_bus import EventBus
-from agentguard.mcp.proxy import MCPHTTPProxy, MCPProxyServer
+from avakill.logging.event_bus import EventBus
+from avakill.mcp.proxy import MCPHTTPProxy, MCPProxyServer
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -228,7 +228,7 @@ class TestHandleClientMessage:
         result = await proxy._handle_client_message(msg)
         assert result is not None
         text = result["result"]["content"][0]["text"]
-        assert "AgentGuard blocked" in text
+        assert "AvaKill blocked" in text
 
     async def test_denied_response_contains_policy_name(self, proxy: MCPProxyServer) -> None:
         msg = _jsonrpc_request("tools/call", {"name": "delete_file", "arguments": {}})
@@ -584,7 +584,7 @@ class TestProxyIntegration:
         assert len(client_msgs) == 1
         assert client_msgs[0]["id"] == 7
         assert client_msgs[0]["result"]["isError"] is True
-        assert "AgentGuard blocked" in client_msgs[0]["result"]["content"][0]["text"]
+        assert "AvaKill blocked" in client_msgs[0]["result"]["content"][0]["text"]
 
     async def test_upstream_eof_shuts_down_proxy(self, guard: Guard) -> None:
         """When the upstream closes, the proxy shuts down cleanly."""
@@ -704,7 +704,7 @@ class TestAuditIntegration:
     """Every intercepted tools/call is recorded on the event bus."""
 
     async def test_allowed_call_emits_event(self, guard: Guard) -> None:
-        from agentguard.core.models import AuditEvent
+        from avakill.core.models import AuditEvent
 
         received: list[AuditEvent] = []
         bus = EventBus.get()
@@ -720,7 +720,7 @@ class TestAuditIntegration:
         unsub()
 
     async def test_denied_call_emits_event(self, guard: Guard) -> None:
-        from agentguard.core.models import AuditEvent
+        from avakill.core.models import AuditEvent
 
         received: list[AuditEvent] = []
         bus = EventBus.get()

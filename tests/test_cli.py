@@ -1,4 +1,4 @@
-"""Tests for the AgentGuard CLI."""
+"""Tests for the AvaKill CLI."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from agentguard.cli.main import cli
-from agentguard.core.models import AuditEvent, Decision, ToolCall
-from agentguard.logging.sqlite_logger import SQLiteLogger
+from avakill.cli.main import cli
+from avakill.core.models import AuditEvent, Decision, ToolCall
+from avakill.logging.sqlite_logger import SQLiteLogger
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def runner():
 @pytest.fixture
 def policy_dir(tmp_path: Path) -> Path:
     """Create a temporary dir with a valid policy file."""
-    policy = tmp_path / "agentguard.yaml"
+    policy = tmp_path / "avakill.yaml"
     policy.write_text(
         "version: '1.0'\n"
         "default_action: deny\n"
@@ -86,11 +86,13 @@ class TestCLIBasics:
     def test_cli_help(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
-        assert "AgentGuard" in result.output
+        assert "AvaKill" in result.output
+        assert "approve" in result.output
         assert "init" in result.output
         assert "dashboard" in result.output
         assert "logs" in result.output
         assert "mcp-proxy" in result.output
+        assert "review" in result.output
         assert "validate" in result.output
 
     def test_cli_version(self, runner: CliRunner) -> None:
@@ -106,7 +108,7 @@ class TestCLIBasics:
 
 class TestInitCommand:
     def test_init_default_template(self, runner: CliRunner, tmp_path: Path) -> None:
-        output = tmp_path / "agentguard.yaml"
+        output = tmp_path / "avakill.yaml"
         result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
         assert result.exit_code == 0
         assert output.exists()
@@ -115,7 +117,7 @@ class TestInitCommand:
         assert "default_action" in content
 
     def test_init_strict_template(self, runner: CliRunner, tmp_path: Path) -> None:
-        output = tmp_path / "agentguard.yaml"
+        output = tmp_path / "avakill.yaml"
         result = runner.invoke(cli, ["init", "--template", "strict", "--output", str(output)])
         assert result.exit_code == 0
         assert output.exists()
@@ -123,7 +125,7 @@ class TestInitCommand:
         assert "strict" in content.lower() or "deny" in content
 
     def test_init_permissive_template(self, runner: CliRunner, tmp_path: Path) -> None:
-        output = tmp_path / "agentguard.yaml"
+        output = tmp_path / "avakill.yaml"
         result = runner.invoke(cli, ["init", "--template", "permissive", "--output", str(output)])
         assert result.exit_code == 0
         assert output.exists()
@@ -132,9 +134,9 @@ class TestInitCommand:
 
     def test_init_generates_valid_policy(self, runner: CliRunner, tmp_path: Path) -> None:
         """The generated file should be loadable by the policy engine."""
-        from agentguard.core.policy import PolicyEngine
+        from avakill.core.policy import PolicyEngine
 
-        output = tmp_path / "agentguard.yaml"
+        output = tmp_path / "avakill.yaml"
         runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
         engine = PolicyEngine.from_yaml(output)
         assert engine.config.version == "1.0"
@@ -144,16 +146,16 @@ class TestInitCommand:
         """When pyproject.toml mentions openai, init should detect it."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\ndependencies = ["openai>=1.0"]\n')
-        output = tmp_path / "agentguard.yaml"
+        output = tmp_path / "avakill.yaml"
 
-        with patch("agentguard.cli.init_cmd.Path.cwd", return_value=tmp_path):
+        with patch("avakill.cli.init_cmd.Path.cwd", return_value=tmp_path):
             result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
 
         assert result.exit_code == 0
         assert "openai" in result.output.lower()
 
     def test_init_no_overwrite_without_confirm(self, runner: CliRunner, tmp_path: Path) -> None:
-        output = tmp_path / "agentguard.yaml"
+        output = tmp_path / "avakill.yaml"
         output.write_text("existing content")
 
         result = runner.invoke(
@@ -172,12 +174,12 @@ class TestInitCommand:
 
 class TestValidateCommand:
     def test_validate_valid_policy(self, runner: CliRunner, policy_dir: Path) -> None:
-        result = runner.invoke(cli, ["validate", str(policy_dir / "agentguard.yaml")])
+        result = runner.invoke(cli, ["validate", str(policy_dir / "avakill.yaml")])
         assert result.exit_code == 0
         assert "valid" in result.output.lower()
 
     def test_validate_shows_rules(self, runner: CliRunner, policy_dir: Path) -> None:
-        result = runner.invoke(cli, ["validate", str(policy_dir / "agentguard.yaml")])
+        result = runner.invoke(cli, ["validate", str(policy_dir / "avakill.yaml")])
         assert result.exit_code == 0
         assert "allow-read" in result.output
         assert "deny-delete" in result.output
@@ -207,7 +209,7 @@ class TestValidateCommand:
 
     def test_validate_all_templates(self, runner: CliRunner) -> None:
         """All bundled templates should pass validation."""
-        templates_dir = Path(__file__).resolve().parent.parent / "src" / "agentguard" / "templates"
+        templates_dir = Path(__file__).resolve().parent.parent / "src" / "avakill" / "templates"
         for template_file in templates_dir.glob("*.yaml"):
             result = runner.invoke(cli, ["validate", str(template_file)])
             assert result.exit_code == 0, f"Template {template_file.name} failed validation"
@@ -326,14 +328,14 @@ class TestDashboardCommand:
 
     def test_dashboard_layout_renders(self) -> None:
         """Verify the layout builder doesn't crash with empty data."""
-        from agentguard.cli.dashboard_cmd import _build_layout
+        from avakill.cli.dashboard_cmd import _build_layout
 
         layout = _build_layout({}, [])
         assert layout is not None
 
     def test_dashboard_layout_with_stats(self) -> None:
         """Verify layout renders with real stats."""
-        from agentguard.cli.dashboard_cmd import _build_layout
+        from avakill.cli.dashboard_cmd import _build_layout
 
         stats = {
             "total_events": 100,
@@ -359,19 +361,19 @@ class TestDashboardCommand:
         assert layout is not None
 
     def test_dashboard_header_panel(self) -> None:
-        from agentguard.cli.dashboard_cmd import _make_header
+        from avakill.cli.dashboard_cmd import _make_header
 
         panel = _make_header({"total_events": 50, "allowed": 40, "denied": 10})
         assert panel is not None
 
     def test_dashboard_empty_denied_bar(self) -> None:
-        from agentguard.cli.dashboard_cmd import _make_denied_bar
+        from avakill.cli.dashboard_cmd import _make_denied_bar
 
         panel = _make_denied_bar({"top_denied_tools": []})
         assert panel is not None
 
     def test_dashboard_event_table_empty(self) -> None:
-        from agentguard.cli.dashboard_cmd import _make_event_table
+        from avakill.cli.dashboard_cmd import _make_event_table
 
         panel = _make_event_table([])
         assert panel is not None

@@ -1,1 +1,1 @@
-"""AgentGuard test suite."""
+"""AvaKill test suite."""

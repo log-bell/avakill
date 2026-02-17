@@ -8,9 +8,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agentguard.core.engine import Guard
-from agentguard.core.models import PolicyConfig, PolicyRule
-from agentguard.interceptors.openai_wrapper import (
+from avakill.core.engine import Guard
+from avakill.core.models import PolicyConfig, PolicyRule
+from avakill.interceptors.openai_wrapper import (
     GuardedOpenAIClient,
     evaluate_tool_calls,
 )
@@ -126,7 +126,7 @@ class TestGuardedOpenAIClient:
 
         result = guarded.chat.completions.create(model="gpt-4o", messages=[])
         assert result.choices[0].message.content == "Hello!"
-        assert result.agentguard_decisions == []
+        assert result.avakill_decisions == []
 
     def test_allowed_tool_calls_preserved(self, guard: Guard) -> None:
         tcs = [_make_tool_call("search", {"q": "test"})]
@@ -136,8 +136,8 @@ class TestGuardedOpenAIClient:
 
         result = guarded.chat.completions.create(model="gpt-4o", messages=[])
         assert result.choices[0].message.tool_calls == tcs
-        assert len(result.agentguard_decisions) == 1
-        assert result.agentguard_decisions[0][1].allowed is True
+        assert len(result.avakill_decisions) == 1
+        assert result.avakill_decisions[0][1].allowed is True
 
     def test_denied_tool_calls_removed(self, guard: Guard) -> None:
         tcs = [_make_tool_call("delete_file", {"path": "/etc"})]
@@ -148,8 +148,8 @@ class TestGuardedOpenAIClient:
         result = guarded.chat.completions.create(model="gpt-4o", messages=[])
         # Denied calls are removed (set to None when all removed)
         assert result.choices[0].message.tool_calls is None
-        assert len(result.agentguard_decisions) == 1
-        assert result.agentguard_decisions[0][1].allowed is False
+        assert len(result.avakill_decisions) == 1
+        assert result.avakill_decisions[0][1].allowed is False
 
     def test_mixed_tool_calls_filtered(self, guard: Guard) -> None:
         allowed_tc = _make_tool_call("search", {"q": "hello"})
@@ -162,7 +162,7 @@ class TestGuardedOpenAIClient:
         remaining = result.choices[0].message.tool_calls
         assert len(remaining) == 1
         assert remaining[0].function.name == "search"
-        assert len(result.agentguard_decisions) == 2
+        assert len(result.avakill_decisions) == 2
 
     def test_multiple_choices(self, guard: Guard) -> None:
         msg1 = SimpleNamespace(
@@ -193,7 +193,7 @@ class TestGuardedOpenAIClient:
         assert len(result.choices[0].message.tool_calls) == 1
         # Choice 1: delete_file denied
         assert result.choices[1].message.tool_calls is None
-        assert len(result.agentguard_decisions) == 2
+        assert len(result.avakill_decisions) == 2
 
     def test_passthrough_attributes(self, guard: Guard) -> None:
         client = MagicMock()

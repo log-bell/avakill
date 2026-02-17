@@ -1,12 +1,12 @@
 # Policy Reference
 
-This is the complete reference for AgentGuard policy files. Policies are YAML files that define which tool calls your agent is allowed to make.
+This is the complete reference for AvaKill policy files. Policies are YAML files that define which tool calls your agent is allowed to make.
 
 ## File Format
 
 Policies are written in YAML. JSON support is planned for a future release.
 
-AgentGuard auto-detects `agentguard.yaml` or `agentguard.yml` in the current working directory. You can also pass an explicit path:
+AvaKill auto-detects `avakill.yaml` or `avakill.yml` in the current working directory. You can also pass an explicit path:
 
 ```python
 guard = Guard(policy="policies/production.yaml")
@@ -236,16 +236,16 @@ When the rate limit is exceeded:
 3. The `reason` field contains: `"Rate limit exceeded: 10 calls per 60s"`.
 
 ```python
-from agentguard import Guard, RateLimitExceeded
+from avakill import Guard, RateLimitExceeded
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 try:
     for i in range(100):
         guard.evaluate(tool="web_search", args={"q": f"query {i}"})
 except RateLimitExceeded as e:
     print(e)
-    # → AgentGuard blocked 'web_search': Rate limit exceeded: 10 calls per 60s
+    # → AvaKill blocked 'web_search': Rate limit exceeded: 10 calls per 60s
     #   [policy: rate-limit-search]
 ```
 
@@ -513,7 +513,7 @@ export PROD_DB_HOST="prod-db.internal.company.com"
 Policies can be reloaded at runtime without restarting your application:
 
 ```python
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 # Later, after editing the policy file:
 guard.reload_policy()

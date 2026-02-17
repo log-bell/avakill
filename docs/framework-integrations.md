@@ -1,13 +1,13 @@
 # Framework Integrations
 
-AgentGuard provides drop-in wrappers for popular AI agent frameworks. Each integration intercepts tool calls at the SDK level so you get policy enforcement without rewriting your agent logic.
+AvaKill provides drop-in wrappers for popular AI agent frameworks. Each integration intercepts tool calls at the SDK level so you get policy enforcement without rewriting your agent logic.
 
 ## OpenAI
 
 ### Installation
 
 ```bash
-pip install agentguard[openai]
+pip install avakill[openai]
 ```
 
 ### Manual evaluation
@@ -17,10 +17,10 @@ The most transparent approach. You call the OpenAI API normally, then evaluate e
 ```python
 import json
 from openai import OpenAI
-from agentguard import Guard, PolicyViolation
+from avakill import Guard, PolicyViolation
 
 client = OpenAI()
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 tools = [
     {
@@ -80,10 +80,10 @@ The wrapper approach is less code. It proxies `client.chat.completions.create()`
 
 ```python
 from openai import OpenAI
-from agentguard.interceptors.openai_wrapper import GuardedOpenAIClient
+from avakill.interceptors.openai_wrapper import GuardedOpenAIClient
 
 client = OpenAI()
-guarded = GuardedOpenAIClient(client, policy="agentguard.yaml")
+guarded = GuardedOpenAIClient(client, policy="avakill.yaml")
 
 # Use exactly like the normal client
 response = guarded.chat.completions.create(
@@ -100,7 +100,7 @@ for choice in response.choices:
             print(f"Allowed: {tc.function.name}")
 
 # All decisions (allowed and denied) are available for inspection:
-for tc, decision in response.agentguard_decisions:
+for tc, decision in response.avakill_decisions:
     status = "ALLOWED" if decision.allowed else "DENIED"
     print(f"  {status}: {tc.function.name} — {decision.reason}")
 ```
@@ -108,11 +108,11 @@ for tc, decision in response.agentguard_decisions:
 You can also pass a pre-configured `Guard` instance:
 
 ```python
-from agentguard import Guard
-from agentguard.logging.sqlite_logger import SQLiteLogger
+from avakill import Guard
+from avakill.logging.sqlite_logger import SQLiteLogger
 
 guard = Guard(
-    policy="agentguard.yaml",
+    policy="avakill.yaml",
     logger=SQLiteLogger("audit.db"),
 )
 guarded = GuardedOpenAIClient(client, guard=guard)
@@ -123,9 +123,9 @@ guarded = GuardedOpenAIClient(client, guard=guard)
 For lower-level control, use `evaluate_tool_calls()` directly:
 
 ```python
-from agentguard.interceptors.openai_wrapper import evaluate_tool_calls
+from avakill.interceptors.openai_wrapper import evaluate_tool_calls
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 # After getting a response with tool calls:
 tool_calls = response.choices[0].message.tool_calls
@@ -180,17 +180,17 @@ for call_data in collected_calls.values():
 ### Installation
 
 ```bash
-pip install agentguard[anthropic]
+pip install avakill[anthropic]
 ```
 
 ### Manual evaluation
 
 ```python
 from anthropic import Anthropic
-from agentguard import Guard
+from avakill import Guard
 
 client = Anthropic()
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 tools = [
     {
@@ -243,10 +243,10 @@ Wraps `client.messages.create()`. Denied `tool_use` blocks are removed from `res
 
 ```python
 from anthropic import Anthropic
-from agentguard.interceptors.anthropic_wrapper import GuardedAnthropicClient
+from avakill.interceptors.anthropic_wrapper import GuardedAnthropicClient
 
 client = Anthropic()
-guarded = GuardedAnthropicClient(client, policy="agentguard.yaml")
+guarded = GuardedAnthropicClient(client, policy="avakill.yaml")
 
 response = guarded.messages.create(
     model="claude-sonnet-4-5-20250514",
@@ -261,7 +261,7 @@ for block in response.content:
         print(f"Allowed: {block.name}")
 
 # All decisions available for inspection:
-for block, decision in response.agentguard_decisions:
+for block, decision in response.avakill_decisions:
     status = "ALLOWED" if decision.allowed else "DENIED"
     print(f"  {status}: {block.name} — {decision.reason}")
 ```
@@ -269,9 +269,9 @@ for block, decision in response.agentguard_decisions:
 ### Batch evaluation helper
 
 ```python
-from agentguard.interceptors.anthropic_wrapper import evaluate_tool_use_blocks
+from avakill.interceptors.anthropic_wrapper import evaluate_tool_use_blocks
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 results = evaluate_tool_use_blocks(guard, response.content)
 
 for block, decision in results:
@@ -284,19 +284,19 @@ for block, decision in results:
 ### Installation
 
 ```bash
-pip install agentguard[langchain] langchain-openai
+pip install avakill[langchain] langchain-openai
 ```
 
 ### Callback handler
 
-The `AgentGuardCallbackHandler` hooks into LangChain's callback system. It intercepts `on_tool_start` and raises `PolicyViolation` if the tool call is denied.
+The `AvaKillCallbackHandler` hooks into LangChain's callback system. It intercepts `on_tool_start` and raises `PolicyViolation` if the tool call is denied.
 
 ```python
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
-from agentguard import Guard
-from agentguard.interceptors.langchain_handler import AgentGuardCallbackHandler
+from avakill import Guard
+from avakill.interceptors.langchain_handler import AvaKillCallbackHandler
 
 # Define tools
 @tool
@@ -313,8 +313,8 @@ def delete_user(user_id: str) -> str:
 llm = ChatOpenAI(model="gpt-4o")
 agent = create_react_agent(llm, [search_users, delete_user])
 
-# Add AgentGuard
-handler = AgentGuardCallbackHandler(policy="agentguard.yaml")
+# Add AvaKill
+handler = AvaKillCallbackHandler(policy="avakill.yaml")
 
 # Run — tool calls are intercepted automatically
 try:
@@ -334,14 +334,14 @@ The handler raises `PolicyViolation` on denied calls, which terminates the agent
 
 ### LangGraph tool wrapper
 
-For LangGraph's `ToolNode`, use `create_agentguard_wrapper()` to create a function that evaluates tool calls before execution:
+For LangGraph's `ToolNode`, use `create_avakill_wrapper()` to create a function that evaluates tool calls before execution:
 
 ```python
-from agentguard import Guard
-from agentguard.interceptors.langchain_handler import create_agentguard_wrapper
+from avakill import Guard
+from avakill.interceptors.langchain_handler import create_avakill_wrapper
 
-guard = Guard(policy="agentguard.yaml")
-wrapper = create_agentguard_wrapper(guard)
+guard = Guard(policy="avakill.yaml")
+wrapper = create_avakill_wrapper(guard)
 
 # The wrapper evaluates the tool call and raises PolicyViolation if denied.
 # Use it to gate tool execution in your graph:
@@ -361,7 +361,7 @@ from langchain.agents import AgentExecutor
 executor = AgentExecutor(agent=agent, tools=tools)
 
 # Just add the callback
-handler = AgentGuardCallbackHandler(policy="agentguard.yaml")
+handler = AvaKillCallbackHandler(policy="avakill.yaml")
 result = executor.invoke(
     {"input": "Search for active users"},
     config={"callbacks": [handler]},
@@ -377,9 +377,9 @@ CrewAI doesn't have a native callback system, but you can wrap individual tools 
 ```python
 from crewai import Agent, Task, Crew
 from crewai_tools import tool
-from agentguard import Guard, protect, PolicyViolation
+from avakill import Guard, protect, PolicyViolation
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 # Wrap each tool function with @protect
 @tool("Search Users")
@@ -412,12 +412,12 @@ crew = Crew(agents=[researcher], tasks=[task])
 result = crew.kickoff()
 ```
 
-When `delete_user` is called, AgentGuard evaluates it against the policy. With `on_deny="return_none"`, denied calls return `None` instead of raising — the agent sees the tool "failed" and adjusts its strategy.
+When `delete_user` is called, AvaKill evaluates it against the policy. With `on_deny="return_none"`, denied calls return `None` instead of raising — the agent sees the tool "failed" and adjusts its strategy.
 
 ### Multi-agent crew
 
 ```python
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 @tool("Execute SQL")
 @protect(guard=guard, tool_name="execute_sql")
@@ -455,32 +455,32 @@ For the full MCP proxy guide, see **[MCP Proxy](mcp-proxy.md)**.
 ### Quick setup
 
 ```bash
-pip install agentguard[mcp]
+pip install avakill[mcp]
 ```
 
 ### CLI usage
 
 ```bash
-agentguard mcp-proxy \
+avakill mcp-proxy \
   --upstream-cmd python \
   --upstream-args "my_mcp_server.py" \
-  --policy agentguard.yaml
+  --policy avakill.yaml
 ```
 
 ### Claude Desktop configuration
 
-Replace the MCP server command with the AgentGuard proxy in your `claude_desktop_config.json`:
+Replace the MCP server command with the AvaKill proxy in your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "my-database": {
-      "command": "agentguard",
+      "command": "avakill",
       "args": [
         "mcp-proxy",
         "--upstream-cmd", "python",
         "--upstream-args", "db_server.py",
-        "--policy", "agentguard.yaml"
+        "--policy", "avakill.yaml"
       ]
     }
   }
@@ -495,12 +495,12 @@ In `.cursor/mcp.json`:
 {
   "mcpServers": {
     "my-database": {
-      "command": "agentguard",
+      "command": "avakill",
       "args": [
         "mcp-proxy",
         "--upstream-cmd", "python",
         "--upstream-args", "db_server.py",
-        "--policy", "agentguard.yaml"
+        "--policy", "avakill.yaml"
       ]
     }
   }
@@ -512,18 +512,18 @@ In `.cursor/mcp.json`:
 Add `--log-db` to persist every decision:
 
 ```bash
-agentguard mcp-proxy \
+avakill mcp-proxy \
   --upstream-cmd python \
   --upstream-args "my_mcp_server.py" \
-  --policy agentguard.yaml \
-  --log-db agentguard_audit.db
+  --policy avakill.yaml \
+  --log-db avakill_audit.db
 ```
 
 Then view the logs:
 
 ```bash
-agentguard logs --db agentguard_audit.db
-agentguard dashboard --db agentguard_audit.db
+avakill logs --db avakill_audit.db
+avakill dashboard --db avakill_audit.db
 ```
 
 ### How it works
@@ -541,9 +541,9 @@ If your framework isn't listed above, use the `Guard` API directly.
 ### Imperative pattern
 
 ```python
-from agentguard import Guard, PolicyViolation
+from avakill import Guard, PolicyViolation
 
-guard = Guard(policy="agentguard.yaml")
+guard = Guard(policy="avakill.yaml")
 
 def my_tool_executor(tool_name: str, args: dict):
     decision = guard.evaluate(tool=tool_name, args=args)
@@ -557,9 +557,9 @@ def my_tool_executor(tool_name: str, args: dict):
 ### Decorator pattern
 
 ```python
-from agentguard import protect
+from avakill import protect
 
-@protect(policy="agentguard.yaml")
+@protect(policy="avakill.yaml")
 def my_tool(arg1: str, arg2: int) -> str:
     return f"{arg1}: {arg2}"
 ```
@@ -569,8 +569,8 @@ def my_tool(arg1: str, arg2: int) -> str:
 Follow the proxy pattern used by the OpenAI and Anthropic wrappers:
 
 ```python
-from agentguard import Guard
-from agentguard.core.models import Decision
+from avakill import Guard
+from avakill.core.models import Decision
 
 class GuardedMyFrameworkClient:
     def __init__(self, client, guard=None, policy=None):

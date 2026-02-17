@@ -1,0 +1,35 @@
+# AvaKill
+
+> Open-source safety firewall for AI agents. She doesn't guard. She kills.
+
+AvaKill intercepts AI agent tool calls and enforces YAML-based safety policies deterministically — no LLM at runtime, <1ms overhead.
+
+## Docs
+
+- [Getting Started](docs/getting-started.md): Installation, first policy, integration guide
+- [Policy Reference](docs/policy-reference.md): Full YAML policy format, conditions, rate limiting
+- [Framework Integrations](docs/framework-integrations.md): OpenAI, Anthropic, LangChain, MCP
+- [MCP Proxy](docs/mcp-proxy.md): Transparent proxy for MCP servers
+- [LLM Policy Prompt](docs/llm-policy-prompt.md): Generate policies with any LLM
+
+## Generate Policies
+
+Use `avakill schema --format=prompt` to generate a self-contained prompt you can paste into any LLM to create valid policies. The prompt includes the JSON Schema, evaluation rules, examples, and anti-patterns.
+
+```bash
+avakill schema                          # JSON Schema to stdout
+avakill schema --format=prompt          # LLM prompt to stdout
+avakill schema --format=prompt \
+  --tools="file_read,shell_exec" \
+  --use-case="code assistant"           # Customized prompt
+```
+
+## Python API
+
+```python
+from avakill import Guard, protect, get_json_schema, generate_prompt
+```
+
+## Policy Format
+
+Policies are YAML files. Rules are evaluated top-to-bottom, first match wins. See [Policy Reference](docs/policy-reference.md) for the full specification.
