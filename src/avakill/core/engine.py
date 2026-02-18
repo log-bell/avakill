@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import threading
@@ -16,8 +17,20 @@ from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, Decision, PolicyConfig, ToolCall
 from avakill.core.policy import PolicyEngine, load_policy
 from avakill.core.self_protection import SelfProtection
+from avakill._telemetry import (
+    record_duration as otel_record_duration,
+    record_evaluation as otel_record_evaluation,
+    record_self_protection_block as otel_record_sp_block,
+    record_violation as otel_record_violation,
+)
 from avakill.logging.base import AuditLogger
 from avakill.logging.event_bus import EventBus
+from avakill.metrics import (
+    inc_evaluations as prom_inc_evaluations,
+    inc_self_protection_blocks as prom_inc_sp_blocks,
+    inc_violations as prom_inc_violations,
+    observe_duration as prom_observe_duration,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -310,6 +323,44 @@ class Guard:
 
         # Synchronous event-bus emit
         self._event_bus.emit(event)
+
+        elapsed_ms = (time.monotonic() - _start) * 1000
+
+        # OTel telemetry (fault-isolated)
+        with contextlib.suppress(Exception):
+            otel_record_evaluation(
+                tool=tool_call.tool_name,
+                action=decision.action,
+                agent_id=tool_call.agent_id,
+            )
+            otel_record_duration(tool=tool_call.tool_name, duration_ms=elapsed_ms)
+            if not decision.allowed:
+                otel_record_violation(
+                    tool=tool_call.tool_name,
+                    policy=decision.policy_name or "",
+                    reason=decision.reason,
+                )
+            if decision.policy_name == "self-protection":
+                otel_record_sp_block(tool=tool_call.tool_name)
+
+        # Prometheus metrics (fault-isolated)
+        with contextlib.suppress(Exception):
+            prom_inc_evaluations(
+                tool=tool_call.tool_name,
+                action=decision.action,
+                agent_id=tool_call.agent_id,
+            )
+            prom_observe_duration(
+                tool=tool_call.tool_name,
+                duration_seconds=elapsed_ms / 1000,
+            )
+            if not decision.allowed:
+                prom_inc_violations(
+                    tool=tool_call.tool_name,
+                    policy=decision.policy_name or "",
+                )
+            if decision.policy_name == "self-protection":
+                prom_inc_sp_blocks(tool=tool_call.tool_name)
 
     def _log_async(self, event: AuditEvent) -> None:
         """Log an event without blocking the caller."""

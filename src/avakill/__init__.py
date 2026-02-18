@@ -41,6 +41,10 @@ def __getattr__(name: str):  # noqa: ANN001
         from avakill.core.integrity import FileSnapshot
 
         return FileSnapshot
+    if name == "get_metrics_registry":
+        from avakill.metrics import get_registry
+
+        return get_registry
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -58,4 +62,5 @@ __all__ = [
     "generate_prompt",
     "PolicyIntegrity",
     "FileSnapshot",
+    "get_metrics_registry",
 ]
