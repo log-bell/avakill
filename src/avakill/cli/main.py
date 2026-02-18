@@ -3,14 +3,19 @@
 import click
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(package_name="avakill")
-def cli() -> None:
+@click.pass_context
+def cli(ctx: click.Context) -> None:
     """AvaKill — Open-source safety firewall for AI agents.
 
     Intercept tool calls. Enforce policies. Kill dangerous operations.
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        from avakill.cli.banner import print_banner
+
+        print_banner()
+        ctx.exit()
 
 
 # Import and register subcommands

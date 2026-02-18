@@ -26,6 +26,7 @@ dependencies = [
     "rich>=13.0",
     "click>=8.0",
     "aiosqlite>=0.20.0",
+    "pyfiglet>=1.0",
 ]
 
 [project.optional-dependencies]
