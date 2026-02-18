@@ -22,6 +22,7 @@ def cli(ctx: click.Context) -> None:
 from avakill.cli.approve_cmd import approve  # noqa: E402
 from avakill.cli.dashboard_cmd import dashboard  # noqa: E402
 from avakill.cli.init_cmd import init  # noqa: E402
+from avakill.cli.keygen_cmd import keygen  # noqa: E402
 from avakill.cli.logs_cmd import logs  # noqa: E402
 from avakill.cli.mcp_proxy_cmd import mcp_proxy  # noqa: E402
 from avakill.cli.review_cmd import review  # noqa: E402
@@ -33,6 +34,7 @@ from avakill.cli.verify_cmd import verify  # noqa: E402
 cli.add_command(approve)
 cli.add_command(init)
 cli.add_command(dashboard)
+cli.add_command(keygen)
 cli.add_command(logs)
 cli.add_command(mcp_proxy)
 cli.add_command(review)
