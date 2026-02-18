@@ -8,7 +8,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/avakill?color=blue)](https://pypi.org/project/avakill/)
 [![Python](https://img.shields.io/pypi/pyversions/avakill)](https://pypi.org/project/avakill/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/avakill/avakill/ci.yml?branch=main&label=tests)](https://github.com/avakill/avakill/actions)
 [![GitHub stars](https://img.shields.io/github/stars/avakill/avakill?style=social)](https://github.com/avakill/avakill)
 
@@ -131,7 +131,7 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 | Full audit trail | :x: | :x: | :white_check_mark: |
 | MCP server support | — | :x: | :white_check_mark: |
 | <1ms overhead | — | :x: (LLM round-trip) | :white_check_mark: |
-| Open source | — | Some | :white_check_mark: Apache 2.0 |
+| Open source | — | Some | :white_check_mark: AGPL 3.0 |
 
 ## Framework Integrations
 
@@ -376,12 +376,18 @@ AvaKill protects your agents by killing dangerous tool calls **in-process** — 
 - [x] C-level audit hooks (optional hardened extension)
 - [x] Hot-reload with file watcher
 - [x] OpenTelemetry + Prometheus observability
+- [x] Persistent daemon with Unix socket (<5ms evaluation)
+- [x] Agent hook adapters (Claude Code, Gemini CLI, Cursor, Windsurf)
+- [x] Tool name normalization across agents
+- [x] Multi-level policy cascade (system/global/project/local)
+- [x] Enforcement levels (hard/soft/advisory)
+- [x] OS-level enforcement (Landlock, macOS sandbox-exec, Tetragon)
+- [x] Compliance reports (SOC 2, NIST AI RMF, EU AI Act, ISO 42001)
+- [x] Human-in-the-loop approval workflows
+- [x] Audit analytics engine
 - [ ] Web dashboard (Next.js)
 - [ ] Slack / webhook / PagerDuty notifications
-- [ ] Human-in-the-loop approval workflows (require_approval action)
 - [ ] MCP HTTP transport proxy (Streamable HTTP)
-- [ ] Anomaly detection (unusual tool call patterns)
-- [ ] Compliance reporting and export
 - [ ] CrewAI / AutoGen / custom framework interceptors
 
 ## Contributing
@@ -399,7 +405,7 @@ See [**CONTRIBUTING.md**](CONTRIBUTING.md) for the full guide — architecture o
 
 ## License
 
-[Apache 2.0](LICENSE) — use it in production, fork it, build on it.
+[AGPL-3.0](LICENSE) — free to use, modify, and distribute. If you offer AvaKill as a network service, you must release your source code under the same license. See [LICENSE](LICENSE) for details.
 
 ---
 

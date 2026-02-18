@@ -7,17 +7,19 @@ name = "avakill"
 version = "0.1.0"
 description = "Open-source safety firewall for AI agents. Intercept tool calls. Enforce policies. Kill dangerous operations."
 readme = "README.md"
-license = "Apache-2.0"
+license = "AGPL-3.0-only"
 requires-python = ">=3.10"
 authors = [
     { name = "Copyright 2026 AvaKill Contributors" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development",
+    "Topic :: Security",
 ]
 dependencies = [
     "pyyaml>=6.0",
