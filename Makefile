@@ -31,7 +31,7 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	rm -rf .coverage htmlcov/ .pytest_cache/ .mypy_cache/ .ruff_cache/
 
-build: clean
+build: check clean
 	python -m build
 
 publish-test: build
