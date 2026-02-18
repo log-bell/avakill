@@ -202,6 +202,7 @@ class TestRecoveryHintFor:
         assert hint is not None
         assert hint.hint_type == "wait_rate_limit"
         assert hint.yaml_snippet is not None
+        assert hint.wait_seconds == 60
 
     def test_self_protection_has_blocked_hint(self) -> None:
         d = Decision(
@@ -397,11 +398,11 @@ class TestRecoveryPanel:
             source="default-deny",
             summary="No matching rule",
             steps=("Add a rule.",),
-            doc_url="https://avakill.dev/docs/recovery",
+            doc_url="https://avakill.com/docs/recovery",
         )
         panel = render_recovery_panel(hint)
         plain = panel.renderable.plain  # type: ignore[union-attr]
-        assert "https://avakill.dev/docs/recovery" in plain
+        assert "https://avakill.com/docs/recovery" in plain
 
     def test_panel_without_tool_name(self) -> None:
         hint = RecoveryHint(

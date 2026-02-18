@@ -5,7 +5,10 @@ Maps denial decisions to structured, actionable recovery guidance.
 
 from __future__ import annotations
 
+import re as _re_mod
 from typing import Literal
+
+_re_search = _re_mod.search
 
 from pydantic import BaseModel, ConfigDict
 
@@ -140,6 +143,11 @@ def recovery_hint_for(
             f"    max_calls: 20\n"
             f'    window: "60s"'
         )
+        # Try to parse the window seconds from the reason string.
+        wait: int | None = None
+        _m = _re_search(r"(\d+)\s*calls?\s+per\s+(\d+)s", reason)
+        if _m:
+            wait = int(_m.group(2))
         return RecoveryHint(
             source="rate-limit-exceeded",
             summary=f"Rate limit exceeded ({policy_name or 'unknown rule'})",
@@ -149,6 +157,7 @@ def recovery_hint_for(
             ),
             hint_type="wait_rate_limit",
             yaml_snippet=rate_yaml,
+            wait_seconds=wait,
         )
 
     # --- Integrity fallback states ---
@@ -200,6 +209,8 @@ def recovery_hint_for(
         )
 
     # --- Overridable soft deny ---
+    # NOTE: checked after rate-limit and default-deny because those
+    # carry their own specific recovery semantics (wait / add rule).
     overridable: bool = getattr(decision, "overridable", False)
     if overridable and policy_name:
         return RecoveryHint(
