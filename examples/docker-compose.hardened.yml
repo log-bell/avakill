@@ -1,0 +1,68 @@
+# AvaKill Hardened Docker Compose Configuration
+#
+# This configuration runs the AvaKill firewall with defense-in-depth
+# OS-level hardening. The container filesystem is read-only, capabilities
+# are dropped, and a seccomp profile restricts dangerous syscalls.
+#
+# Usage:
+#   docker compose -f docker-compose.hardened.yml up
+#
+# Prerequisites:
+#   - Copy your avakill.yaml policy to ./config/avakill.yaml
+#   - Sign the policy: avakill sign config/avakill.yaml
+#   - Copy the seccomp profile: avakill harden --seccomp -o seccomp.json
+
+services:
+  avakill:
+    image: python:3.12-slim
+    command: ["python", "-m", "avakill.cli.main", "dashboard"]
+    read_only: true
+
+    # Mount policy as read-only
+    volumes:
+      - ./config/avakill.yaml:/etc/avakill/avakill.yaml:ro
+      - ./config/avakill.yaml.sig:/etc/avakill/avakill.yaml.sig:ro
+
+    # Writable tmpfs for runtime (logs, PID file, Python cache)
+    tmpfs:
+      - /tmp:size=64m
+      - /var/log/avakill:size=32m
+      - /root/.cache:size=32m
+
+    # Drop all capabilities, add only what's needed
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:seccomp.json
+
+    # Run as non-root user
+    user: "1000:1000"
+
+    # Environment
+    environment:
+      - AVAKILL_POLICY_KEY=${AVAKILL_POLICY_KEY:-}
+      - AVAKILL_VERIFY_KEY=${AVAKILL_VERIFY_KEY:-}
+      - PYTHON_DISABLE_REMOTE_DEBUG=1
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+    # Network (adjust as needed)
+    ports:
+      - "8080:8080"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import avakill; print('ok')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

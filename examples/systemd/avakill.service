@@ -1,0 +1,84 @@
+# AvaKill Hardened systemd Service Unit
+#
+# This unit runs the AvaKill firewall with comprehensive systemd-level
+# hardening. Capabilities are dropped, the filesystem is protected,
+# and the process runs in a restricted namespace.
+#
+# Install:
+#   sudo cp avakill.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now avakill
+#
+# Verify hardening:
+#   systemd-analyze security avakill.service
+
+[Unit]
+Description=AvaKill AI Agent Safety Firewall
+Documentation=https://github.com/avakill/avakill
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m avakill.cli.main dashboard
+Restart=on-failure
+RestartSec=5
+
+# User/Group isolation
+User=avakill
+Group=avakill
+
+# Capability hardening — drop everything
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Filesystem protection
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+ProcSubset=pid
+
+# Read-only paths — policy files must not be writable by the service
+ReadOnlyPaths=/etc/avakill
+ReadOnlyPaths=/usr/lib/python3
+ReadOnlyPaths=/usr/local/lib/python3
+
+# No write access except logs
+ReadWritePaths=/var/log/avakill
+
+# Prevent privilege escalation
+NoNewPrivileges=yes
+PrivateUsers=yes
+
+# Restrict address families
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Restrict namespaces
+RestrictNamespaces=yes
+
+# Restrict realtime scheduling
+RestrictRealtime=yes
+
+# Memory deny write-execute (W^X)
+MemoryDenyWriteExecute=yes
+
+# Lock down personality
+LockPersonality=yes
+
+# System call filtering
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallArchitectures=native
+
+# Environment
+Environment=PYTHON_DISABLE_REMOTE_DEBUG=1
+EnvironmentFile=-/etc/avakill/env
+
+[Install]
+WantedBy=multi-user.target
