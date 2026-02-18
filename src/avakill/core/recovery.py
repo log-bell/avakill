@@ -21,6 +21,8 @@ RecoverySource = Literal[
     "default-deny",
 ]
 
+HintType = Literal["add_rule", "wait_rate_limit", "request_approval", "override", "blocked"]
+
 
 class RecoveryHint(BaseModel):
     """Structured recovery guidance attached to a denial."""
@@ -31,6 +33,12 @@ class RecoveryHint(BaseModel):
     summary: str
     steps: tuple[str, ...]
     doc_url: str | None = None
+
+    # Structured recovery fields
+    hint_type: HintType = "blocked"
+    commands: tuple[str, ...] = ()
+    yaml_snippet: str | None = None
+    wait_seconds: int | None = None
 
 
 def recovery_hint_for(
@@ -60,6 +68,17 @@ def recovery_hint_for(
     reason: str = getattr(decision, "reason", None) or ""
     reason_lower = reason.lower()
 
+    # --- Require approval ---
+    action: str = getattr(decision, "action", "deny")
+    if action == "require_approval":
+        return RecoveryHint(
+            source="policy-rule-deny",
+            summary=f"Requires human approval ({policy_name or 'unknown'})",
+            steps=("Run avakill approve to approve this request.",),
+            hint_type="request_approval",
+            commands=("avakill approve",),
+        )
+
     # --- Self-protection variants ---
     if policy_name == "self-protection":
         if "targeting policy file" in reason_lower or "shell command targeting policy" in reason_lower:
@@ -70,6 +89,7 @@ def recovery_hint_for(
                     "Stage changes via a .proposed.yaml file.",
                     "Have a human run: avakill approve <proposed-file>",
                 ),
+                hint_type="blocked",
             )
         if "uninstall" in reason_lower:
             return RecoveryHint(
@@ -79,6 +99,7 @@ def recovery_hint_for(
                     "A human administrator must uninstall avakill manually.",
                     "Agents cannot remove their own guardrails.",
                 ),
+                hint_type="blocked",
             )
         if "approve" in reason_lower:
             return RecoveryHint(
@@ -88,6 +109,7 @@ def recovery_hint_for(
                     "Only humans may run: avakill approve",
                     "Agents cannot activate policy changes.",
                 ),
+                hint_type="blocked",
             )
         if "source file" in reason_lower:
             return RecoveryHint(
@@ -97,16 +119,27 @@ def recovery_hint_for(
                     "A human administrator must modify avakill source.",
                     "Agents cannot alter their own code.",
                 ),
+                hint_type="blocked",
             )
         # Fallback for unknown self-protection sub-variants
         return RecoveryHint(
             source="self-protection-source-mod",
             summary="Blocked by self-protection",
             steps=("A human administrator action is required.",),
+            hint_type="blocked",
         )
 
     # --- Rate limit ---
     if "rate limit" in reason_lower:
+        rate_yaml = (
+            f"# Increase the rate limit for rule '{policy_name}':\n"
+            f"- name: {policy_name or '<rule-name>'}\n"
+            f"  tools: [<tool>]\n"
+            f"  action: allow\n"
+            f"  rate_limit:\n"
+            f"    max_calls: 20\n"
+            f'    window: "60s"'
+        )
         return RecoveryHint(
             source="rate-limit-exceeded",
             summary=f"Rate limit exceeded ({policy_name or 'unknown rule'})",
@@ -114,6 +147,8 @@ def recovery_hint_for(
                 "Wait for the current rate-limit window to expire.",
                 "Adjust the rate_limit config in the matching policy rule.",
             ),
+            hint_type="wait_rate_limit",
+            yaml_snippet=rate_yaml,
         )
 
     # --- Integrity fallback states ---
@@ -125,6 +160,11 @@ def recovery_hint_for(
                 "Re-sign the policy: avakill sign <policy-file>",
                 "Verify the signature: avakill verify <policy-file>",
             ),
+            hint_type="blocked",
+            commands=(
+                "avakill sign <policy-file>",
+                "avakill verify <policy-file>",
+            ),
         )
     if policy_status == "deny-all":
         return RecoveryHint(
@@ -135,10 +175,17 @@ def recovery_hint_for(
                 "Re-sign: avakill sign <policy-file>",
                 "Restart the application.",
             ),
+            hint_type="blocked",
         )
 
     # --- Default deny (no matching rule) ---
     if "default action" in reason_lower:
+        default_yaml = (
+            "# Add this rule to your avakill.yaml (above existing deny rules):\n"
+            "- name: allow-<tool>\n"
+            "  tools: [<tool>]\n"
+            "  action: allow"
+        )
         return RecoveryHint(
             source="default-deny",
             summary="No matching policy rule",
@@ -147,10 +194,30 @@ def recovery_hint_for(
                 "Or set default_action: allow in the policy.",
                 "Review current rules: avakill review <policy-file>",
             ),
+            hint_type="add_rule",
+            commands=("avakill review",),
+            yaml_snippet=default_yaml,
+        )
+
+    # --- Overridable soft deny ---
+    overridable: bool = getattr(decision, "overridable", False)
+    if overridable and policy_name:
+        return RecoveryHint(
+            source="policy-rule-deny",
+            summary=f"Soft-denied by rule '{policy_name}' (overridable)",
+            steps=(f"Re-run with override: avakill evaluate --override --tool <tool>",),
+            hint_type="override",
+            commands=(f"avakill evaluate --override --tool <tool>",),
         )
 
     # --- Named policy rule deny ---
     if policy_name:
+        rule_yaml = (
+            f"# Add this rule to your avakill.yaml (above '{policy_name}'):\n"
+            f"- name: allow-<tool>\n"
+            f"  tools: [<tool>]\n"
+            f"  action: allow"
+        )
         return RecoveryHint(
             source="policy-rule-deny",
             summary=f"Denied by rule '{policy_name}'",
@@ -159,6 +226,9 @@ def recovery_hint_for(
                 "Add an allow rule above it if this tool should be permitted.",
                 "Run: avakill review <policy-file>",
             ),
+            hint_type="add_rule",
+            commands=("avakill review",),
+            yaml_snippet=rule_yaml,
         )
 
     return None

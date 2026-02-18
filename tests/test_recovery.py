@@ -16,7 +16,7 @@ from avakill.core.models import (
     RateLimit,
     ToolCall,
 )
-from avakill.core.recovery import RecoveryHint, recovery_hint_for
+from avakill.core.recovery import HintType, RecoveryHint, recovery_hint_for
 from avakill.logging.event_bus import EventBus
 
 
@@ -165,6 +165,93 @@ class TestRecoveryHintFor:
         assert hint is not None
         with pytest.raises(Exception):
             hint.source = "something-else"  # type: ignore[misc]
+
+    def test_policy_rule_deny_has_structured_fields(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="block-destructive-sql",
+            reason="Matched rule 'block-destructive-sql'",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.hint_type == "add_rule"
+        assert len(hint.commands) > 0
+        assert hint.yaml_snippet is not None
+        assert "block-destructive-sql" in hint.yaml_snippet
+
+    def test_default_deny_has_add_rule_hint(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            reason="No matching rule; default action is 'deny'",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.hint_type == "add_rule"
+        assert hint.yaml_snippet is not None
+
+    def test_rate_limit_has_wait_hint(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="rate-limited-search",
+            reason="Rate limit exceeded: 10 calls per 60s",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.hint_type == "wait_rate_limit"
+        assert hint.yaml_snippet is not None
+
+    def test_self_protection_has_blocked_hint(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="self-protection",
+            reason="Self-protection: blocked file_write targeting policy file 'avakill.yaml'. Use .proposed.yaml for staging.",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.hint_type == "blocked"
+        assert hint.commands == ()
+        assert hint.yaml_snippet is None
+
+    def test_require_approval_has_approval_hint(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="require_approval",
+            policy_name="ask-write",
+            reason="Requires approval",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.hint_type == "request_approval"
+        assert any("avakill approve" in cmd for cmd in hint.commands)
+
+    def test_soft_deny_has_override_hint(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="soft-block",
+            reason="Matched rule 'soft-block'",
+            overridable=True,
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.hint_type == "override"
+        assert any("--override" in cmd for cmd in hint.commands)
+
+    def test_backward_compat_steps_still_populated(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="deny-all",
+            reason="Matched rule 'deny-all'",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert len(hint.steps) > 0
+        assert isinstance(hint.steps[0], str)
 
 
 # ------------------------------------------------------------------ #
