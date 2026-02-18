@@ -1,9 +1,57 @@
 """AvaKill CLI entry point."""
 
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
 import click
 
+# Map command name -> (module_path, attribute_name)
+_COMMANDS: dict[str, tuple[str, str]] = {
+    "approve": ("avakill.cli.approve_cmd", "approve"),
+    "approvals": ("avakill.cli.approval_cmd", "approvals"),
+    "check-hardening": ("avakill.cli.check_hardening_cmd", "check_hardening"),
+    "compliance": ("avakill.cli.compliance_cmd", "compliance"),
+    "daemon": ("avakill.cli.daemon_cmd", "daemon"),
+    "dashboard": ("avakill.cli.dashboard_cmd", "dashboard"),
+    "enforce": ("avakill.cli.enforce_cmd", "enforce"),
+    "evaluate": ("avakill.cli.evaluate_cmd", "evaluate"),
+    "harden": ("avakill.cli.harden_cmd", "harden"),
+    "hook": ("avakill.cli.hook_cmd", "hook"),
+    "init": ("avakill.cli.init_cmd", "init"),
+    "keygen": ("avakill.cli.keygen_cmd", "keygen"),
+    "logs": ("avakill.cli.logs_cmd", "logs"),
+    "mcp-proxy": ("avakill.cli.mcp_proxy_cmd", "mcp_proxy"),
+    "metrics": ("avakill.cli.metrics_cmd", "metrics"),
+    "review": ("avakill.cli.review_cmd", "review"),
+    "schema": ("avakill.cli.schema_cmd", "schema"),
+    "sign": ("avakill.cli.sign_cmd", "sign"),
+    "validate": ("avakill.cli.validate_cmd", "validate"),
+    "verify": ("avakill.cli.verify_cmd", "verify"),
+}
 
-@click.group(invoke_without_command=True)
+
+class LazyGroup(click.Group):
+    """A Click group that imports subcommands on demand.
+
+    ``list_commands()`` returns all known names without importing.
+    ``get_command()`` imports the target module only when the command
+    is actually invoked.
+    """
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return sorted(_COMMANDS)
+
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.BaseCommand | None:
+        if cmd_name not in _COMMANDS:
+            return None
+        module_path, attr_name = _COMMANDS[cmd_name]
+        mod = importlib.import_module(module_path)
+        return getattr(mod, attr_name)
+
+
+@click.group(cls=LazyGroup, invoke_without_command=True)
 @click.version_option(package_name="avakill")
 @click.pass_context
 def cli(ctx: click.Context) -> None:
@@ -16,47 +64,3 @@ def cli(ctx: click.Context) -> None:
 
         print_banner()
         ctx.exit()
-
-
-# Import and register subcommands
-from avakill.cli.approval_cmd import approvals  # noqa: E402
-from avakill.cli.approve_cmd import approve  # noqa: E402
-from avakill.cli.check_hardening_cmd import check_hardening  # noqa: E402
-from avakill.cli.compliance_cmd import compliance  # noqa: E402
-from avakill.cli.daemon_cmd import daemon  # noqa: E402
-from avakill.cli.dashboard_cmd import dashboard  # noqa: E402
-from avakill.cli.enforce_cmd import enforce  # noqa: E402
-from avakill.cli.evaluate_cmd import evaluate  # noqa: E402
-from avakill.cli.harden_cmd import harden  # noqa: E402
-from avakill.cli.hook_cmd import hook  # noqa: E402
-from avakill.cli.init_cmd import init  # noqa: E402
-from avakill.cli.keygen_cmd import keygen  # noqa: E402
-from avakill.cli.logs_cmd import logs  # noqa: E402
-from avakill.cli.mcp_proxy_cmd import mcp_proxy  # noqa: E402
-from avakill.cli.metrics_cmd import metrics  # noqa: E402
-from avakill.cli.review_cmd import review  # noqa: E402
-from avakill.cli.schema_cmd import schema  # noqa: E402
-from avakill.cli.sign_cmd import sign  # noqa: E402
-from avakill.cli.validate_cmd import validate  # noqa: E402
-from avakill.cli.verify_cmd import verify  # noqa: E402
-
-cli.add_command(approve)
-cli.add_command(approvals)
-cli.add_command(check_hardening)
-cli.add_command(compliance)
-cli.add_command(daemon)
-cli.add_command(enforce)
-cli.add_command(evaluate)
-cli.add_command(harden)
-cli.add_command(hook)
-cli.add_command(init)
-cli.add_command(dashboard)
-cli.add_command(keygen)
-cli.add_command(logs)
-cli.add_command(mcp_proxy)
-cli.add_command(metrics)
-cli.add_command(review)
-cli.add_command(schema)
-cli.add_command(sign)
-cli.add_command(validate)
-cli.add_command(verify)

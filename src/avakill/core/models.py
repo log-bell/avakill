@@ -50,6 +50,7 @@ class Decision(BaseModel):
     reason: str | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     latency_ms: float = 0.0
+    overridable: bool = False
 
 
 class AuditEvent(BaseModel):

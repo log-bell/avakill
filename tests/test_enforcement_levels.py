@@ -1,7 +1,11 @@
 """Tests for enforcement levels (hard, soft, advisory)."""
 
+from avakill.core.engine import Guard
 from avakill.core.models import PolicyConfig, PolicyRule, ToolCall
 from avakill.core.policy import PolicyEngine
+from avakill.logging.event_bus import EventBus
+
+import pytest
 
 
 def _make_engine(enforcement: str, action: str = "deny") -> PolicyEngine:
@@ -104,3 +108,67 @@ class TestEnforcementLevels:
         engine = _make_engine("hard", "deny")
         decision = engine.evaluate(_call("safe_tool"))
         assert decision.allowed  # default_action is allow
+
+    def test_soft_deny_sets_overridable(self) -> None:
+        engine = _make_engine("soft", "deny")
+        decision = engine.evaluate(_call())
+        assert decision.overridable is True
+
+    def test_hard_deny_not_overridable(self) -> None:
+        engine = _make_engine("hard", "deny")
+        decision = engine.evaluate(_call())
+        assert decision.overridable is False
+
+
+class TestGuardOverride:
+    """Tests for Guard.evaluate(override=True) with soft enforcement."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_event_bus(self):
+        EventBus.reset()
+        yield
+        EventBus.reset()
+
+    def test_guard_override_soft_deny(self) -> None:
+        config = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[
+                PolicyRule(
+                    name="soft-block",
+                    tools=["dangerous_tool"],
+                    action="deny",
+                    enforcement="soft",
+                    message="Soft blocked",
+                ),
+            ],
+        )
+        guard = Guard(policy=config, self_protection=False)
+        # Without override: denied
+        decision = guard.evaluate(tool="dangerous_tool")
+        assert not decision.allowed
+        assert decision.overridable is True
+
+        # With override: allowed
+        decision = guard.evaluate(tool="dangerous_tool", override=True)
+        assert decision.allowed
+        assert "[override]" in decision.reason
+
+    def test_guard_override_hard_deny_stays_denied(self) -> None:
+        config = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[
+                PolicyRule(
+                    name="hard-block",
+                    tools=["dangerous_tool"],
+                    action="deny",
+                    enforcement="hard",
+                    message="Hard blocked",
+                ),
+            ],
+        )
+        guard = Guard(policy=config, self_protection=False)
+        decision = guard.evaluate(tool="dangerous_tool", override=True)
+        assert not decision.allowed
+        assert decision.overridable is False

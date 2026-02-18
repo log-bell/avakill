@@ -49,6 +49,17 @@ class HookAdapter(ABC):
             (e.g. a simple "allow" passthrough).
         """
 
+    def output_response(self, response: EvaluateResponse) -> int:
+        """Format and write the response, returning the exit code.
+
+        The default implementation writes to stdout.  Subclasses may
+        override to write to stderr (e.g. Windsurf).
+        """
+        stdout, exit_code = self.format_response(response)
+        if stdout is not None:
+            print(stdout, end="", file=sys.stdout)
+        return exit_code
+
     def run(self, stdin_data: str | None = None) -> NoReturn:
         """Read stdin, evaluate via daemon, format output, and exit.
 
@@ -71,9 +82,7 @@ class HookAdapter(ABC):
             client = DaemonClient()
             response = client.evaluate(request)
 
-        stdout, exit_code = self.format_response(response)
-        if stdout is not None:
-            print(stdout, end="")
+        exit_code = self.output_response(response)
         sys.exit(exit_code)
 
     # ------------------------------------------------------------------

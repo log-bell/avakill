@@ -202,7 +202,7 @@ class PolicyEngine:
 
             # Rule matches — check rate limit before returning decision
             if rule.rate_limit and not self._check_rate_limit(
-                tool_call.tool_name, rule.rate_limit
+                tool_call, rule.rate_limit
             ):
                 elapsed = (time.monotonic() - start) * 1000
                 decision = Decision(
@@ -231,10 +231,12 @@ class PolicyEngine:
 
             allowed = rule.action == "allow"
             reason = rule.message or f"Matched rule '{rule.name}'"
+            overridable = False
 
             # Soft enforcement: deny still blocks by default, but flag as overridable
             if rule.enforcement == "soft" and not allowed:
                 reason = f"[overridable] {reason}"
+                overridable = True
 
             return Decision(
                 allowed=allowed,
@@ -242,6 +244,7 @@ class PolicyEngine:
                 policy_name=rule.name,
                 reason=reason,
                 latency_ms=elapsed,
+                overridable=overridable,
             )
 
         # No rule matched — use default action
@@ -309,7 +312,7 @@ class PolicyEngine:
 
         return True
 
-    def _check_rate_limit(self, tool_name: str, rate_limit: RateLimit) -> bool:
+    def _check_rate_limit(self, tool_call: ToolCall, rate_limit: RateLimit) -> bool:
         """Check whether a tool call is within the configured rate limit.
 
         Uses a sliding-window approach with an in-memory deque of
@@ -317,18 +320,27 @@ class PolicyEngine:
         backend is configured, wall-clock time (``time.time()``) is used
         so that timestamps survive process restarts.
 
+        Rate-limit counters are scoped per agent when ``tool_call.agent_id``
+        is set, so that one agent exhausting its quota does not block another.
+
         Args:
-            tool_name: The tool name to track.
+            tool_call: The tool call to check.
             rate_limit: The rate limit configuration.
 
         Returns:
             True if the call is within the limit, False if exceeded.
         """
+        # Build agent-scoped key when agent_id is present
+        key = (
+            f"{tool_call.agent_id}:{tool_call.tool_name}"
+            if tool_call.agent_id
+            else tool_call.tool_name
+        )
         window_secs = rate_limit.window_seconds()
         now = time.time() if self._persistent else time.monotonic()
 
         with self._lock:
-            timestamps = self._rate_limit_windows[tool_name]
+            timestamps = self._rate_limit_windows[key]
 
             # Purge expired entries
             while timestamps and (now - timestamps[0]) > window_secs:
@@ -341,7 +353,7 @@ class PolicyEngine:
 
         # Persist outside the lock to keep the critical section short
         if self._persistent:
-            self._backend.record(tool_name, now)
+            self._backend.record(key, now)
 
         return True
 

@@ -25,10 +25,14 @@ Allow: no output, exit 0.
 from __future__ import annotations
 
 import json
+import logging
+import sys
 
 from avakill.daemon.protocol import EvaluateRequest, EvaluateResponse
 from avakill.hooks import register_adapter
 from avakill.hooks.base import HookAdapter
+
+logger = logging.getLogger(__name__)
 
 # Map Windsurf action names to tool names for policy evaluation.
 _ACTION_TOOL_MAP: dict[str, str] = {
@@ -102,9 +106,24 @@ class WindsurfAdapter(HookAdapter):
                 reason = f"{reason} [{response.policy}]"
             return reason, 2
 
+        if response.decision == "require_approval":
+            logger.warning(
+                "Windsurf has no native approval mechanism; "
+                "allowing tool that requires approval (policy: %s, reason: %s)",
+                response.policy,
+                response.reason,
+            )
+
         # Allow (and require_approval treated as allow for now — Windsurf
         # has no native "ask" mechanism).
         return None, 0
+
+    def output_response(self, response: EvaluateResponse) -> int:
+        """Write deny reason to stderr (Windsurf convention)."""
+        stdout, exit_code = self.format_response(response)
+        if stdout is not None:
+            print(stdout, end="", file=sys.stderr)
+        return exit_code
 
 
 def main() -> None:

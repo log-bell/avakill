@@ -1084,6 +1084,32 @@ class TestPolicyEngineRateLimit:
         with pytest.raises(PolicyViolation):
             engine.evaluate(tc)
 
+    def test_rate_limit_per_agent(self) -> None:
+        """Agent A's exhausted quota should not block Agent B."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="deny",
+                policies=[
+                    PolicyRule(
+                        name="limited",
+                        tools=["api_call"],
+                        action="allow",
+                        rate_limit=RateLimit(max_calls=1, window="60s"),
+                    ),
+                ],
+            )
+        )
+        # Agent A exhausts its quota
+        tc_a = ToolCall(tool_name="api_call", arguments={}, agent_id="agent-a")
+        engine.evaluate(tc_a)
+        with pytest.raises(RateLimitExceeded):
+            engine.evaluate(tc_a)
+
+        # Agent B should still be allowed
+        tc_b = ToolCall(tool_name="api_call", arguments={}, agent_id="agent-b")
+        decision = engine.evaluate(tc_b)
+        assert decision.allowed is True
+
 
 # ---------------------------------------------------------------------------
 # PolicyEngine — conditions + tool matching integration

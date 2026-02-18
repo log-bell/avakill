@@ -124,3 +124,48 @@ class TestWindsurfFormatResponse:
         resp = EvaluateResponse(decision="require_approval")
         _, exit_code = self.adapter.format_response(resp)
         assert exit_code == 0
+
+
+class TestWindsurfOutputResponse:
+    """Test that Windsurf routes deny output to stderr."""
+
+    def setup_method(self) -> None:
+        self.adapter = WindsurfAdapter()
+
+    def test_deny_reason_written_to_stderr(self, capsys) -> None:
+        resp = EvaluateResponse(
+            decision="deny", reason="dangerous command", policy="safety"
+        )
+        exit_code = self.adapter.output_response(resp)
+        assert exit_code == 2
+        captured = capsys.readouterr()
+        assert captured.out == ""  # nothing on stdout
+        assert "dangerous command" in captured.err
+        assert "safety" in captured.err
+
+    def test_allow_writes_nothing(self, capsys) -> None:
+        resp = EvaluateResponse(decision="allow")
+        exit_code = self.adapter.output_response(resp)
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+
+class TestWindsurfRequireApprovalWarning:
+    """Test that require_approval logs a warning."""
+
+    def setup_method(self) -> None:
+        self.adapter = WindsurfAdapter()
+
+    def test_require_approval_logs_warning(self, caplog) -> None:
+        import logging
+
+        resp = EvaluateResponse(
+            decision="require_approval", reason="needs review", policy="ask-first"
+        )
+        with caplog.at_level(logging.WARNING, logger="avakill.hooks.windsurf"):
+            _, exit_code = self.adapter.format_response(resp)
+        assert exit_code == 0
+        assert any("no native approval" in r.message for r in caplog.records)
+        assert any("ask-first" in r.message for r in caplog.records)

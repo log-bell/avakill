@@ -13,6 +13,7 @@ overridden by a lower level, and the most restrictive rate limit wins.
 
 from __future__ import annotations
 
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Literal
 
@@ -163,9 +164,14 @@ class PolicyCascade:
                         hard_denied_patterns.update(rule.tools)
                 elif rule.action == "allow":
                     # Only keep allow if it doesn't conflict with a
-                    # hard deny from a higher level
+                    # hard deny from a higher level.  Use fnmatch in
+                    # both directions so that deny "file_*" blocks
+                    # allow "file_write" and deny "file_write" blocks
+                    # allow "file_*".
                     dominated = any(
-                        t in hard_denied_patterns for t in rule.tools
+                        fnmatch(tool, deny_pat) or fnmatch(deny_pat, tool)
+                        for tool in rule.tools
+                        for deny_pat in hard_denied_patterns
                     )
                     if not dominated:
                         merged_rules.append(rule.model_copy(deep=True))

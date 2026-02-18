@@ -69,7 +69,7 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         },
     },
     "cursor": {
-        "config_path": Path.cwd() / ".cursor" / "hooks.json",
+        "config_path": lambda: Path.cwd() / ".cursor" / "hooks.json",
         "event": "beforeShellExecution",
         "hook_entry": lambda cmd: {"command": cmd},
     },
@@ -79,6 +79,15 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         "hook_entry": lambda cmd: {"command": cmd, "show_output": True},
     },
 }
+
+
+def _resolve_config_path(cfg: dict[str, object]) -> Path:
+    """Return the config path, calling it if it's a callable (lazy eval)."""
+    raw = cfg["config_path"]
+    if callable(raw):
+        return raw()
+    assert isinstance(raw, Path)
+    return raw
 
 
 def _hook_command(agent: str) -> str:
@@ -119,8 +128,7 @@ def install_hook(agent: str, config_path: Path | None = None) -> Path:
         raise KeyError(f"unknown agent: {agent!r}")
 
     cfg = _AGENT_CONFIG[agent]
-    path = config_path or cfg["config_path"]
-    assert isinstance(path, Path)
+    path = config_path or _resolve_config_path(cfg)
     event: str = cfg["event"]  # type: ignore[assignment]
     make_entry: Callable[[str], dict[str, object]] = cfg["hook_entry"]  # type: ignore[assignment]
 
@@ -153,8 +161,7 @@ def uninstall_hook(agent: str, config_path: Path | None = None) -> bool:
         raise KeyError(f"unknown agent: {agent!r}")
 
     cfg = _AGENT_CONFIG[agent]
-    path = config_path or cfg["config_path"]
-    assert isinstance(path, Path)
+    path = config_path or _resolve_config_path(cfg)
     event: str = cfg["event"]  # type: ignore[assignment]
 
     if not path.exists():
@@ -180,8 +187,7 @@ def list_installed_hooks() -> dict[str, bool]:
     """Return ``{agent: is_installed}`` for all known agents."""
     result: dict[str, bool] = {}
     for agent, cfg in _AGENT_CONFIG.items():
-        path = cfg["config_path"]
-        assert isinstance(path, Path)
+        path = _resolve_config_path(cfg)
         installed = False
         if path.exists():
             try:

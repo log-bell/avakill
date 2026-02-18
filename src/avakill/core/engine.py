@@ -19,6 +19,7 @@ from avakill._telemetry import (
 )
 from avakill._telemetry import record_violation as otel_record_violation
 from avakill.core.exceptions import PolicyViolation, RateLimitExceeded
+from avakill.core.normalization import normalize_tool_name
 from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, Decision, PolicyConfig, ToolCall
 from avakill.core.policy import PolicyEngine, load_policy
@@ -33,6 +34,7 @@ from avakill.metrics import inc_violations as prom_inc_violations
 from avakill.metrics import observe_duration as prom_observe_duration
 
 if TYPE_CHECKING:
+    from avakill.core.approval import ApprovalStore
     from avakill.core.watcher import PolicyWatcher
 
 _logger = logging.getLogger(__name__)
@@ -63,6 +65,8 @@ class Guard:
         signing_key: bytes | None = None,
         verify_key: bytes | None = None,
         rate_limit_backend: RateLimitBackend | None = None,
+        normalize_tools: bool = False,
+        approval_store: ApprovalStore | None = None,
     ) -> None:
         """Initialise the Guard.
 
@@ -131,7 +135,10 @@ class Guard:
         self._self_protection: SelfProtection | None = (
             SelfProtection() if self_protection else None
         )
+        self._normalize_tools = normalize_tools
+        self._approval_store = approval_store
         self._event_bus = EventBus.get()
+        self._log_failures = 0
         self._watcher: PolicyWatcher | None = None
 
     @staticmethod
@@ -172,6 +179,11 @@ class Guard:
         return self._engine
 
     @property
+    def log_failures(self) -> int:
+        """Number of audit-logging failures since Guard creation."""
+        return self._log_failures
+
+    @property
     def event_bus(self) -> EventBus:
         """The event bus used for broadcasting audit events."""
         return self._event_bus
@@ -194,6 +206,7 @@ class Guard:
         agent_id: str | None = None,
         session_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        override: bool = False,
     ) -> Decision:
         """Evaluate a tool call against the loaded policy.
 
@@ -203,17 +216,33 @@ class Guard:
             agent_id: Override agent identifier (falls back to Guard default).
             session_id: Optional session identifier.
             metadata: Arbitrary metadata attached to the call.
+            override: When ``True`` and the decision is overridable (soft
+                enforcement), flip the deny to an allow with an ``[override]``
+                audit trail.
 
         Returns:
             A ``Decision`` indicating whether the call is allowed.
         """
+        effective_agent = agent_id or self._agent_id
         tool_call = ToolCall(
             tool_name=tool,
             arguments=args or {},
-            agent_id=agent_id or self._agent_id,
+            agent_id=effective_agent,
             session_id=session_id,
             metadata=metadata or {},
         )
+
+        # Normalize agent-specific tool names to canonical form
+        if self._normalize_tools and effective_agent:
+            canonical = normalize_tool_name(tool, effective_agent)
+            if canonical != tool:
+                tool_call = ToolCall(
+                    tool_name=canonical,
+                    arguments=tool_call.arguments,
+                    agent_id=tool_call.agent_id,
+                    session_id=tool_call.session_id,
+                    metadata=tool_call.metadata,
+                )
 
         start = time.monotonic()
 
@@ -264,7 +293,22 @@ class Guard:
             policy_name=decision.policy_name,
             reason=decision.reason,
             latency_ms=elapsed_ms,
+            overridable=decision.overridable,
         )
+
+        # Override: flip overridable denies to allow when requested
+        if override and decision.overridable and not decision.allowed:
+            decision = Decision(
+                allowed=True,
+                action="allow",
+                policy_name=decision.policy_name,
+                reason=f"[override] {decision.reason}",
+                latency_ms=elapsed_ms,
+            )
+
+        # Approval workflow: check for pre-approved requests or create pending
+        if decision.action == "require_approval" and self._approval_store is not None:
+            decision = self._check_approval(tool_call, decision, elapsed_ms)
 
         self._record(tool_call, decision, start)
         return decision
@@ -441,11 +485,74 @@ class Guard:
             if decision.policy_name == "self-protection":
                 prom_inc_sp_blocks(tool=tool_call.tool_name)
 
+    def _check_approval(
+        self, tool_call: ToolCall, decision: Decision, elapsed_ms: float
+    ) -> Decision:
+        """Check the approval store for a pre-approved request or create a pending one.
+
+        Uses the same sync/async bridge pattern as ``_log_async``.
+        """
+        assert self._approval_store is not None
+
+        try:
+            loop = asyncio.get_running_loop()
+            # We're in an async context — schedule the coroutine
+            import concurrent.futures
+
+            future: concurrent.futures.Future[Decision] = concurrent.futures.Future()
+
+            async def _do() -> None:
+                result = await self._check_approval_async(
+                    tool_call, decision, elapsed_ms
+                )
+                future.set_result(result)
+
+            loop.create_task(_do())
+            # Can't block the event loop; return the original decision.
+            # The pending request will be created asynchronously.
+            return decision
+        except RuntimeError:
+            # No running event loop — run synchronously
+            return self._check_approval_sync(tool_call, decision, elapsed_ms)
+
+    async def _check_approval_async(
+        self, tool_call: ToolCall, decision: Decision, elapsed_ms: float
+    ) -> Decision:
+        """Async approval check: look for approved request or create pending."""
+        assert self._approval_store is not None
+        store = self._approval_store
+
+        # Check for an existing approved request for this tool+agent
+        pending = await store.get_pending()
+        agent = tool_call.agent_id or ""
+        for req in pending:
+            if req.status == "approved" and req.tool_call.tool_name == tool_call.tool_name and req.agent == agent:
+                return Decision(
+                    allowed=True,
+                    action="allow",
+                    policy_name=decision.policy_name,
+                    reason=f"[approved] {decision.reason}",
+                    latency_ms=elapsed_ms,
+                )
+
+        # No pre-approval found — create a pending request
+        await store.create(tool_call, decision, agent=agent)
+        return decision
+
+    def _check_approval_sync(
+        self, tool_call: ToolCall, decision: Decision, elapsed_ms: float
+    ) -> Decision:
+        """Synchronous approval check (new event loop in current thread)."""
+        return asyncio.run(
+            self._check_approval_async(tool_call, decision, elapsed_ms)
+        )
+
     def _log_async(self, event: AuditEvent) -> None:
         """Log an event without blocking the caller."""
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self._logger.log(event))  # type: ignore[union-attr]
+            task = loop.create_task(self._logger.log(event))  # type: ignore[union-attr]
+            task.add_done_callback(self._on_log_done)
         except RuntimeError:
             # No running event loop — fire in a background thread
             t = threading.Thread(
@@ -455,9 +562,20 @@ class Guard:
             )
             t.start()
 
+    def _on_log_done(self, task: asyncio.Task[None]) -> None:
+        """Callback for completed async log tasks."""
+        exc = task.exception()
+        if exc is not None:
+            self._log_failures += 1
+            _logger.error("Audit logging failed: %s", exc)
+
     def _log_sync(self, event: AuditEvent) -> None:
         """Run the async logger.log in a new event loop (background thread)."""
-        asyncio.run(self._logger.log(event))  # type: ignore[union-attr]
+        try:
+            asyncio.run(self._logger.log(event))  # type: ignore[union-attr]
+        except Exception as exc:
+            self._log_failures += 1
+            _logger.error("Audit logging failed (sync): %s", exc)
 
 
 class GuardSession:

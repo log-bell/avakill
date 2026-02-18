@@ -261,6 +261,37 @@ class TestPolicyCascadeMerge:
         merged = PolicyCascade.merge([c1])
         assert any(r.action == "require_approval" for r in merged.policies)
 
+    def test_hard_deny_glob_blocks_specific_allow(self) -> None:
+        """A hard deny with glob pattern 'file_*' should block a specific allow 'file_write'."""
+        c1 = PolicyConfig(
+            version="1.0",
+            default_action="deny",
+            policies=[
+                PolicyRule(
+                    name="block-all-file",
+                    tools=["file_*"],
+                    action="deny",
+                    enforcement="hard",
+                ),
+            ],
+        )
+        c2 = PolicyConfig(
+            version="1.0",
+            default_action="deny",
+            policies=[
+                PolicyRule(
+                    name="allow-file-write",
+                    tools=["file_write"],
+                    action="allow",
+                ),
+            ],
+        )
+        merged = PolicyCascade.merge([c1, c2])
+        allow_rules = [r for r in merged.policies if r.action == "allow"]
+        assert len(allow_rules) == 0, (
+            "Allow 'file_write' should be blocked by hard deny 'file_*'"
+        )
+
 
 class TestPolicyCascadeLoad:
     """Tests for PolicyCascade.load()."""

@@ -103,6 +103,43 @@ class TestCLIBasics:
         assert "0.1.0" in result.output
 
 
+class TestLazyGroup:
+    """Tests for lazy CLI import mechanism."""
+
+    def test_lazy_group_lists_all_commands(self, runner: CliRunner) -> None:
+        from avakill.cli.main import _COMMANDS
+
+        result = runner.invoke(cli, ["--help"])
+        assert result.exit_code == 0
+        for cmd_name in _COMMANDS:
+            assert cmd_name in result.output, f"Command {cmd_name!r} missing from --help"
+
+    def test_help_does_not_import_unrelated_modules(self) -> None:
+        """Listing commands should not import heavy subcommand modules."""
+        import sys
+
+        # Remove any cached imports of evaluate_cmd
+        mod_key = "avakill.cli.evaluate_cmd"
+        was_loaded = mod_key in sys.modules
+        if was_loaded:
+            # Already loaded from prior tests — skip this check
+            return
+
+        from avakill.cli.main import LazyGroup, _COMMANDS
+
+        ctx = click.Context(click.Command("dummy"))
+        group = LazyGroup()
+        names = group.list_commands(ctx)
+        assert len(names) == len(_COMMANDS)
+        # list_commands should not have triggered any imports
+        assert mod_key not in sys.modules
+
+    def test_evaluate_subcommand_help(self, runner: CliRunner) -> None:
+        result = runner.invoke(cli, ["evaluate", "--help"])
+        assert result.exit_code == 0
+        assert "tool" in result.output.lower()
+
+
 # ---------------------------------------------------------------
 # Init command
 # ---------------------------------------------------------------

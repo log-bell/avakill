@@ -30,6 +30,8 @@ from avakill.daemon.protocol import (
 logger = logging.getLogger("avakill.daemon")
 
 _CONNECTION_TIMEOUT = 5.0  # seconds
+_MAX_REQUEST_SIZE = 64 * 1024  # 64 KiB
+_DEFAULT_MAX_CONNECTIONS = 100
 
 
 class DaemonServer:
@@ -48,11 +50,14 @@ class DaemonServer:
         socket_path: str | Path | None = None,
         pid_file: str | Path | None = None,
         normalizer: ToolNormalizer | None = None,
+        max_connections: int = _DEFAULT_MAX_CONNECTIONS,
     ) -> None:
         self._guard = guard
         self._socket_path = Path(socket_path) if socket_path else self.default_socket_path()
         self._pid_path = Path(pid_file) if pid_file else self.default_pid_path()
         self._normalizer = normalizer or ToolNormalizer()
+        self._max_connections = max_connections
+        self._conn_semaphore: asyncio.Semaphore | None = None
         self._server: asyncio.AbstractServer | None = None
         self._stop_event: asyncio.Event | None = None
 
@@ -93,10 +98,12 @@ class DaemonServer:
             self._socket_path.unlink()
 
         self._stop_event = asyncio.Event()
+        self._conn_semaphore = asyncio.Semaphore(self._max_connections)
 
         self._server = await asyncio.start_unix_server(
             self._handle_connection,
             path=str(self._socket_path),
+            limit=_MAX_REQUEST_SIZE,
         )
 
         # PID file
@@ -147,25 +154,52 @@ class DaemonServer:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Handle a single client: read request, evaluate, write response, close."""
+        assert self._conn_semaphore is not None
         try:
-            raw = await asyncio.wait_for(reader.readline(), timeout=_CONNECTION_TIMEOUT)
-            if not raw:
-                return
-
             try:
-                req = deserialize_request(raw)
-            except ValueError as exc:
-                resp = EvaluateResponse(decision="deny", reason=f"malformed request: {exc}")
+                await asyncio.wait_for(
+                    self._conn_semaphore.acquire(), timeout=_CONNECTION_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Connection rejected: server at capacity (%d).", self._max_connections)
+                resp = EvaluateResponse(decision="deny", reason="server at capacity")
                 writer.write(serialize_response(resp))
                 await writer.drain()
                 return
 
-            resp = self._evaluate(req)
-            writer.write(serialize_response(resp))
-            await writer.drain()
+            try:
+                raw = await asyncio.wait_for(reader.readline(), timeout=_CONNECTION_TIMEOUT)
+                if not raw:
+                    return
+
+                try:
+                    req = deserialize_request(raw)
+                except ValueError as exc:
+                    resp = EvaluateResponse(decision="deny", reason=f"malformed request: {exc}")
+                    writer.write(serialize_response(resp))
+                    await writer.drain()
+                    return
+
+                resp = self._evaluate(req)
+                writer.write(serialize_response(resp))
+                await writer.drain()
+            finally:
+                self._conn_semaphore.release()
 
         except asyncio.TimeoutError:
             logger.debug("Client connection timed out.")
+        except (asyncio.LimitOverrunError, ValueError):
+            logger.warning("Request exceeded %d-byte limit; denied.", _MAX_REQUEST_SIZE)
+            with contextlib.suppress(Exception):
+                resp = EvaluateResponse(decision="deny", reason="request too large")
+                writer.write(serialize_response(resp))
+                await writer.drain()
+        except asyncio.IncompleteReadError:
+            logger.warning("Incomplete read from client; denied.")
+            with contextlib.suppress(Exception):
+                resp = EvaluateResponse(decision="deny", reason="incomplete request")
+                writer.write(serialize_response(resp))
+                await writer.drain()
         except (ConnectionError, BrokenPipeError, OSError) as exc:
             logger.debug("Client connection error: %s", exc)
         finally:
