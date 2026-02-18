@@ -17,6 +17,7 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "dashboard": ("avakill.cli.dashboard_cmd", "dashboard"),
     "enforce": ("avakill.cli.enforce_cmd", "enforce"),
     "evaluate": ("avakill.cli.evaluate_cmd", "evaluate"),
+    "fix": ("avakill.cli.fix_cmd", "fix"),
     "harden": ("avakill.cli.harden_cmd", "harden"),
     "hook": ("avakill.cli.hook_cmd", "hook"),
     "init": ("avakill.cli.init_cmd", "init"),
@@ -30,6 +31,13 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "validate": ("avakill.cli.validate_cmd", "validate"),
     "verify": ("avakill.cli.verify_cmd", "verify"),
 }
+
+_COMMAND_GROUPS: list[tuple[str, list[str]]] = [
+    ("Getting Started", ["init", "validate", "dashboard", "logs"]),
+    ("Integrations", ["mcp-proxy", "daemon", "hook", "evaluate"]),
+    ("Security", ["sign", "verify", "keygen", "harden", "check-hardening", "review", "approve"]),
+    ("Advanced", ["enforce", "compliance", "approvals", "schema", "metrics", "fix"]),
+]
 
 
 class LazyGroup(click.Group):
@@ -49,6 +57,19 @@ class LazyGroup(click.Group):
         module_path, attr_name = _COMMANDS[cmd_name]
         mod = importlib.import_module(module_path)
         return getattr(mod, attr_name)
+
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        for group_name, cmd_names in _COMMAND_GROUPS:
+            rows: list[tuple[str, str]] = []
+            for name in cmd_names:
+                cmd = self.get_command(ctx, name)
+                if cmd is None:
+                    continue
+                help_text = cmd.get_short_help_str(limit=formatter.width)
+                rows.append((name, help_text))
+            if rows:
+                with formatter.section(group_name):
+                    formatter.write_dl(rows)
 
 
 @click.group(cls=LazyGroup, invoke_without_command=True)
