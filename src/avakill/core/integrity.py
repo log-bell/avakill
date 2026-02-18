@@ -9,7 +9,15 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from avakill.core.models import PolicyConfig
+
 logger = logging.getLogger(__name__)
+
+_DENY_ALL = PolicyConfig(
+    version="1.0",
+    default_action="deny",
+    policies=[],
+)
 
 
 @dataclass(frozen=True)
@@ -84,11 +92,120 @@ class PolicyIntegrity:
     def __init__(self, signing_key: bytes | None = None) -> None:
         self._signing_key = signing_key
         self._baseline: FileSnapshot | None = None
+        self._last_known_good: PolicyConfig | None = None
 
     @property
     def signing_enabled(self) -> bool:
         """Whether HMAC signing is active."""
         return self._signing_key is not None
+
+    def load_verified(self, path: str | Path) -> PolicyConfig:
+        """Load a policy file with TOCTOU-safe verification.
+
+        If signing is enabled, verifies the HMAC signature before parsing.
+        On any failure, falls back to last-known-good or deny-all.
+
+        Args:
+            path: Path to the policy YAML file.
+
+        Returns:
+            A verified PolicyConfig, or a fallback.
+        """
+        import yaml
+        from pydantic import ValidationError
+
+        path = Path(path)
+
+        # Step 1: Read file into memory (single read, TOCTOU-safe)
+        try:
+            fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            try:
+                raw = b""
+                while True:
+                    chunk = os.read(fd, 65536)
+                    if not chunk:
+                        break
+                    raw += chunk
+            finally:
+                os.close(fd)
+        except OSError as exc:
+            return self._fallback(f"cannot read file: {exc}")
+
+        # Step 2: Verify HMAC if signing is enabled
+        if self._signing_key is not None:
+            sig_path = Path(str(path) + ".sig")
+            if not sig_path.exists():
+                return self._fallback("signature file missing")
+            try:
+                actual_sig = sig_path.read_text().strip()
+            except OSError as exc:
+                return self._fallback(f"cannot read signature: {exc}")
+            expected_sig = hmac.new(
+                self._signing_key, raw, hashlib.sha256
+            ).hexdigest()
+            if not hmac.compare_digest(expected_sig, actual_sig):
+                return self._fallback("HMAC signature mismatch")
+
+        # Step 3: Parse the verified bytes (never re-read file)
+        try:
+            data = yaml.safe_load(raw)
+        except yaml.YAMLError as exc:
+            return self._fallback(f"invalid YAML: {exc}")
+
+        if not isinstance(data, dict):
+            return self._fallback("policy file is not a YAML mapping")
+
+        # Step 4: Validate schema
+        try:
+            config = PolicyConfig(**data)
+        except (ValidationError, ValueError) as exc:
+            return self._fallback(f"schema validation failed: {exc}")
+
+        # Step 5: Cache as last-known-good
+        self._last_known_good = config
+
+        # Step 6: Set baseline for ongoing integrity checks
+        try:
+            self._baseline = FileSnapshot.from_path(str(path))
+        except OSError:
+            pass  # Non-fatal: FIM just won't work
+
+        logger.info("Policy loaded and verified: %s", path)
+        return config
+
+    def set_baseline(self, path: str | Path) -> FileSnapshot:
+        """Set the FIM baseline for a policy file.
+
+        Args:
+            path: Path to the policy file.
+
+        Returns:
+            The baseline FileSnapshot.
+        """
+        self._baseline = FileSnapshot.from_path(str(path))
+        return self._baseline
+
+    def check_integrity(self, path: str | Path) -> tuple[bool, str]:
+        """Check policy file integrity against the stored baseline.
+
+        Returns:
+            A (ok, message) tuple.
+        """
+        if self._baseline is None:
+            return False, "no baseline set"
+        return self._baseline.verify(str(path))
+
+    def get_last_known_good(self) -> PolicyConfig | None:
+        """Return the last successfully verified policy, or None."""
+        return self._last_known_good
+
+    def _fallback(self, reason: str) -> PolicyConfig:
+        """Return last-known-good or deny-all on verification failure."""
+        if self._last_known_good is not None:
+            logger.warning("Using last-known-good policy (%s)", reason)
+            return self._last_known_good
+        logger.critical("No fallback available — DENY ALL (%s)", reason)
+        return _DENY_ALL
 
     @staticmethod
     def sign_file(path: str | Path, key: bytes) -> Path:
