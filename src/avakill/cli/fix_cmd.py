@@ -130,7 +130,7 @@ def fix(show_last: bool, show_all: bool, db: str, output_json: bool) -> None:
         console.print("[dim]No denied events found.[/dim]")
         return
 
-    hints = [(e, recovery_hint_for(e.decision)) for e in events]
+    hints = [(e, recovery_hint_for(e.decision, tool_name=e.tool_call.tool_name)) for e in events]
 
     if output_json:
         records = [_hint_to_dict(e, h) for e, h in hints]

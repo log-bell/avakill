@@ -1199,6 +1199,35 @@ class TestPolicyEngineIntegration:
 
 
 # ---------------------------------------------------------------------------
+# PolicyEngine — default template rate limit ordering (Bug 3)
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultTemplateRateLimit:
+    """Bug 3: Verify rate-limit rules fire before broad allow rules in default.yaml."""
+
+    def test_default_template_rate_limits_web_search(self) -> None:
+        """Load default.yaml and verify web_search hits rate-limit, not allow-read-operations."""
+        templates_dir = Path(__file__).resolve().parent.parent / "src" / "avakill" / "templates"
+        engine = PolicyEngine.from_yaml(templates_dir / "default.yaml")
+
+        tc = ToolCall(tool_name="web_search", arguments={"query": "test"})
+
+        # First call should be allowed by rate-limit rule (not allow-read-operations)
+        decision = engine.evaluate(tc)
+        assert decision.allowed is True
+        assert decision.policy_name == "rate-limit-web-search"
+
+        # Exhaust the rate limit (30 calls total, 1 already done)
+        for _ in range(29):
+            engine.evaluate(tc)
+
+        # 31st call should trigger rate limit
+        with pytest.raises(RateLimitExceeded):
+            engine.evaluate(tc)
+
+
+# ---------------------------------------------------------------------------
 # load_policy convenience function
 # ---------------------------------------------------------------------------
 

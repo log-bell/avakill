@@ -1,31 +1,37 @@
 # AvaKill Default Policy
-# Balanced security with common-sense defaults
+# Balanced security with common-sense defaults.
+# Works out-of-the-box with the quickstart examples.
 
 version: "1.0"
 default_action: deny
 
 policies:
-  # --- Allow read-only operations ---
-  - name: allow-read-operations
+  # --- Block destructive operations (must come before allows) ---
+  - name: block-destructive-ops
     tools:
-      - "*_read"
-      - "*_get"
-      - "*_list"
-      - "*_search"
-      - "*_query"
-    action: allow
-    message: "Read operations are allowed by default"
+      - "delete_*"
+      - "remove_*"
+      - "destroy_*"
+      - "drop_*"
+      - "*_delete"
+      - "*_remove"
+      - "*_destroy"
+      - "*_drop"
+    action: deny
+    message: "Destructive operations are blocked. Run manually or update your policy."
 
   # --- Block destructive SQL ---
   - name: block-destructive-sql
     tools:
       - "database_*"
       - "sql_*"
+      - "execute_sql"
+      - "run_query"
     action: deny
     conditions:
       args_match:
         query: ["DROP", "DELETE", "TRUNCATE", "ALTER"]
-    message: "Destructive SQL operations require manual execution"
+    message: "Destructive SQL blocked. Use a manual migration."
 
   # --- Block dangerous shell commands ---
   - name: block-dangerous-shell
@@ -33,28 +39,57 @@ policies:
       - "shell_*"
       - "bash_*"
       - "command_*"
+      - "run_command"
     action: deny
     conditions:
       args_match:
-        cmd: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"]
-    message: "Dangerous shell commands are blocked"
+        command: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"]
+    message: "Dangerous shell command blocked."
 
-  # --- Rate limit search and execution ---
-  - name: rate-limit-search
+  # --- Rate limit web search (must come before allow-read-operations) ---
+  - name: rate-limit-web-search
     tools:
       - "web_search"
-      - "code_execute"
     action: allow
     rate_limit:
       max_calls: 30
       window: "1m"
-    message: "Rate limited to 30 calls per minute"
 
-  # --- Require approval for sensitive operations ---
-  - name: require-approval-sensitive
+  # --- Allow read-only operations (prefix and suffix patterns) ---
+  - name: allow-read-operations
     tools:
-      - "email_send"
-      - "file_delete"
-      - "api_delete"
-    action: require_approval
-    message: "This operation requires human approval"
+      - "search_*"
+      - "get_*"
+      - "list_*"
+      - "read_*"
+      - "query_*"
+      - "fetch_*"
+      - "find_*"
+      - "lookup_*"
+      - "*_search"
+      - "*_get"
+      - "*_list"
+      - "*_read"
+      - "*_query"
+      - "*_fetch"
+      - "*_find"
+      - "*_lookup"
+    action: allow
+
+  # --- Allow safe SQL (after destructive SQL is blocked above) ---
+  - name: allow-safe-sql
+    tools:
+      - "database_*"
+      - "sql_*"
+      - "execute_sql"
+      - "run_query"
+    action: allow
+
+  # --- Allow safe shell (after dangerous commands are blocked above) ---
+  - name: allow-safe-shell
+    tools:
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
+      - "run_command"
+    action: allow

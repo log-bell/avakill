@@ -125,6 +125,8 @@ class TestFixCommand:
         assert result.exit_code == 0
         # Should contain a YAML snippet for fixing the policy deny
         assert "action: allow" in result.output
+        # Bug 1 fix: should contain actual tool name, not <tool>
+        assert "file_delete" in result.output
 
     def test_fix_json_output(
         self, runner: CliRunner, db_with_denials: Path
@@ -162,4 +164,15 @@ class TestFixCommand:
         result = runner.invoke(cli, ["fix", "--db", str(db_with_denials)])
         assert result.exit_code == 0
         # Should show exactly 1 denial
+        assert "unknown_tool" in result.output
+
+    def test_fix_shows_actual_tool_name_in_snippet(
+        self, runner: CliRunner, db_with_denials: Path
+    ) -> None:
+        """Bug 1 fix: YAML snippets should use actual tool names, not <tool>."""
+        result = runner.invoke(cli, ["fix", "--all", "--db", str(db_with_denials)])
+        assert result.exit_code == 0
+        # The file_delete denial should produce a snippet with the actual name
+        assert "file_delete" in result.output
+        # The unknown_tool default-deny should also use the actual name
         assert "unknown_tool" in result.output

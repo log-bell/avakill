@@ -48,6 +48,7 @@ def recovery_hint_for(
     decision: object,
     *,
     policy_status: str | None = None,
+    tool_name: str | None = None,
 ) -> RecoveryHint | None:
     """Derive a RecoveryHint from a Decision's fields.
 
@@ -134,10 +135,11 @@ def recovery_hint_for(
 
     # --- Rate limit ---
     if "rate limit" in reason_lower:
+        tool = tool_name or "<tool>"
         rate_yaml = (
             f"# Increase the rate limit for rule '{policy_name}':\n"
             f"- name: {policy_name or '<rule-name>'}\n"
-            f"  tools: [<tool>]\n"
+            f'  tools: ["{tool}"]\n'
             f"  action: allow\n"
             f"  rate_limit:\n"
             f"    max_calls: 20\n"
@@ -189,10 +191,11 @@ def recovery_hint_for(
 
     # --- Default deny (no matching rule) ---
     if "default action" in reason_lower:
+        tool = tool_name or "<tool>"
         default_yaml = (
             "# Add this rule to your avakill.yaml (above existing deny rules):\n"
-            "- name: allow-<tool>\n"
-            "  tools: [<tool>]\n"
+            f"- name: allow-{tool}\n"
+            f'  tools: ["{tool}"]\n'
             "  action: allow"
         )
         return RecoveryHint(
@@ -213,22 +216,40 @@ def recovery_hint_for(
     # carry their own specific recovery semantics (wait / add rule).
     overridable: bool = getattr(decision, "overridable", False)
     if overridable and policy_name:
+        tool = tool_name or "<tool>"
         return RecoveryHint(
             source="policy-rule-deny",
             summary=f"Soft-denied by rule '{policy_name}' (overridable)",
-            steps=(f"Re-run with override: avakill evaluate --override --tool <tool>",),
+            steps=(f"Re-run with override: avakill evaluate --override --tool {tool}",),
             hint_type="override",
-            commands=(f"avakill evaluate --override --tool <tool>",),
+            commands=(f"avakill evaluate --override --tool {tool}",),
         )
 
     # --- Named policy rule deny ---
     if policy_name:
-        rule_yaml = (
-            f"# Add this rule to your avakill.yaml (above '{policy_name}'):\n"
-            f"- name: allow-<tool>\n"
-            f"  tools: [<tool>]\n"
-            f"  action: allow"
-        )
+        standard_reason = f"Matched rule '{policy_name}'"
+        tool = tool_name or "<tool>"
+
+        if reason.strip() != standard_reason:
+            # Custom message = intentional denial. Don't suggest blanket allow.
+            rule_yaml = (
+                f"# WARNING: Rule '{policy_name}' denied this call intentionally.\n"
+                f"# Reason: {reason}\n"
+                f"# If this was a mistake, add a targeted allow rule:\n"
+                f"- name: allow-{tool}\n"
+                f'  tools: ["{tool}"]\n'
+                f"  action: allow\n"
+                f"  conditions:\n"
+                f"    args_not_match:  # adjust to your needs\n"
+                f'      command: ["rm -rf", "sudo"]'
+            )
+        else:
+            rule_yaml = (
+                f"# Add this rule to your avakill.yaml (above '{policy_name}'):\n"
+                f"- name: allow-{tool}\n"
+                f'  tools: ["{tool}"]\n'
+                f"  action: allow"
+            )
         return RecoveryHint(
             source="policy-rule-deny",
             summary=f"Denied by rule '{policy_name}'",

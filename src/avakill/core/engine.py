@@ -279,7 +279,8 @@ class Guard:
         except RateLimitExceeded as exc:
             if exc.recovery_hint is None:
                 exc.recovery_hint = recovery_hint_for(
-                    exc.decision, policy_status=self._policy_status
+                    exc.decision, policy_status=self._policy_status,
+                    tool_name=tool_call.tool_name,
                 )
             decision = exc.decision
             self._record(tool_call, decision, start)
@@ -333,7 +334,9 @@ class Guard:
         """
         decision = self.evaluate(tool, args, **kwargs)
         if not decision.allowed:
-            hint = recovery_hint_for(decision, policy_status=self._policy_status)
+            hint = recovery_hint_for(
+                decision, policy_status=self._policy_status, tool_name=tool,
+            )
             raise PolicyViolation(tool, decision, recovery_hint=hint)
         return decision
 
@@ -433,7 +436,10 @@ class Guard:
         """Create an AuditEvent, log it asynchronously, and emit to bus."""
         hint = None
         if not decision.allowed:
-            hint = recovery_hint_for(decision, policy_status=self._policy_status)
+            hint = recovery_hint_for(
+                decision, policy_status=self._policy_status,
+                tool_name=tool_call.tool_name,
+            )
         event = AuditEvent(
             tool_call=tool_call, decision=decision, recovery_hint=hint
         )

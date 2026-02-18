@@ -254,6 +254,99 @@ class TestRecoveryHintFor:
         assert len(hint.steps) > 0
         assert isinstance(hint.steps[0], str)
 
+    # ---- Bug 1: tool_name substitution tests ----
+
+    def test_policy_rule_deny_substitutes_tool_name(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="block-destructive-sql",
+            reason="Matched rule 'block-destructive-sql'",
+        )
+        hint = recovery_hint_for(d, tool_name="execute_sql")
+        assert hint is not None
+        assert hint.yaml_snippet is not None
+        assert "execute_sql" in hint.yaml_snippet
+        assert "<tool>" not in hint.yaml_snippet
+
+    def test_default_deny_substitutes_tool_name(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            reason="No matching rule; default action is 'deny'",
+        )
+        hint = recovery_hint_for(d, tool_name="my_custom_tool")
+        assert hint is not None
+        assert hint.yaml_snippet is not None
+        assert "my_custom_tool" in hint.yaml_snippet
+        assert "<tool>" not in hint.yaml_snippet
+
+    def test_rate_limit_substitutes_tool_name(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="rate-limited-search",
+            reason="Rate limit exceeded: 10 calls per 60s",
+        )
+        hint = recovery_hint_for(d, tool_name="web_search")
+        assert hint is not None
+        assert hint.yaml_snippet is not None
+        assert "web_search" in hint.yaml_snippet
+        assert "<tool>" not in hint.yaml_snippet
+
+    def test_soft_deny_substitutes_tool_name(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="soft-block",
+            reason="Matched rule 'soft-block'",
+            overridable=True,
+        )
+        hint = recovery_hint_for(d, tool_name="shell_execute")
+        assert hint is not None
+        assert any("shell_execute" in cmd for cmd in hint.commands)
+        assert all("<tool>" not in cmd for cmd in hint.commands)
+
+    def test_no_tool_name_keeps_placeholder(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="block-sql",
+            reason="Matched rule 'block-sql'",
+        )
+        hint = recovery_hint_for(d)
+        assert hint is not None
+        assert hint.yaml_snippet is not None
+        assert "<tool>" in hint.yaml_snippet
+
+    # ---- Bug 2: intentional deny vs standard deny ----
+
+    def test_intentional_deny_warns_about_blanket_allow(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="block-dangerous-shell",
+            reason="Dangerous shell command blocked.",
+        )
+        hint = recovery_hint_for(d, tool_name="shell_execute")
+        assert hint is not None
+        assert hint.yaml_snippet is not None
+        assert "WARNING" in hint.yaml_snippet
+        assert "args_not_match" in hint.yaml_snippet
+
+    def test_standard_deny_suggests_allow_rule(self) -> None:
+        d = Decision(
+            allowed=False,
+            action="deny",
+            policy_name="block-sql",
+            reason="Matched rule 'block-sql'",
+        )
+        hint = recovery_hint_for(d, tool_name="execute_sql")
+        assert hint is not None
+        assert hint.yaml_snippet is not None
+        assert "WARNING" not in hint.yaml_snippet
+        assert "allow-execute_sql" in hint.yaml_snippet
+
 
 # ------------------------------------------------------------------ #
 # TestRecoveryOnExceptions — hints on PolicyViolation / RateLimitExceeded

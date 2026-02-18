@@ -67,7 +67,7 @@ class AvaKillCallbackHandler:
         self.decisions.append(decision)
 
         if not decision.allowed:
-            hint = recovery_hint_for(decision)
+            hint = recovery_hint_for(decision, tool_name=tool_name)
             raise PolicyViolation(tool_name, decision, recovery_hint=hint)
 
     def on_tool_end(self, output: str, **kwargs: Any) -> None:

@@ -97,7 +97,7 @@ def protect(
                 return None
             if on_deny == "callback" and deny_callback is not None:
                 return deny_callback(name, decision, f_args, f_kwargs)
-            hint = recovery_hint_for(decision)
+            hint = recovery_hint_for(decision, tool_name=name)
             raise PolicyViolation(name, decision, recovery_hint=hint)
 
         if inspect.iscoroutinefunction(func):
