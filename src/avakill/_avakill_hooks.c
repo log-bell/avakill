@@ -138,6 +138,27 @@ PyInit__avakill_hooks(void)
     setenv("PYTHON_DISABLE_REMOTE_DEBUG", "1", 1);
 #endif
 
+    /* Also set in Python's os.environ so it's visible from Python code
+     * and inherited by child processes spawned via subprocess */
+    {
+        PyObject *os_mod = PyImport_ImportModule("os");
+        if (os_mod) {
+            PyObject *environ = PyObject_GetAttrString(os_mod, "environ");
+            if (environ) {
+                PyObject *key = PyUnicode_FromString("PYTHON_DISABLE_REMOTE_DEBUG");
+                PyObject *val = PyUnicode_FromString("1");
+                if (key && val) {
+                    PyObject_SetItem(environ, key, val);
+                }
+                Py_XDECREF(key);
+                Py_XDECREF(val);
+                Py_DECREF(environ);
+            }
+            Py_DECREF(os_mod);
+        }
+        PyErr_Clear();  /* Don't fail module init if os.environ update fails */
+    }
+
     /* Install the C-level audit hook -- this is irremovable */
     if (PySys_AddAuditHook(avakill_audit_hook, NULL) < 0) {
         return NULL;
