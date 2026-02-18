@@ -11,9 +11,6 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
 
 from avakill.core.audit_hooks import AuditHookManager
 

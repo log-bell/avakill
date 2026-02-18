@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 from fnmatch import fnmatch
-from typing import Any
 
 from avakill.core.models import Decision, ToolCall
 

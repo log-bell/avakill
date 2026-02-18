@@ -99,7 +99,7 @@ class TestSignCommand:
         assert "AVAKILL_POLICY_KEY" in result.output
         # Should contain a 64-char hex string
         lines = result.output.strip().split("\n")
-        key_line = [l for l in lines if "AVAKILL_POLICY_KEY" in l][0]
+        key_line = [line for line in lines if "AVAKILL_POLICY_KEY" in line][0]
         # Extract hex value
         hex_val = key_line.split("=")[-1].strip().strip('"').strip("'")
         assert len(hex_val) == 64

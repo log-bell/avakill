@@ -63,5 +63,7 @@ def test_all_exports():
         "MCPProxyServer",
         "get_json_schema",
         "generate_prompt",
+        "PolicyIntegrity",
+        "FileSnapshot",
     }
     assert set(avakill.__all__) == expected

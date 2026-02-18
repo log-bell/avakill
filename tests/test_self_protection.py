@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from avakill.core.engine import Guard
-from avakill.core.models import AuditEvent, Decision, PolicyConfig, PolicyRule, ToolCall
+from avakill.core.models import AuditEvent, PolicyConfig, PolicyRule, ToolCall
 from avakill.core.self_protection import SelfProtection
 from avakill.logging.event_bus import EventBus
 

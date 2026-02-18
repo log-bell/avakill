@@ -21,7 +21,7 @@ from avakill.core.policy import PolicyEngine
 @click.option(
     "--target",
     default=None,
-    help="Target filename for the activated policy. Defaults to avakill.yaml in the same directory.",
+    help="Target filename for the activated policy. Defaults to avakill.yaml.",
 )
 @click.option(
     "--yes", "-y",
@@ -66,10 +66,7 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
     config = engine.config
 
     # Determine target path
-    if target:
-        target_path = Path(target)
-    else:
-        target_path = proposed_path.parent / "avakill.yaml"
+    target_path = Path(target) if target else proposed_path.parent / "avakill.yaml"
 
     # Show summary
     console.print()
@@ -84,10 +81,9 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
     console.print()
 
     # Confirm
-    if not yes:
-        if not click.confirm("Activate this policy?"):
-            console.print("[yellow]Aborted.[/yellow]")
-            raise SystemExit(0)
+    if not yes and not click.confirm("Activate this policy?"):
+        console.print("[yellow]Aborted.[/yellow]")
+        raise SystemExit(0)
 
     # Copy proposed to target
     shutil.copy2(str(proposed_path), str(target_path))

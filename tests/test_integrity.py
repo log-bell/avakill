@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from avakill.core.integrity import FileSnapshot, PolicyIntegrity
+from avakill.core.models import PolicyConfig
 
 
 class TestFileSnapshot:
@@ -130,9 +131,6 @@ class TestHMACSigning:
         key_b = bytes.fromhex("bb" * 32)
         PolicyIntegrity.sign_file(policy_file, key_a)
         assert PolicyIntegrity.verify_file(policy_file, key_b) is False
-
-
-from avakill.core.models import PolicyConfig
 
 
 @pytest.fixture
@@ -300,7 +298,7 @@ class TestPolicyIntegrityBaseline:
 
 class TestPackageExports:
     def test_policy_integrity_importable_from_core(self) -> None:
-        from avakill.core.integrity import PolicyIntegrity, FileSnapshot
+        from avakill.core.integrity import FileSnapshot, PolicyIntegrity
         assert PolicyIntegrity is not None
         assert FileSnapshot is not None
 

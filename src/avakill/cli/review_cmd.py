@@ -57,7 +57,8 @@ def review(proposed_file: str) -> None:
     # Show syntax-highlighted YAML
     console.print()
     syntax = Syntax(raw, "yaml", theme="monokai", line_numbers=True)
-    console.print(Panel(syntax, title=f"Proposed Policy: {proposed_path.name}", border_style="blue"))
+    panel_title = f"Proposed Policy: {proposed_path.name}"
+    console.print(Panel(syntax, title=panel_title, border_style="blue"))
     console.print()
 
     # Rules summary table

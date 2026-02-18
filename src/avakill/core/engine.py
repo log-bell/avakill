@@ -120,7 +120,7 @@ class Guard:
 
     @property
     def policy_status(self) -> str:
-        """Current policy integrity status: 'verified', 'last-known-good', 'deny-all', or 'unsigned'."""
+        """Current integrity status: verified/last-known-good/deny-all/unsigned."""
         return self._policy_status
 
     def evaluate(

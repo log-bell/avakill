@@ -82,7 +82,10 @@ class FileSnapshot:
         with open(real, "rb") as f:
             sha = hashlib.sha256(f.read()).hexdigest()
         if sha != self.sha256:
-            return False, f"content hash mismatch: expected {self.sha256[:16]}..., got {sha[:16]}..."
+            return False, (
+                f"content hash mismatch: expected {self.sha256[:16]}...,"
+                f" got {sha[:16]}..."
+            )
         return True, "ok (hash verified)"
 
 
@@ -165,10 +168,9 @@ class PolicyIntegrity:
         self._last_known_good = config
 
         # Step 6: Set baseline for ongoing integrity checks
-        try:
+        import contextlib
+        with contextlib.suppress(OSError):
             self._baseline = FileSnapshot.from_path(str(path))
-        except OSError:
-            pass  # Non-fatal: FIM just won't work
 
         logger.info("Policy loaded and verified: %s", path)
         return config

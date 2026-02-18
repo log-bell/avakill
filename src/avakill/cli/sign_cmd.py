@@ -53,9 +53,9 @@ def sign(policy_file: str | None, key: str | None, generate_key: bool) -> None:
 
     try:
         key_bytes = bytes.fromhex(key_hex)
-    except ValueError:
+    except ValueError as exc:
         console.print("[red]Error:[/red] Invalid hex key.")
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     policy_path = Path(policy_file)
     if not policy_path.exists():
