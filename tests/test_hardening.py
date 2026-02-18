@@ -13,7 +13,6 @@ from click.testing import CliRunner
 
 from avakill.cli.main import cli
 
-
 # ---------------------------------------------------------------------------
 # Component 5: Capability Detection Utility
 # ---------------------------------------------------------------------------

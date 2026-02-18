@@ -142,7 +142,7 @@ def _output_template(
         content = get_template_content(template_name)
     except FileNotFoundError:
         console.print(f"[red]Error:[/red] Template not found: {template_name}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     if output_path:
         Path(output_path).write_text(content)

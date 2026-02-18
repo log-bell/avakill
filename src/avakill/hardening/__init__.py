@@ -43,7 +43,7 @@ def _check_immutable_linux(path: Path) -> bool:
             return bool(flags & EXT2_IMMUTABLE_FL)
         finally:
             os.close(fd)
-    except (OSError, IOError, ImportError):
+    except (OSError, ImportError):
         return False
 
 
