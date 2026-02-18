@@ -33,6 +33,14 @@ def __getattr__(name: str):  # noqa: ANN001
         from avakill.schema import generate_prompt
 
         return generate_prompt
+    if name == "PolicyIntegrity":
+        from avakill.core.integrity import PolicyIntegrity
+
+        return PolicyIntegrity
+    if name == "FileSnapshot":
+        from avakill.core.integrity import FileSnapshot
+
+        return FileSnapshot
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -48,4 +56,6 @@ __all__ = [
     "MCPProxyServer",
     "get_json_schema",
     "generate_prompt",
+    "PolicyIntegrity",
+    "FileSnapshot",
 ]

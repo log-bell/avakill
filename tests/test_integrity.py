@@ -296,3 +296,16 @@ class TestPolicyIntegrityBaseline:
         ok, msg = pi.check_integrity("/some/path.yaml")
         assert ok is False
         assert "no baseline" in msg
+
+
+class TestPackageExports:
+    def test_policy_integrity_importable_from_core(self) -> None:
+        from avakill.core.integrity import PolicyIntegrity, FileSnapshot
+        assert PolicyIntegrity is not None
+        assert FileSnapshot is not None
+
+    def test_policy_integrity_lazy_import(self) -> None:
+        import avakill
+        pi = avakill.PolicyIntegrity
+        from avakill.core.integrity import PolicyIntegrity as direct
+        assert pi is direct
