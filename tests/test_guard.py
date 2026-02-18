@@ -9,6 +9,7 @@ import pytest
 
 from avakill.core.engine import Guard, GuardSession
 from avakill.core.exceptions import ConfigError, PolicyViolation, RateLimitExceeded
+from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, PolicyConfig, PolicyRule, RateLimit
 from avakill.logging.event_bus import EventBus
 
@@ -411,3 +412,87 @@ class TestEventBus:
 
         assert len(received_a) == 1
         assert len(received_b) == 1
+
+
+class TestGuardIntegrity:
+    """Tests for Guard with policy signing integration."""
+
+    def test_signing_key_from_param(self, tmp_path: Path) -> None:
+        key = bytes.fromhex("dd" * 32)
+        policy_file = tmp_path / "avakill.yaml"
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: deny\n"
+            "policies:\n  - name: test\n    tools: [file_read]\n    action: allow\n"
+        )
+        PolicyIntegrity.sign_file(policy_file, key)
+        guard = Guard(policy=policy_file, signing_key=key, self_protection=False)
+        assert guard.policy_status == "verified"
+
+    def test_unsigned_policy_works_without_key(self, tmp_policy_file: Path) -> None:
+        guard = Guard(policy=tmp_policy_file, self_protection=False)
+        assert guard.policy_status == "unsigned"
+        decision = guard.evaluate(tool="file_read")
+        assert decision.allowed is True
+
+    def test_tampered_policy_falls_back(self, tmp_path: Path) -> None:
+        key = bytes.fromhex("dd" * 32)
+        policy_file = tmp_path / "avakill.yaml"
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: deny\n"
+            "policies:\n  - name: test\n    tools: [file_read]\n    action: allow\n"
+        )
+        PolicyIntegrity.sign_file(policy_file, key)
+        guard = Guard(policy=policy_file, signing_key=key, self_protection=False)
+        assert guard.policy_status == "verified"
+
+        # Tamper with the file
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: allow\npolicies: []\n"
+        )
+        # Next evaluate should detect tampering and use last-known-good
+        decision = guard.evaluate(tool="file_read")
+        assert decision.allowed is True  # last-known-good still allows
+        assert guard.policy_status == "last-known-good"
+
+    def test_signing_key_from_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        key_hex = "ee" * 32
+        key = bytes.fromhex(key_hex)
+        monkeypatch.setenv("AVAKILL_POLICY_KEY", key_hex)
+        policy_file = tmp_path / "avakill.yaml"
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: deny\n"
+            "policies:\n  - name: test\n    tools: [file_read]\n    action: allow\n"
+        )
+        PolicyIntegrity.sign_file(policy_file, key)
+        guard = Guard(policy=policy_file, self_protection=False)
+        assert guard.policy_status == "verified"
+
+    def test_policy_status_deny_all(self, tmp_path: Path) -> None:
+        key = bytes.fromhex("dd" * 32)
+        # No file, no fallback -> deny-all
+        pi = PolicyIntegrity(signing_key=key)
+        config = pi.load_verified(tmp_path / "nonexistent.yaml")
+        assert config.default_action == "deny"
+
+    def test_reload_with_signing(self, tmp_path: Path) -> None:
+        key = bytes.fromhex("dd" * 32)
+        policy_file = tmp_path / "avakill.yaml"
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: deny\n"
+            "policies:\n  - name: test\n    tools: [file_read]\n    action: allow\n"
+        )
+        PolicyIntegrity.sign_file(policy_file, key)
+        guard = Guard(policy=policy_file, signing_key=key, self_protection=False)
+
+        # Update and re-sign
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: deny\n"
+            "policies:\n"
+            "  - name: test\n    tools: [file_read]\n    action: allow\n"
+            "  - name: allow-write\n    tools: [file_write]\n    action: allow\n"
+        )
+        PolicyIntegrity.sign_file(policy_file, key)
+        guard.reload_policy()
+        assert guard.evaluate(tool="file_write").allowed is True

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -10,11 +12,14 @@ from typing import Any
 from uuid import uuid4
 
 from avakill.core.exceptions import PolicyViolation, RateLimitExceeded
+from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, Decision, PolicyConfig, ToolCall
 from avakill.core.policy import PolicyEngine, load_policy
 from avakill.core.self_protection import SelfProtection
 from avakill.logging.base import AuditLogger
 from avakill.logging.event_bus import EventBus
+
+_logger = logging.getLogger(__name__)
 
 
 class Guard:
@@ -39,6 +44,7 @@ class Guard:
         logger: AuditLogger | None = None,
         agent_id: str | None = None,
         self_protection: bool = True,
+        signing_key: bytes | None = None,
     ) -> None:
         """Initialise the Guard.
 
@@ -52,20 +58,43 @@ class Guard:
             self_protection: Enable hardcoded self-protection rules that
                 prevent agents from weakening their own guardrails.
                 Set to False only for testing.
+            signing_key: Optional 32-byte HMAC signing key for policy
+                verification. If None, reads from AVAKILL_POLICY_KEY env var.
 
         Raises:
             ConfigError: If the policy cannot be loaded or parsed.
         """
-        self._engine = self._build_engine(policy)
+        # Auto-read signing key from environment if not provided
+        if signing_key is None:
+            key_hex = os.environ.get("AVAKILL_POLICY_KEY")
+            if key_hex:
+                signing_key = bytes.fromhex(key_hex)
+
+        self._integrity: PolicyIntegrity | None = None
+        self._policy_path: Path | None = None
+
+        if isinstance(policy, (str, Path)):
+            self._policy_path = Path(policy)
+
+        # Use PolicyIntegrity for file-based policies when signing is available
+        if signing_key is not None and isinstance(policy, (str, Path)):
+            self._integrity = PolicyIntegrity(signing_key=signing_key)
+            config = self._integrity.load_verified(policy)
+            self._engine = PolicyEngine(config)
+            self._policy_status = (
+                "verified" if self._integrity.get_last_known_good() is not None else "deny-all"
+            )
+        else:
+            self._engine = self._build_engine(policy)
+            self._policy_status = "unsigned"
+
+        self._signing_key = signing_key
         self._logger = logger
         self._agent_id = agent_id
         self._self_protection: SelfProtection | None = (
             SelfProtection() if self_protection else None
         )
         self._event_bus = EventBus.get()
-        self._policy_path: Path | None = None
-        if isinstance(policy, (str, Path)):
-            self._policy_path = Path(policy)
 
     @staticmethod
     def _build_engine(policy: str | Path | dict | PolicyConfig | None) -> PolicyEngine:
@@ -88,6 +117,11 @@ class Guard:
     def event_bus(self) -> EventBus:
         """The event bus used for broadcasting audit events."""
         return self._event_bus
+
+    @property
+    def policy_status(self) -> str:
+        """Current policy integrity status: 'verified', 'last-known-good', 'deny-all', or 'unsigned'."""
+        return self._policy_status
 
     def evaluate(
         self,
@@ -134,6 +168,19 @@ class Guard:
                 )
                 self._record(tool_call, sp_decision, start)
                 return sp_decision
+
+        # Integrity check: verify policy file hasn't been tampered with
+        if self._integrity is not None and self._policy_path is not None:
+            ok, msg = self._integrity.check_integrity(self._policy_path)
+            if not ok:
+                _logger.warning("Policy integrity check failed: %s", msg)
+                fallback = self._integrity.load_verified(self._policy_path)
+                self._engine = PolicyEngine(fallback)
+                self._policy_status = (
+                    "last-known-good"
+                    if self._integrity.get_last_known_good() is not None
+                    else "deny-all"
+                )
 
         try:
             decision = self._engine.evaluate(tool_call)
@@ -211,7 +258,18 @@ class Guard:
         reload_path: str | Path | None = path
         if reload_path is None:
             reload_path = self._policy_path
-        self._engine = self._build_engine(reload_path)
+
+        if self._integrity is not None and reload_path is not None:
+            config = self._integrity.load_verified(reload_path)
+            self._engine = PolicyEngine(config)
+            self._policy_status = (
+                "verified"
+                if self._integrity.get_last_known_good() is not None
+                else "deny-all"
+            )
+        else:
+            self._engine = self._build_engine(reload_path)
+
         if isinstance(reload_path, (str, Path)):
             self._policy_path = Path(reload_path)
 
