@@ -15,7 +15,7 @@ from avakill.logging.sqlite_logger import SQLiteLogger
 
 
 @pytest.fixture
-def runner():
+def runner() -> CliRunner:
     return CliRunner()
 
 

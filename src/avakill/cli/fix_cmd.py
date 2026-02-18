@@ -38,6 +38,13 @@ def _hint_to_dict(event: AuditEvent, hint: RecoveryHint | None) -> dict[str, Any
         base["yaml_snippet"] = hint.yaml_snippet
         base["wait_seconds"] = hint.wait_seconds
         base["steps"] = list(hint.steps)
+    else:
+        base["hint_type"] = None
+        base["summary"] = None
+        base["commands"] = []
+        base["yaml_snippet"] = None
+        base["wait_seconds"] = None
+        base["steps"] = []
     return base
 
 
