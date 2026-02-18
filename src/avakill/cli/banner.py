@@ -113,9 +113,9 @@ def print_banner() -> None:
     con.print("\u2500" * sep_w, style="dim #00D4FF", justify="center")
 
     info = Text()
-    pad = max(2, sep_w - len(f"v{ver} \u03b2") - len("docs: avakill.dev"))
+    pad = max(2, sep_w - len(f"v{ver} \u03b2") - len("docs: avakill.com"))
     info.append(f"v{ver} \u03b2", style="#6B7280")
     info.append(" " * pad)
-    info.append("docs: avakill.dev", style="#6B7280")
+    info.append("docs: avakill.com", style="#6B7280")
     con.print(info, justify="center")
     con.print()

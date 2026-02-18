@@ -9,11 +9,16 @@
   <meta property="og:title" content="AvaKill — Open-Source Safety Firewall for AI Agents">
   <meta property="og:description" content="Intercept tool calls. Enforce policies. Prevent disasters. Works with OpenAI, Anthropic, LangChain, MCP.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://avakill.dev">
-  <meta property="og:image" content="https://avakill.dev/og-image.png">
+  <meta property="og:url" content="https://avakill.com">
+  <meta property="og:image" content="https://avakill.com/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="AvaKill — Open-Source Safety Firewall for AI Agents">
   <meta name="twitter:description" content="Stop your AI agents from deleting your database. Open-source, &lt;1ms overhead, YAML policies.">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="/favicon/site.webmanifest">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
   <style>
     /* =========================================================
@@ -136,8 +141,14 @@
       justify-content: center;
       margin-bottom: 40px;
       position: relative;
-      animation: heroFadeScale 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: heroFadeScale 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+                 subtleFloat 4s ease-in-out 0.8s infinite;
       opacity: 0;
+    }
+
+    @keyframes subtleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
     }
 
     .hero-logo img {
@@ -145,7 +156,7 @@
       height: 100%;
       object-fit: contain;
       position: relative;
-      z-index: 1;
+      z-index: 2;
     }
 
     /* Pulsing glow behind logo */
@@ -156,6 +167,72 @@
       background: radial-gradient(circle, rgba(0, 212, 255, 0.15) 0%, transparent 70%);
       animation: pulseGlow 3s ease-in-out infinite;
       z-index: 0;
+    }
+
+    /* Laser beam container */
+    .hero-laser {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 6px;
+      transform-origin: 0 50%;
+      z-index: 1;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hero-laser::before {
+      content: '';
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #00D4FF, rgba(0, 212, 255, 0));
+      box-shadow: 0 0 8px 3px rgba(0, 212, 255, 0.5),
+                  0 0 20px 6px rgba(0, 212, 255, 0.25);
+      border-radius: 3px;
+    }
+
+    /* Right-side beams */
+    .hero-laser--1 {
+      transform: rotate(-20deg);
+      animation: laserShoot 5s ease-out 1.5s infinite;
+    }
+    .hero-laser--2 {
+      transform: rotate(15deg);
+      animation: laserShoot 5s ease-out 3.1s infinite;
+    }
+    .hero-laser--3 {
+      transform: rotate(35deg);
+      animation: laserShoot 5s ease-out 4.2s infinite;
+    }
+
+    /* Left-side beams — flip origin to shoot left */
+    .hero-laser--4,
+    .hero-laser--5,
+    .hero-laser--6 {
+      left: 50%;
+      transform-origin: 0 50%;
+    }
+    .hero-laser--4 {
+      transform: rotate(160deg);
+      animation: laserShoot 5s ease-out 2.0s infinite;
+    }
+    .hero-laser--5 {
+      transform: rotate(195deg);
+      animation: laserShoot 5s ease-out 3.6s infinite;
+    }
+    .hero-laser--6 {
+      transform: rotate(210deg);
+      animation: laserShoot 5s ease-out 4.8s infinite;
+    }
+
+    @keyframes laserShoot {
+      0% { width: 0; opacity: 0; }
+      3% { opacity: 0.8; }
+      10% { width: 220px; opacity: 0.7; }
+      18% { width: 220px; opacity: 0; }
+      100% { width: 220px; opacity: 0; }
     }
 
     @keyframes pulseGlow {
@@ -1648,6 +1725,12 @@
   <!-- Hero Section -->
   <section class="hero">
     <div class="hero-logo">
+      <div class="hero-laser hero-laser--1"></div>
+      <div class="hero-laser hero-laser--2"></div>
+      <div class="hero-laser hero-laser--3"></div>
+      <div class="hero-laser hero-laser--4"></div>
+      <div class="hero-laser hero-laser--5"></div>
+      <div class="hero-laser hero-laser--6"></div>
       <!-- Replace src with your AvaKill logo -->
       <img src="avakill-logo.png" alt="AvaKill — Cracked porcelain doll face with neon blue lightning cracks" loading="lazy" onerror="this.style.display='none'">
     </div>
@@ -1663,82 +1746,14 @@
       <p>Works with OpenAI, Anthropic, LangChain, MCP, and every major framework.</p>
     </div>
 
-    <a href="#" class="hero-pill">
+    <a href="https://pypi.org/project/avakill/" class="hero-pill">
       <span class="badge">New</span>
       <span class="pill-text">AvaKill v0.1.0 — Now on PyPI</span>
       <span class="arrow">&rarr;</span>
     </a>
   </section>
 
-  <!-- Testimonials Section -->
-  <section class="testimonials">
-    <div class="testimonials-header">
-      <h2 class="testimonials-title"><span class="chevron">&rsaquo;</span>What People Say</h2>
-      <a href="#" class="testimonials-view-all">View all &rarr;</a>
-    </div>
-
-    <div class="carousel-wrapper">
-      <div class="carousel-track">
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;Finally, something that actually prevents agents from going rogue. Integrated with our LangChain pipeline in 5 minutes.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #22C55E;">S</div>
-            <span class="testimonial-handle">@devops_sarah</span>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;After the Replit database incident, I was paranoid about deploying any AI agent. AvaKill lets me sleep at night.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #F59E0B;">M</div>
-            <span class="testimonial-handle">@marcuswei</span>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;The MCP proxy is genius. Drop-in security for Claude Desktop without changing a single line of my MCP server code.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #EF4444;">N</div>
-            <span class="testimonial-handle">@rustdev_nina</span>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;We evaluated LlamaFirewall but couldn&rsquo;t justify 70B parameter inference for every tool call. AvaKill does it in &lt;1ms with zero ML.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #00D4FF;">A</div>
-            <span class="testimonial-handle">@alexchen_ml</span>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;I&rsquo;ve been saying for months that LLM guardrails are solving the wrong problem. The danger isn&rsquo;t in what agents say, it&rsquo;s what they do. AvaKill gets this.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #A855F7;">J</div>
-            <span class="testimonial-handle">@jamiepatel</span>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;Why @avakill should be installed on every agent in production. The YAML policies are so simple my PM can read them.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #EC4899;">K</div>
-            <span class="testimonial-handle">@cloud_kate</span>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <p class="testimonial-quote">&ldquo;Caught our staging agent trying to DROP TABLE on production credentials. Literally paid for itself in the first hour.&rdquo;</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar" style="background: #14B8A6;">M</div>
-            <span class="testimonial-handle">@sre_mike</span>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
+  <!-- Testimonials Section (placeholder — add real testimonials when available) -->
 
   <!-- Quick Start Section -->
   <section class="quickstart">
@@ -1757,11 +1772,10 @@
           <div class="terminal-tabs">
             <button class="terminal-tab active" data-tab="oneliner">One-liner</button>
             <button class="terminal-tab" data-tab="pip">pip</button>
-            <button class="terminal-tab" data-tab="docker">Docker</button>
           </div>
           <div class="terminal-meta">
             <span class="terminal-os">macOS/Linux</span>
-            <a href="#" class="terminal-change">change</a>
+            <span class="terminal-change"></span>
             <span class="terminal-beta">&beta; BETA</span>
           </div>
         </div>
@@ -1774,7 +1788,7 @@
           </button>
         </div>
       </div>
-      <p class="terminal-footnote">Works on macOS, Windows &amp; Linux. Zero dependencies. Ready in 30 seconds.</p>
+      <p class="terminal-footnote">Works on macOS &amp; Linux. Ready in 30 seconds.</p>
     </div>
   </section>
 
@@ -1815,7 +1829,7 @@
           <svg viewBox="0 0 24 24"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/><line x1="11" y1="6.5" x2="13" y2="6.5"/><line x1="6.5" y1="11" x2="6.5" y2="13"/><line x1="17.5" y1="11" x2="17.5" y2="13"/></svg>
         </div>
         <h3 class="feature-title">Framework Agnostic</h3>
-        <p class="feature-desc">OpenAI, Anthropic, LangChain, LangGraph, CrewAI, Vercel AI SDK, MCP. Two lines of code to protect any agent framework.</p>
+        <p class="feature-desc">OpenAI, Anthropic, LangChain, LangGraph, MCP. Drop-in wrappers for major frameworks, plus a decorator for any Python function.</p>
       </div>
 
       <div class="feature-card">
@@ -1823,7 +1837,7 @@
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
         </div>
         <h3 class="feature-title">Complete Audit Trail</h3>
-        <p class="feature-desc">Every tool call logged with decision, policy, latency, and full arguments. SQLite default, PostgreSQL for production. Built-in analytics.</p>
+        <p class="feature-desc">Every tool call logged with decision, policy, latency, and full arguments. SQLite storage, CLI queries, JSON export. Built-in analytics.</p>
       </div>
 
       <div class="feature-card">
@@ -1849,9 +1863,6 @@
         <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>OpenAI</span>
         <span class="integration-pill"><span class="integration-dot" style="background: #D97757;"></span>Anthropic</span>
         <span class="integration-pill"><span class="integration-dot" style="background: #1A8A7D;"></span>LangChain</span>
-        <span class="integration-pill"><span class="integration-dot" style="background: #EF4444;"></span>CrewAI</span>
-        <span class="integration-pill"><span class="integration-dot" style="background: #F59E0B;"></span>AutoGen</span>
-        <span class="integration-pill"><span class="integration-dot" style="background: #F8F8F8; border: 1px solid var(--text-muted);"></span>Vercel AI SDK</span>
         <span class="integration-pill"><span class="integration-dot" style="background: var(--neon-blue);"></span>MCP</span>
       </div>
 
@@ -1868,9 +1879,9 @@
       </div>
 
       <div class="integrations-links">
-        <a href="#">View all integrations &rarr;</a>
+        <a href="https://github.com/log-bell/avakill/blob/main/docs/framework-integrations.md">View all integrations &rarr;</a>
         <span class="sep">&middot;</span>
-        <a href="#">See the docs &rarr;</a>
+        <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md">See the docs &rarr;</a>
       </div>
     </div>
   </section>
@@ -1878,34 +1889,13 @@
   <!-- Featured In Section -->
   <section class="featured">
     <div class="section-header">
-      <h2 class="section-title"><span class="chevron">&rsaquo;</span>Featured In</h2>
+      <h2 class="section-title"><span class="chevron">&rsaquo;</span>Community</h2>
     </div>
 
     <div class="featured-content">
-      <!-- Press Cards -->
-      <div class="press-grid">
-        <div class="press-card press-card--red">
-          <div class="press-icon press-icon--red">
-            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          </div>
-          <h3 class="press-pub">Hacker News</h3>
-          <p class="press-headline">&ldquo;AvaKill: The Open-Source Firewall That Stops AI Agents from Going Rogue&rdquo;</p>
-          <span class="press-author press-author--red">Front Page</span>
-        </div>
-
-        <div class="press-card press-card--blue">
-          <div class="press-icon press-icon--blue">
-            <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          </div>
-          <h3 class="press-pub">TLDR Newsletter</h3>
-          <p class="press-headline">&ldquo;Why Every AI Agent in Production Needs a Safety Firewall&rdquo;</p>
-          <span class="press-author press-author--blue">AI Section Feature</span>
-        </div>
-      </div>
-
       <!-- Community Links -->
       <div class="community-grid">
-        <a href="#" class="community-card">
+        <a href="https://discord.gg/gTBvbkSV2" class="community-card">
           <div class="community-icon">
             <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
@@ -1913,7 +1903,7 @@
           <div class="community-sub">Join the community</div>
         </a>
 
-        <a href="#" class="community-card">
+        <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md" class="community-card">
           <div class="community-icon">
             <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
           </div>
@@ -1921,7 +1911,7 @@
           <div class="community-sub">Learn the ropes</div>
         </a>
 
-        <a href="#" class="community-card">
+        <a href="https://github.com/log-bell/avakill" class="community-card">
           <div class="community-icon">
             <svg viewBox="0 0 24 24" style="fill: var(--neon-blue); stroke: none;"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
           </div>
@@ -1929,7 +1919,7 @@
           <div class="community-sub">View the source</div>
         </a>
 
-        <a href="#" class="community-card">
+        <a href="https://pypi.org/project/avakill/" class="community-card">
           <div class="community-icon">
             <svg viewBox="0 0 24 24" style="fill: var(--neon-blue); stroke: none;"><path d="M23.922 13.58v3.912L20.55 18.72l-.078.055.052.037 3.45-1.256.026-.036v-3.997l-.053-.036-.025.092zM23.621 5.618l-3.04 1.107v3.912l3.339-1.215V5.509zM23.92 13.457V9.544l-3.336 1.215v3.913zM20.47 14.71V10.8L17.17 12v3.913zM17.034 19.996v-3.912l-3.313 1.206v3.912zM17.17 16.057v3.868l3.314-1.206V14.85l-3.314 1.206zm2.093 1.882c-.367.134-.663-.074-.663-.463s.296-.814.663-.947c.365-.133.662.075.662.464s-.297.814-.662.946zM13.225 9.315l.365-.132-3.285-1.197-3.323 1.21.102.037 3.184 1.16zM20.507 10.664V6.751L17.17 7.965v3.913zM17.058 11.918V8.005l-3.302 1.202v3.912zM13.643 9.246l-3.336 1.215v3.913l3.336-1.215zM6.907 13.165l3.322 1.209v-3.913L6.907 9.252zM10.34 7.873l3.281 1.193V5.198l-3.28-1.193zM20.507 2.715L17.19 3.922v3.913l3.317-1.207zM16.95 3.903L13.724 2.73l-3.269 1.19 3.225 1.174zM15.365 4.606l-1.624.592v3.868l3.317-1.207V3.991l-1.693.615zm-.391 2.778c-.367.134-.662-.074-.662-.464s.295-.813.662-.946c.366-.133.663.074.663.464s-.297.813-.663.946zM10.229 18.41v-3.914l-3.322-1.209V17.2zM13.678 17.182v-3.913l-3.371 1.227v3.913zM13.756 17.154l3.3-1.2V12.04l-3.3 1.2zM13.678 21.217l-3.371 1.227v-3.912h-.078v3.912l-3.322-1.209v-3.913l-.053-.058-.025-.06-3.336-1.21v-3.948l.034.013 3.287 1.196.015-.078-3.261-1.187 3.26-1.187v-.109L3.876 9.62l-.307-.112 3.26-1.188v.877l.079-.055V6.769l3.257 1.185.058-.061L7.084 6.75l-.102-.037 3.24-1.179v-.083L6.854 6.677v.018l-.025.018v1.523L3.44 9.47v.02l-.025.017v4.007l-3.39 1.233v.019L0 14.784v3.995l.025.037 3.4 1.237.008-.006.007.01 3.4 1.238.008-.006.006.01 3.4 1.237.014-.009.012.01 3.45-1.256.026-.037-.078-.027zM3.493 9.563l3.257 1.185-3.257 1.187V9.562zM3.4 19.96L.078 18.752v-3.913l2.361.86.96.349v3.913zm.015-3.99L.335 14.85l-.182-.066 3.262-1.187v2.374zm3.399 5.231l-3.321-1.209v-3.912l3.321 1.209v3.912zM23.791 5.434l-3.21-1.17v2.338zM20.387 2.643l-3.24-1.18-3.27 1.19 3.247 1.182z"/></svg>
           </div>
@@ -1961,7 +1951,7 @@
       </div>
       <div class="demo-actions">
         <button class="demo-action-replay" id="demo-replay-btn">Replay &#8635;</button>
-        <a href="#" class="demo-action-github">View on GitHub &rarr;</a>
+        <a href="https://github.com/log-bell/avakill" class="demo-action-github">View on GitHub &rarr;</a>
       </div>
     </div>
   </section>
@@ -1971,8 +1961,10 @@
     <div class="newsletter-card">
       <h2 class="newsletter-title"><span class="chevron">&rsaquo;</span>Stay in the Loop</h2>
       <p class="newsletter-desc">Get updates on new features, integrations, and agent safety intelligence. No spam, unsubscribe anytime.</p>
-      <form class="newsletter-form" id="newsletter-form">
-        <input type="email" class="newsletter-input" placeholder="your@email.com" required aria-label="Email address">
+      <form class="newsletter-form" id="newsletter-form"
+            action="https://app.loops.so/api/newsletter-form/cmlskik3k0bwe0iyvuey1qawn"
+            method="post">
+        <input type="email" name="email" class="newsletter-input" placeholder="your@email.com" required aria-label="Email address">
         <button type="submit" class="newsletter-btn">Subscribe &rarr;</button>
       </form>
     </div>
@@ -1983,19 +1975,19 @@
   <!-- Footer -->
   <footer class="footer">
     <nav class="footer-links">
-      <a href="#">Blog</a>
+      <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md">Docs</a>
       <span class="sep">&middot;</span>
-      <a href="#">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
       <span class="sep">&middot;</span>
-      <a href="#">GitHub</a>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
       <span class="sep">&middot;</span>
-      <a href="#">PyPI</a>
+      <a href="https://github.com/log-bell/avakill/blob/main/CHANGELOG.md">Changelog</a>
       <span class="sep">&middot;</span>
-      <a href="#">Changelog</a>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
     </nav>
     <div class="footer-attribution">
       Built with &#128737;&#65039; by AvaKill contributors.<br>
-      Open-source under Apache 2.0 license.
+      Open-source under AGPL-3.0 license.
     </div>
     <hr class="footer-line">
   </footer>
@@ -2130,7 +2122,6 @@
     const commands = {
       oneliner: 'pip install avakill && avakill init',
       pip: 'pip install avakill',
-      docker: 'docker pull avakill/avakill:latest'
     };
 
     const cmdEl = document.getElementById('terminal-cmd');
@@ -2287,7 +2278,7 @@
     /* ----- Newsletter Form (with validation shake) ----- */
     const newsletterForm = document.getElementById('newsletter-form');
     if (newsletterForm) {
-      newsletterForm.addEventListener('submit', (e) => {
+      newsletterForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const input = newsletterForm.querySelector('.newsletter-input');
         if (!input.validity.valid) {
@@ -2295,6 +2286,14 @@
           input.addEventListener('animationend', () => input.classList.remove('shake'), { once: true });
           return;
         }
+        try {
+          const formBody = `email=${encodeURIComponent(input.value)}`;
+          await fetch(newsletterForm.action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formBody,
+          });
+        } catch (_) { /* submit even if fetch fails */ }
         newsletterForm.style.transition = 'opacity 0.3s ease';
         newsletterForm.style.opacity = '0';
         setTimeout(() => {

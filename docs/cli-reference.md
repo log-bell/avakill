@@ -12,7 +12,7 @@ avakill [--version] <command> [options]
 
 **Security & Signing:** [keygen](#avakill-keygen) | [sign](#avakill-sign) | [verify](#avakill-verify) | [harden](#avakill-harden) | [check-hardening](#avakill-check-hardening)
 
-**Monitoring & Logging:** [dashboard](#avakill-dashboard) | [logs](#avakill-logs) | [metrics](#avakill-metrics)
+**Monitoring & Logging:** [dashboard](#avakill-dashboard) | [logs](#avakill-logs) | [metrics](#avakill-metrics) | [fix](#avakill-fix)
 
 **Integration:** [mcp-proxy](#avakill-mcp-proxy) | [schema](#avakill-schema)
 
@@ -587,7 +587,7 @@ avakill evaluate --agent AGENT [--socket PATH] [--policy FILE] [--json]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--agent` | *(required)* | Agent identifier (e.g., `cli`, `claude-code`, `gemini-cli`) |
+| `--agent` | `cli` | Agent identifier (e.g., `cli`, `claude-code`, `gemini-cli`) |
 | `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path (for daemon mode) |
 | `--policy` | *(none)* | Policy file path (for standalone mode, bypasses daemon) |
 | `--json` | `false` | Output full JSON response |
@@ -706,7 +706,7 @@ avakill enforce landlock --policy PATH [--dry-run]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--policy` | *(required)* | Path to the policy file |
+| `--policy` | `avakill.yaml` | Path to the policy file |
 | `--dry-run` | `false` | Show what would be restricted without applying |
 
 Translates deny rules into Landlock filesystem access restrictions. **Applying is irreversible for the current process.** Requires Linux 5.13+, unprivileged.
@@ -730,7 +730,7 @@ avakill enforce sandbox --policy PATH --output PATH
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--policy` | *(required)* | Path to the policy file |
+| `--policy` | `avakill.yaml` | Path to the policy file |
 | `--output` | *(required)* | Output path for the SBPL profile |
 
 macOS only.
@@ -754,7 +754,7 @@ avakill enforce tetragon --policy PATH --output PATH
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--policy` | *(required)* | Path to the policy file |
+| `--policy` | `avakill.yaml` | Path to the policy file |
 | `--output` | *(required)* | Output path for the TracingPolicy YAML |
 
 **Examples:**
@@ -777,7 +777,7 @@ avakill compliance report --framework FRAMEWORK --policy PATH [--format FORMAT] 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--framework` | *(required)* | Framework: `soc2`, `nist-ai-rmf`, `eu-ai-act`, `iso-42001`, or `all` |
-| `--policy` | *(required)* | Path to the policy file |
+| `--policy` | `avakill.yaml` | Path to the policy file |
 | `--format` | `table` | Output format: `table`, `json`, or `markdown` |
 | `--output` | *(stdout)* | Write output to file |
 
@@ -795,12 +795,12 @@ avakill compliance report --framework all --policy avakill.yaml --format json --
 Show compliance gaps for the current configuration.
 
 ```
-avakill compliance gaps --policy PATH
+avakill compliance gaps [--policy PATH]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--policy` | *(required)* | Path to the policy file |
+| `--policy` | `avakill.yaml` | Path to the policy file |
 
 **Example:**
 
@@ -842,7 +842,7 @@ avakill approvals grant REQUEST_ID [--db PATH] [--approver NAME]
 |-----------------|---------|-------------|
 | `REQUEST_ID` | *(required)* | ID of the approval request |
 | `--db` | `~/.avakill/approvals.db` | Path to the approvals database |
-| `--approver` | *(current user)* | Name of the approver |
+| `--approver` | `cli-user` | Name of the approver |
 
 **Example:**
 
@@ -864,12 +864,47 @@ avakill approvals reject REQUEST_ID [--db PATH] [--approver NAME]
 |-----------------|---------|-------------|
 | `REQUEST_ID` | *(required)* | ID of the approval request |
 | `--db` | `~/.avakill/approvals.db` | Path to the approvals database |
-| `--approver` | *(current user)* | Name of the approver |
+| `--approver` | `cli-user` | Name of the approver |
 
 **Example:**
 
 ```bash
 avakill approvals reject abc123 --approver admin
+```
+
+---
+
+## avakill fix
+
+Show recovery steps for recent policy denials.
+
+```
+avakill fix [--last] [--all] [--db PATH] [--json]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--last` | *(default behavior)* | Show only the most recent denial |
+| `--all` | `false` | Show all recent denials (up to 20) |
+| `--db` | `avakill_audit.db` | Path to the audit database |
+| `--json` | `false` | Output as JSON |
+
+Queries the audit database for denied events and generates actionable recovery suggestions — including copy-pasteable commands and YAML snippets you can add to your policy.
+
+**Examples:**
+
+```bash
+# Show fix for the most recent denial
+avakill fix
+
+# Show fixes for all recent denials
+avakill fix --all
+
+# Machine-readable output
+avakill fix --json
+
+# Custom audit database
+avakill fix --db /var/log/avakill/audit.db
 ```
 
 ---

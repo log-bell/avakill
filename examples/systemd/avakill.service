@@ -14,7 +14,7 @@
 
 [Unit]
 Description=AvaKill AI Agent Safety Firewall
-Documentation=https://github.com/avakill/avakill
+Documentation=https://github.com/log-bell/avakill
 After=network.target
 Wants=network-online.target
 

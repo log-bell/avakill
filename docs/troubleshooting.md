@@ -449,4 +449,4 @@ The database is created automatically on first use. If it doesn't exist, ensure 
 - Use `avakill validate` to catch schema errors
 - Use `avakill logs` to see what decisions are being made
 - Use `avakill dashboard` to monitor in real-time
-- Open an issue at [github.com/avakill/avakill/issues](https://github.com/avakill/avakill/issues)
+- Open an issue at [github.com/log-bell/avakill/issues](https://github.com/log-bell/avakill/issues)

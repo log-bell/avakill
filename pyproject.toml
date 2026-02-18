@@ -7,14 +7,13 @@ name = "avakill"
 version = "0.1.0"
 description = "Open-source safety firewall for AI agents. Intercept tool calls. Enforce policies. Kill dangerous operations."
 readme = "README.md"
-license = "AGPL-3.0-only"
+license = {text = "AGPL-3.0-only"}
 requires-python = ">=3.10"
 authors = [
     { name = "Copyright 2026 AvaKill Contributors" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -72,15 +71,15 @@ avakill-hook-cursor = "avakill.hooks.cursor:main"
 avakill-hook-windsurf = "avakill.hooks.windsurf:main"
 
 [project.urls]
-Homepage = "https://github.com/avakill/avakill"
-Repository = "https://github.com/avakill/avakill"
-Issues = "https://github.com/avakill/avakill/issues"
+Homepage = "https://github.com/log-bell/avakill"
+Repository = "https://github.com/log-bell/avakill"
+Issues = "https://github.com/log-bell/avakill/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-avakill = ["hardening/*.te", "hardening/*.profile", "hardening/*.json"]
+avakill = ["templates/*.yaml", "hardening/*.te", "hardening/*.profile", "hardening/*.json"]
 
 [tool.ruff]
 line-length = 100

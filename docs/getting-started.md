@@ -13,17 +13,19 @@ pip install avakill
 Install with framework-specific extras:
 
 ```bash
-pip install avakill[openai]       # OpenAI function calling
-pip install avakill[anthropic]    # Anthropic tool use
-pip install avakill[langchain]    # LangChain / LangGraph
-pip install avakill[mcp]          # MCP proxy
-pip install avakill[all]          # Everything
+pip install "avakill[openai]"       # OpenAI function calling
+pip install "avakill[anthropic]"    # Anthropic tool use
+pip install "avakill[langchain]"    # LangChain / LangGraph
+pip install "avakill[mcp]"          # MCP proxy
+pip install "avakill[all]"          # Everything
 ```
+
+> **Note:** Quotes around `"avakill[...]"` are required on zsh (the default macOS shell). Bash works with or without them.
 
 From source:
 
 ```bash
-git clone https://github.com/avakill/avakill.git
+git clone https://github.com/log-bell/avakill.git
 cd avakill
 pip install -e ".[dev]"
 ```

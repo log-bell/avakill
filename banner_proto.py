@@ -116,10 +116,10 @@ def print_banner():
 
     # 4) Version / docs
     info = Text()
-    pad = max(2, sep_w - len("v0.1.0 β") - len("docs: avakill.dev"))
+    pad = max(2, sep_w - len("v0.1.0 β") - len("docs: avakill.com"))
     info.append("v0.1.0 β", style="#6B7280")
     info.append(" " * pad)
-    info.append("docs: avakill.dev", style="#6B7280")
+    info.append("docs: avakill.com", style="#6B7280")
     con.print(info, justify="center")
     con.print()
 

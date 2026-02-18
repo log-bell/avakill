@@ -18,7 +18,7 @@ Thank you for your interest in contributing to AvaKill! This project is early-st
 
 ```bash
 # Clone the repository
-git clone https://github.com/avakill/avakill.git
+git clone https://github.com/log-bell/avakill.git
 cd avakill
 
 # Create a virtual environment

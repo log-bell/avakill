@@ -1,0 +1,242 @@
+<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-all font-family="'Helvetica Neue', Arial, sans-serif" />
+      <mj-text color="#F8F8F8" font-size="16px" line-height="1.6" />
+      <mj-body background-color="#0A0F1E" />
+    </mj-attributes>
+    <mj-style>
+      a { color: #00D4FF !important; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .code-block {
+        background-color: #0D1117;
+        border: 1px solid #1A1F3A;
+        border-radius: 8px;
+        padding: 20px 24px;
+        font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+        font-size: 14px;
+        line-height: 1.8;
+        color: #E6EDF3;
+      }
+      .terminal-prompt { color: #6B7280; }
+      .terminal-cmd { color: #00D4FF; }
+      .neon-text { color: #00D4FF; }
+      .status-allowed { color: #22C55E; }
+      .status-denied { color: #EF4444; }
+      .link-card {
+        background-color: #111827;
+        border: 1px solid #1A1F3A;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 8px;
+      }
+      .link-card:hover { border-color: #00D4FF; }
+      .divider-glow {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #00D4FF, transparent);
+        border: none;
+        margin: 0;
+      }
+    </mj-style>
+  </mj-head>
+
+  <mj-body background-color="#0A0F1E" width="600px">
+
+    <!-- Spacer top -->
+    <mj-section padding="20px 0 0 0">
+      <mj-column>
+        <mj-spacer height="20px" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Logo + Brand -->
+    <mj-section padding="0 24px 0 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-image src="https://avakill.com/avakill-logo.png" alt="AvaKill" width="64px" padding="0 0 16px 0" />
+        <mj-text align="center" font-size="42px" font-weight="900" padding="0 0 4px 0" color="#F8F8F8">
+          <span style="color: #00D4FF;">AvaKill</span>
+        </mj-text>
+        <mj-text align="center" font-size="11px" letter-spacing="4px" text-transform="uppercase" color="#6B7280" padding="0 0 24px 0">
+          The AI Safety Firewall
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Glowing divider -->
+    <mj-section padding="0 40px">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#00D4FF" padding="0" css-class="divider-glow" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Hero message -->
+    <mj-section padding="32px 24px 0 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-text font-size="28px" font-weight="700" color="#F8F8F8" align="center" padding="0 0 12px 0">
+          You're in.
+        </mj-text>
+        <mj-text font-size="16px" color="#9CA3AF" align="center" padding="0 20px 32px 20px">
+          You just joined the frontline of AI agent safety. Here's everything you need to get AvaKill running in 30 seconds.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Terminal block -->
+    <mj-section padding="0 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-text padding="0 0 8px 0" font-size="13px" font-weight="700" text-transform="uppercase" letter-spacing="2px" color="#00D4FF">
+          Quick Start
+        </mj-text>
+        <mj-text css-class="code-block" padding="0 0 0 0">
+          <div style="background-color: #0D1117; border: 1px solid #1A1F3A; border-radius: 8px; padding: 20px 24px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 14px; line-height: 2;">
+            <span style="color: #6B7280;">$</span> <span style="color: #00D4FF;">pip install avakill</span><br/>
+            <span style="color: #6B7280;">$</span> <span style="color: #00D4FF;">avakill init</span><br/>
+            <span style="color: #6B7280;"># That's it. Your agents are protected.</span>
+          </div>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- What happens next -->
+    <mj-section padding="32px 24px 0 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-text padding="0 0 8px 0" font-size="13px" font-weight="700" text-transform="uppercase" letter-spacing="2px" color="#00D4FF">
+          What It Does
+        </mj-text>
+        <mj-text padding="0 0 24px 0" color="#9CA3AF">
+          AvaKill sits between your AI agent and its tools. Every tool call is evaluated against your YAML policy in &lt;1ms. Safe calls pass through. Dangerous calls get killed.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Live demo simulation -->
+    <mj-section padding="0 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-text padding="0 0 0 0">
+          <div style="background-color: #0D1117; border: 1px solid #1A1F3A; border-radius: 8px; padding: 20px 24px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 2;">
+            <span style="color: #6B7280;">// agent tries:</span><br/>
+            <span style="color: #E6EDF3;">search_users</span><span style="color: #6B7280;">(query=</span><span style="color: #A5D6FF;">"active"</span><span style="color: #6B7280;">)</span><br/>
+            <span style="color: #22C55E; font-weight: bold;">&#x2713; ALLOWED</span> <span style="color: #6B7280;">— read operations pass through</span><br/>
+            <br/>
+            <span style="color: #6B7280;">// agent tries:</span><br/>
+            <span style="color: #E6EDF3;">delete_user</span><span style="color: #6B7280;">(id=</span><span style="color: #A5D6FF;">"123"</span><span style="color: #6B7280;">)</span><br/>
+            <span style="color: #EF4444; font-weight: bold;">&#x2717; KILLED</span> <span style="color: #6B7280;">— destructive operation blocked</span>
+          </div>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Spacer -->
+    <mj-section padding="16px 0">
+      <mj-column>
+        <mj-spacer height="8px" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Glowing divider -->
+    <mj-section padding="0 40px">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#1A1F3A" padding="0" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Links section -->
+    <mj-section padding="32px 24px 0 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-text padding="0 0 16px 0" font-size="13px" font-weight="700" text-transform="uppercase" letter-spacing="2px" color="#00D4FF">
+          Bookmark These
+        </mj-text>
+
+        <!-- Docs link -->
+        <mj-text padding="0 0 8px 0">
+          <div style="background-color: #111827; border: 1px solid #1A1F3A; border-radius: 8px; padding: 16px 20px;">
+            <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md" style="color: #00D4FF; text-decoration: none; font-weight: 700; font-size: 15px;">
+              Getting Started Guide &rarr;
+            </a>
+            <div style="color: #6B7280; font-size: 13px; margin-top: 4px;">
+              Zero to protected in 5 minutes. Policies, decorators, CLI.
+            </div>
+          </div>
+        </mj-text>
+
+        <!-- GitHub link -->
+        <mj-text padding="0 0 8px 0">
+          <div style="background-color: #111827; border: 1px solid #1A1F3A; border-radius: 8px; padding: 16px 20px;">
+            <a href="https://github.com/log-bell/avakill" style="color: #00D4FF; text-decoration: none; font-weight: 700; font-size: 15px;">
+              GitHub &rarr;
+            </a>
+            <div style="color: #6B7280; font-size: 13px; margin-top: 4px;">
+              Star the repo. Read the source. Open an issue.
+            </div>
+          </div>
+        </mj-text>
+
+        <!-- Discord link -->
+        <mj-text padding="0 0 8px 0">
+          <div style="background-color: #111827; border: 1px solid #1A1F3A; border-radius: 8px; padding: 16px 20px;">
+            <a href="https://discord.gg/gTBvbkSV2" style="color: #00D4FF; text-decoration: none; font-weight: 700; font-size: 15px;">
+              Discord &rarr;
+            </a>
+            <div style="color: #6B7280; font-size: 13px; margin-top: 4px;">
+              Talk agent safety. Get help. Share what you're building.
+            </div>
+          </div>
+        </mj-text>
+
+        <!-- PyPI link -->
+        <mj-text padding="0 0 0 0">
+          <div style="background-color: #111827; border: 1px solid #1A1F3A; border-radius: 8px; padding: 16px 20px;">
+            <a href="https://pypi.org/project/avakill/" style="color: #00D4FF; text-decoration: none; font-weight: 700; font-size: 15px;">
+              PyPI &rarr;
+            </a>
+            <div style="color: #6B7280; font-size: 13px; margin-top: 4px;">
+              v0.1.0 is live. pip install avakill.
+            </div>
+          </div>
+        </mj-text>
+
+      </mj-column>
+    </mj-section>
+
+    <!-- Spacer -->
+    <mj-section padding="16px 0">
+      <mj-column>
+        <mj-spacer height="8px" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Glowing divider -->
+    <mj-section padding="0 40px">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#1A1F3A" padding="0" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Sign-off -->
+    <mj-section padding="32px 24px 16px 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-text color="#9CA3AF" font-size="15px" line-height="1.7">
+          No drip sequence. No upsell. We'll email when there's something worth sharing — new features, integrations, or agent safety research.
+        </mj-text>
+        <mj-text color="#F8F8F8" font-size="15px" font-weight="700" padding="16px 0 0 0">
+          — The AvaKill team
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Footer -->
+    <mj-section padding="24px 24px 40px 24px" background-color="#0A0F1E">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#1A1F3A" padding="0 0 24px 0" />
+        <mj-text align="center" font-size="11px" color="#6B7280" line-height="1.8">
+          <span style="color: #00D4FF;">AvaKill</span> · Open-source under AGPL-3.0<br/>
+          Built because an AI agent tried to DROP TABLE users on a Friday afternoon.
+        </mj-text>
+        <mj-text align="center" font-size="11px" color="#6B7280" padding="12px 0 0 0">
+          <a href="{unsubscribe_link}" style="color: #6B7280 !important; text-decoration: underline;">Unsubscribe</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>

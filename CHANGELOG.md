@@ -68,9 +68,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - `avakill mcp-proxy` — start the MCP transparent proxy from the command line.
 - **Pydantic v2 models** — `ToolCall`, `Decision`, `AuditEvent`, `PolicyRule`, `PolicyConfig`, `RuleConditions`, `RateLimit` with full validation.
 - **Environment variable substitution** — `${VAR_NAME}` syntax in YAML policy files.
-- **Comprehensive test suite** — 322 tests covering the policy engine, Guard, all interceptors, decorator, MCP proxy, SQLite logger, and CLI.
+- **Comprehensive test suite** covering the policy engine, Guard, all interceptors, decorator, MCP proxy, SQLite logger, and CLI.
 - **Example scripts** — runnable demos for quickstart, OpenAI, Anthropic, LangChain/LangGraph, MCP proxy, and real-world disaster scenarios.
 - **CI pipeline** — GitHub Actions with Python 3.10/3.11/3.12 matrix, Ruff, mypy, pytest with coverage, Codecov upload.
 
-[Unreleased]: https://github.com/avakill/avakill/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/avakill/avakill/releases/tag/v0.1.0
+[Unreleased]: https://github.com/log-bell/avakill/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/log-bell/avakill/releases/tag/v0.1.0

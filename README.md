@@ -9,8 +9,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/avakill?color=blue)](https://pypi.org/project/avakill/)
 [![Python](https://img.shields.io/pypi/pyversions/avakill)](https://pypi.org/project/avakill/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/avakill/avakill/ci.yml?branch=main&label=tests)](https://github.com/avakill/avakill/actions)
-[![GitHub stars](https://img.shields.io/github/stars/avakill/avakill?style=social)](https://github.com/avakill/avakill)
+[![CI](https://img.shields.io/github/actions/workflow/status/log-bell/avakill/ci.yml?branch=main&label=tests)](https://github.com/log-bell/avakill/actions)
+[![GitHub stars](https://img.shields.io/github/stars/log-bell/avakill?style=social)](https://github.com/log-bell/avakill)
 
 **Stop your AI agents from deleting your database, wiping your files, or going rogue.**
 
@@ -36,28 +36,27 @@ These aren't edge cases. Research shows AI agents fail in **75% of real-world ta
 
 ```bash
 pip install avakill
+avakill init
 ```
 
 ```python
 from avakill import Guard, protect
 
-guard = Guard()  # Auto-detects avakill.yaml
+guard = Guard()  # Loads avakill.yaml from current directory
+
+@protect(guard=guard)
+def search_users(query: str) -> str:
+    return db.execute(f"SELECT * FROM users WHERE name LIKE '%{query}%'")
 
 @protect(guard=guard)
 def delete_user(user_id: str):
     db.execute(f"DELETE FROM users WHERE id = {user_id}")
 
-# Safe operations pass through
-# Dangerous operations are blocked automatically
+search_users(query="active")   # ✅ Allowed — read operations pass through
+delete_user(user_id="123")     # ❌ Blocked — PolicyViolation raised
 ```
 
-Create a policy file:
-
-```bash
-avakill init
-```
-
-That's it. Every call to `delete_user` is now evaluated against your policy before executing.
+Two commands, four lines of code. Safe calls pass through, destructive calls are killed before they execute.
 
 ## Features
 
@@ -121,13 +120,13 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 <tr>
 <td>
 
-:satellite: **Native Agent Hooks**<br>
+:satellite: **Native Agent Hooks** `coming soon`<br>
 Drop-in hooks for Claude Code, Gemini CLI, Cursor, and Windsurf. One command to install — no code changes to your agent.
 
 </td>
 <td>
 
-:gear: **Persistent Daemon**<br>
+:gear: **Persistent Daemon** `coming soon`<br>
 Unix socket server with <5ms evaluation. Start once, protect every agent on your machine. SIGHUP to reload policies.
 
 </td>
@@ -135,13 +134,13 @@ Unix socket server with <5ms evaluation. Start once, protect every agent on your
 <tr>
 <td>
 
-:shield: **OS-Level Enforcement**<br>
+:shield: **OS-Level Enforcement** `coming soon`<br>
 Landlock (Linux), sandbox-exec (macOS), and Tetragon (Kubernetes). Kernel-level restrictions that even root can't bypass.
 
 </td>
 <td>
 
-:scroll: **Compliance Reporting**<br>
+:scroll: **Compliance Reporting** `coming soon`<br>
 Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate reports in table, JSON, or Markdown format.
 
 </td>
@@ -159,8 +158,8 @@ Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate
 | Full audit trail | :x: | :x: | :white_check_mark: |
 | MCP server support | — | :x: | :white_check_mark: |
 | <1ms overhead | — | :x: (LLM round-trip) | :white_check_mark: |
-| Native agent hooks (no code changes) | — | :x: | :white_check_mark: |
-| OS-level kernel enforcement | — | :x: | :white_check_mark: |
+| Native agent hooks (no code changes) | — | :x: | :white_check_mark: `coming soon` |
+| OS-level kernel enforcement | — | :x: | :white_check_mark: `coming soon` |
 | Open source | — | Some | :white_check_mark: AGPL 3.0 |
 
 ## Framework Integrations
@@ -473,10 +472,10 @@ AvaKill protects your agents at multiple levels: **native hooks** intercept tool
 We welcome contributions! AvaKill is early-stage and there's a lot to build.
 
 ```bash
-git clone https://github.com/avakill/avakill.git
+git clone https://github.com/log-bell/avakill.git
 cd avakill
 make dev    # Install in dev mode with all dependencies
-make test   # Run the test suite (955 tests)
+make test   # Run the test suite
 ```
 
 See [**CONTRIBUTING.md**](CONTRIBUTING.md) for the full guide — architecture overview, code style, and PR process.
@@ -489,7 +488,7 @@ See [**CONTRIBUTING.md**](CONTRIBUTING.md) for the full guide — architecture o
 
 <div align="center">
 
-**If AvaKill would have saved you from an AI agent disaster, [give it a star](https://github.com/avakill/avakill).**
+**If AvaKill would have saved you from an AI agent disaster, [give it a star](https://github.com/log-bell/avakill).**
 
 Built because an AI agent tried to `DROP TABLE users` on a Friday afternoon.
 
