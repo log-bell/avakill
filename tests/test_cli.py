@@ -96,6 +96,7 @@ class TestCLIBasics:
         assert "validate" in result.output
         assert "sign" in result.output
         assert "verify" in result.output
+        assert "fix" in result.output
 
     def test_cli_version(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["--version"])
