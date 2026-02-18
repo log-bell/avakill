@@ -104,6 +104,7 @@ class WindsurfAdapter(HookAdapter):
             reason = response.reason or "Blocked by AvaKill policy"
             if response.policy:
                 reason = f"{reason} [{response.policy}]"
+            reason = f"{reason}. Run `avakill fix` for recovery steps."
             return reason, 2
 
         if response.decision == "require_approval":

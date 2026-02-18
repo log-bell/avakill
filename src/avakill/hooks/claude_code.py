@@ -72,6 +72,7 @@ class ClaudeCodeAdapter(HookAdapter):
             reason = response.reason or "Blocked by AvaKill policy"
             if response.policy:
                 reason = f"{reason} [{response.policy}]"
+            reason = f"{reason}. Run `avakill fix` for recovery steps."
             payload = {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
