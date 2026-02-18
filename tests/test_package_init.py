@@ -66,5 +66,13 @@ def test_all_exports():
         "PolicyIntegrity",
         "FileSnapshot",
         "get_metrics_registry",
+        "PolicyWatcher",
     }
     assert set(avakill.__all__) == expected
+
+
+def test_lazy_import_policy_watcher():
+    cls = avakill.PolicyWatcher
+    from avakill.core.watcher import PolicyWatcher
+
+    assert cls is PolicyWatcher

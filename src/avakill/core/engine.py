@@ -9,28 +9,27 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from avakill._telemetry import record_duration as otel_record_duration
+from avakill._telemetry import record_evaluation as otel_record_evaluation
+from avakill._telemetry import record_self_protection_block as otel_record_sp_block
+from avakill._telemetry import record_violation as otel_record_violation
 from avakill.core.exceptions import PolicyViolation, RateLimitExceeded
 from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, Decision, PolicyConfig, ToolCall
 from avakill.core.policy import PolicyEngine, load_policy
 from avakill.core.self_protection import SelfProtection
-from avakill._telemetry import (
-    record_duration as otel_record_duration,
-    record_evaluation as otel_record_evaluation,
-    record_self_protection_block as otel_record_sp_block,
-    record_violation as otel_record_violation,
-)
 from avakill.logging.base import AuditLogger
 from avakill.logging.event_bus import EventBus
-from avakill.metrics import (
-    inc_evaluations as prom_inc_evaluations,
-    inc_self_protection_blocks as prom_inc_sp_blocks,
-    inc_violations as prom_inc_violations,
-    observe_duration as prom_observe_duration,
-)
+from avakill.metrics import inc_evaluations as prom_inc_evaluations
+from avakill.metrics import inc_self_protection_blocks as prom_inc_sp_blocks
+from avakill.metrics import inc_violations as prom_inc_violations
+from avakill.metrics import observe_duration as prom_observe_duration
+
+if TYPE_CHECKING:
+    from avakill.core.watcher import PolicyWatcher
 
 _logger = logging.getLogger(__name__)
 
@@ -121,6 +120,7 @@ class Guard:
             SelfProtection() if self_protection else None
         )
         self._event_bus = EventBus.get()
+        self._watcher: PolicyWatcher | None = None
 
     @staticmethod
     def _build_engine(policy: str | Path | dict | PolicyConfig | None) -> PolicyEngine:
@@ -303,6 +303,35 @@ class Guard:
 
         if isinstance(reload_path, (str, Path)):
             self._policy_path = Path(reload_path)
+
+    def watch(self, **kwargs: Any) -> PolicyWatcher:
+        """Create a :class:`PolicyWatcher` for this guard.
+
+        The watcher is stored internally and must be started separately
+        via ``await watcher.start()`` or used as an async context manager.
+
+        Args:
+            **kwargs: Forwarded to :class:`PolicyWatcher.__init__`.
+
+        Returns:
+            The created :class:`PolicyWatcher`.
+
+        Raises:
+            RuntimeError: If a watcher is already active.
+            ValueError: If the guard has no file-based policy.
+        """
+        if self._watcher is not None:
+            raise RuntimeError("A PolicyWatcher is already active; call unwatch() first")
+        from avakill.core.watcher import PolicyWatcher as _PW
+
+        self._watcher = _PW(self, **kwargs)
+        return self._watcher
+
+    async def unwatch(self) -> None:
+        """Stop and remove the active :class:`PolicyWatcher`."""
+        if self._watcher is not None:
+            await self._watcher.stop()
+            self._watcher = None
 
     # ------------------------------------------------------------------
     # Internal helpers

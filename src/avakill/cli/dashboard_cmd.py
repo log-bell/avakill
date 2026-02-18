@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import sys
 import termios
 import tty
@@ -19,6 +20,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from avakill.core.engine import Guard
 from avakill.core.models import AuditEvent
 from avakill.logging.event_bus import EventBus
 from avakill.logging.sqlite_logger import SQLiteLogger
@@ -174,21 +176,45 @@ def _build_layout(
 class _Dashboard:
     """Async dashboard controller."""
 
-    def __init__(self, db_path: str, refresh: float, policy: str | None) -> None:
+    def __init__(
+        self,
+        db_path: str,
+        refresh: float,
+        policy: str | None,
+        *,
+        watch: bool = False,
+    ) -> None:
         self._db_path = db_path
         self._refresh = refresh
         self._policy_path = policy
+        self._watch = watch
         self._events: deque[AuditEvent] = deque(maxlen=_MAX_LIVE_EVENTS)
         self._stats: dict[str, Any] = {}
         self._running = True
         self._should_clear = False
 
+        # Create a Guard if a policy path was given
+        self._guard: Guard | None = None
+        if policy:
+            self._guard = Guard(policy=policy, self_protection=False)
+
     async def run(self) -> None:
         console = Console()
         logger = SQLiteLogger(self._db_path)
+        _log = logging.getLogger(__name__)
 
+        watcher = None
         try:
             await logger._ensure_db()
+
+            # Start file watcher if requested and a guard is available
+            if self._watch and self._guard is not None:
+                try:
+                    watcher = self._guard.watch()
+                    await watcher.start()
+                    _log.info("Policy file watcher started")
+                except Exception:
+                    _log.warning("Could not start policy watcher", exc_info=True)
 
             # Load initial data
             await self._refresh_data(logger)
@@ -208,6 +234,8 @@ class _Dashboard:
             finally:
                 unsub()
         finally:
+            if watcher is not None:
+                await watcher.stop()
             await logger.close()
 
     def _on_event(self, event: AuditEvent) -> None:
@@ -275,8 +303,14 @@ class _Dashboard:
         return None
 
     def _reload_policy(self) -> None:
-        """Placeholder for policy reload signal."""
-        pass
+        """Reload policy via the Guard instance."""
+        if self._guard is not None:
+            try:
+                self._guard.reload_policy()
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Manual policy reload failed", exc_info=True
+                )
 
 
 @click.command()
@@ -296,7 +330,12 @@ class _Dashboard:
     default=None,
     help="Path to the policy file to monitor.",
 )
-def dashboard(db: str, refresh: float, policy: str | None) -> None:
+@click.option(
+    "--watch/--no-watch",
+    default=False,
+    help="Automatically reload policy when the file changes on disk.",
+)
+def dashboard(db: str, refresh: float, policy: str | None, watch: bool) -> None:
     """Launch the real-time terminal dashboard."""
     db_path = Path(db).expanduser()
     if not db_path.exists():
@@ -306,6 +345,6 @@ def dashboard(db: str, refresh: float, policy: str | None) -> None:
             "[dim]The dashboard will create it and wait for events.[/dim]"
         )
 
-    dash = _Dashboard(str(db_path), refresh, policy)
+    dash = _Dashboard(str(db_path), refresh, policy, watch=watch)
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(dash.run())

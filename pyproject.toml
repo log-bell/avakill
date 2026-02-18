@@ -37,6 +37,7 @@ signed-policies = ["PyNaCl>=1.5.0"]
 hardened = []
 otel = ["opentelemetry-api>=1.0,<2.0"]
 metrics = ["prometheus-client>=0.20.0"]
+watch = ["watchfiles>=1.0.0"]
 all = [
     "avakill[openai]",
     "avakill[anthropic]",
@@ -46,6 +47,7 @@ all = [
     "avakill[hardened]",
     "avakill[otel]",
     "avakill[metrics]",
+    "avakill[watch]",
 ]
 dev = [
     "pytest",
@@ -57,6 +59,7 @@ dev = [
     "opentelemetry-api>=1.0,<2.0",
     "opentelemetry-sdk>=1.0,<2.0",
     "prometheus-client>=0.20.0",
+    "watchfiles>=1.0.0",
 ]
 
 [project.scripts]

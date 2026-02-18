@@ -55,11 +55,15 @@ _violations: Any = None
 _duration: Any = None
 _policies_loaded: Any = None
 _sp_blocks: Any = None
+_reloads: Any = None
+_reload_failures: Any = None
+_reload_last_success: Any = None
 
 
 def _ensure_metrics() -> None:
     """Create Prometheus instruments on first use."""
     global _registry, _evaluations, _violations, _duration, _policies_loaded, _sp_blocks  # noqa: PLW0603
+    global _reloads, _reload_failures, _reload_last_success  # noqa: PLW0603
     if _evaluations is not None:
         return
 
@@ -95,6 +99,23 @@ def _ensure_metrics() -> None:
             labelnames=["tool"],
             registry=_registry,
         )
+        _reloads = Counter(
+            "avakill_policy_reloads_total",
+            "Total policy reload attempts",
+            labelnames=["trigger"],
+            registry=_registry,
+        )
+        _reload_failures = Counter(
+            "avakill_policy_reload_failures_total",
+            "Total policy reload failures",
+            labelnames=["trigger"],
+            registry=_registry,
+        )
+        _reload_last_success = Gauge(
+            "avakill_policy_reload_last_success_timestamp",
+            "Unix timestamp of last successful policy reload",
+            registry=_registry,
+        )
     else:
         _registry = _NoOpRegistry()
         _evaluations = _NoOpMetric()
@@ -102,6 +123,9 @@ def _ensure_metrics() -> None:
         _duration = _NoOpMetric()
         _policies_loaded = _NoOpMetric()
         _sp_blocks = _NoOpMetric()
+        _reloads = _NoOpMetric()
+        _reload_failures = _NoOpMetric()
+        _reload_last_success = _NoOpMetric()
 
 
 # ---------------------------------------------------------------------------
@@ -143,12 +167,34 @@ def inc_self_protection_blocks(tool: str) -> None:
     _sp_blocks.labels(tool=tool).inc()
 
 
+def inc_reloads(trigger: str) -> None:
+    """Increment the policy reload attempts counter."""
+    _ensure_metrics()
+    _reloads.labels(trigger=trigger).inc()
+
+
+def inc_reload_failures(trigger: str) -> None:
+    """Increment the policy reload failures counter."""
+    _ensure_metrics()
+    _reload_failures.labels(trigger=trigger).inc()
+
+
+def set_reload_last_success(timestamp: float) -> None:
+    """Set the unix timestamp of the last successful policy reload."""
+    _ensure_metrics()
+    _reload_last_success.set(timestamp)
+
+
 def reset_metrics() -> None:
     """Reset all metrics — for test isolation only."""
     global _registry, _evaluations, _violations, _duration, _policies_loaded, _sp_blocks  # noqa: PLW0603
+    global _reloads, _reload_failures, _reload_last_success  # noqa: PLW0603
     _registry = None
     _evaluations = None
     _violations = None
     _duration = None
     _policies_loaded = None
     _sp_blocks = None
+    _reloads = None
+    _reload_failures = None
+    _reload_last_success = None

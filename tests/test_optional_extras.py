@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
 import pytest
+import tomllib
 
 PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
@@ -41,3 +41,11 @@ class TestOptionalExtras:
     def test_dev_includes_prometheus(self, extras: dict[str, list[str]]) -> None:
         dev = extras["dev"]
         assert any("prometheus-client" in d for d in dev)
+
+    def test_watch_extra_declared(self, extras: dict[str, list[str]]) -> None:
+        assert "watch" in extras
+        deps = extras["watch"]
+        assert any("watchfiles" in d for d in deps)
+
+    def test_all_includes_watch(self, extras: dict[str, list[str]]) -> None:
+        assert "avakill[watch]" in extras["all"]

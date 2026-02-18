@@ -45,6 +45,10 @@ def __getattr__(name: str):  # noqa: ANN001
         from avakill.metrics import get_registry
 
         return get_registry
+    if name == "PolicyWatcher":
+        from avakill.core.watcher import PolicyWatcher
+
+        return PolicyWatcher
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -63,4 +67,5 @@ __all__ = [
     "PolicyIntegrity",
     "FileSnapshot",
     "get_metrics_registry",
+    "PolicyWatcher",
 ]
