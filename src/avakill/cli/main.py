@@ -26,6 +26,7 @@ from avakill.cli.logs_cmd import logs  # noqa: E402
 from avakill.cli.mcp_proxy_cmd import mcp_proxy  # noqa: E402
 from avakill.cli.review_cmd import review  # noqa: E402
 from avakill.cli.schema_cmd import schema  # noqa: E402
+from avakill.cli.sign_cmd import sign  # noqa: E402
 from avakill.cli.validate_cmd import validate  # noqa: E402
 
 cli.add_command(approve)
@@ -35,4 +36,5 @@ cli.add_command(logs)
 cli.add_command(mcp_proxy)
 cli.add_command(review)
 cli.add_command(schema)
+cli.add_command(sign)
 cli.add_command(validate)
