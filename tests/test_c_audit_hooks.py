@@ -213,3 +213,27 @@ class TestGracefulDegradation:
 
         mgr = AuditHookManager(protected_paths=set())
         assert mgr.is_installed is False
+
+
+class TestAuditHooksIntegration:
+    def test_c_hooks_detected(self) -> None:
+        r = _run(
+            "from avakill.core.audit_hooks import c_hooks_available\n"
+            "assert c_hooks_available() is True\n"
+            "print('ok')\n"
+        )
+        assert r.returncode == 0
+        assert "ok" in r.stdout
+
+    def test_arm_called_on_install(self) -> None:
+        r = _run(
+            "from avakill.core.audit_hooks import AuditHookManager, c_hooks_available\n"
+            "assert c_hooks_available()\n"
+            "mgr = AuditHookManager(protected_paths=set())\n"
+            "mgr.install()\n"
+            "from avakill._avakill_hooks import is_armed\n"
+            "assert is_armed() is True\n"
+            "print('ok')\n"
+        )
+        assert r.returncode == 0
+        assert "ok" in r.stdout

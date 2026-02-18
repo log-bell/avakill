@@ -16,6 +16,26 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Try to import C-level audit hooks (compiled C extension)
+_c_hooks_active = False
+try:
+    from avakill._avakill_hooks import arm as _c_arm
+    from avakill._avakill_hooks import is_active as _c_is_active
+
+    _c_hooks_active = _c_is_active()
+    logger.info("C-level audit hooks available")
+except ImportError:
+    _c_arm = None
+    logger.info(
+        "C-level audit hooks not available -- "
+        "install avakill[hardened] for maximum protection"
+    )
+
+
+def c_hooks_available() -> bool:
+    """Return True if C-level audit hooks are installed."""
+    return _c_hooks_active
+
 
 class AuditHookManager:
     """Manages Python audit hooks for protecting AvaKill files.
@@ -66,6 +86,12 @@ class AuditHookManager:
                 _handle_open(event, args, protected, callback)
 
         sys.addaudithook(_hook)
+
+        # Arm C-level hooks now that initialization is complete
+        if _c_arm is not None:
+            _c_arm()
+            logger.info("C-level audit hooks armed -- ctypes and gc introspection blocked")
+
         self._installed = True
         logger.info(
             "Audit hooks installed, protecting %d paths", len(self._protected_paths)
