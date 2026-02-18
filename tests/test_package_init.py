@@ -65,5 +65,6 @@ def test_all_exports():
         "generate_prompt",
         "PolicyIntegrity",
         "FileSnapshot",
+        "get_metrics_registry",
     }
     assert set(avakill.__all__) == expected

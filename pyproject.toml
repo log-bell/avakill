@@ -35,6 +35,8 @@ langchain = ["langchain-core>=0.3"]
 mcp = ["mcp>=1.0"]
 signed-policies = ["PyNaCl>=1.5.0"]
 hardened = []
+otel = ["opentelemetry-api>=1.0,<2.0"]
+metrics = ["prometheus-client>=0.20.0"]
 all = [
     "avakill[openai]",
     "avakill[anthropic]",
@@ -42,6 +44,8 @@ all = [
     "avakill[mcp]",
     "avakill[signed-policies]",
     "avakill[hardened]",
+    "avakill[otel]",
+    "avakill[metrics]",
 ]
 dev = [
     "pytest",
@@ -50,6 +54,9 @@ dev = [
     "ruff",
     "mypy",
     "pre-commit",
+    "opentelemetry-api>=1.0,<2.0",
+    "opentelemetry-sdk>=1.0,<2.0",
+    "prometheus-client>=0.20.0",
 ]
 
 [project.scripts]
