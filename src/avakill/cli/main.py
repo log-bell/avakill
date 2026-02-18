@@ -20,6 +20,7 @@ def cli(ctx: click.Context) -> None:
 
 # Import and register subcommands
 from avakill.cli.approve_cmd import approve  # noqa: E402
+from avakill.cli.check_hardening_cmd import check_hardening  # noqa: E402
 from avakill.cli.dashboard_cmd import dashboard  # noqa: E402
 from avakill.cli.harden_cmd import harden  # noqa: E402
 from avakill.cli.init_cmd import init  # noqa: E402
@@ -33,6 +34,7 @@ from avakill.cli.validate_cmd import validate  # noqa: E402
 from avakill.cli.verify_cmd import verify  # noqa: E402
 
 cli.add_command(approve)
+cli.add_command(check_hardening)
 cli.add_command(harden)
 cli.add_command(init)
 cli.add_command(dashboard)
