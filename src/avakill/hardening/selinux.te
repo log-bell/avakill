@@ -1,0 +1,64 @@
+# AvaKill SELinux Type Enforcement Policy
+#
+# This policy module defines a confined domain for the AvaKill firewall
+# process and a protected type for policy files. Other domains are
+# prevented from modifying policy files via neverallow rules.
+#
+# Install:
+#   checkmodule -M -m -o avakill.mod avakill.te
+#   semodule_package -o avakill.pp -m avakill.mod
+#   semodule -i avakill.pp
+
+policy_module(avakill, 1.0.0)
+
+########################################
+# Type declarations
+########################################
+
+# Type for AvaKill policy files (avakill.yaml, *.sig)
+type avakill_policy_t;
+files_type(avakill_policy_t)
+
+# Domain for the AvaKill firewall process
+type avakill_t;
+type avakill_exec_t;
+init_daemon_domain(avakill_t, avakill_exec_t)
+
+########################################
+# AvaKill domain permissions
+########################################
+
+# Allow avakill_t to read policy files
+allow avakill_t avakill_policy_t:file { read open getattr lock ioctl };
+allow avakill_t avakill_policy_t:dir { search getattr };
+
+# Allow avakill_t network access (for MCP proxy, API interceptors)
+allow avakill_t self:tcp_socket { create connect accept listen bind };
+allow avakill_t self:udp_socket { create connect bind };
+
+# Allow avakill_t to read its own executable and libraries
+allow avakill_t avakill_exec_t:file { read execute execute_no_trans getattr };
+
+# Allow logging
+allow avakill_t self:unix_dgram_socket { create connect write };
+logging_send_syslog_msg(avakill_t)
+
+########################################
+# Neverallow rules — no other domain may modify policy files
+########################################
+
+# No domain (other than avakill_t and unconfined) may write to policy files
+neverallow ~{ avakill_t unconfined_t } avakill_policy_t:file { write append create unlink rename setattr };
+
+# No domain may relabel policy files
+neverallow ~{ avakill_t unconfined_t } avakill_policy_t:file relabelto;
+
+# No domain may execute policy files
+neverallow * avakill_policy_t:file execute;
+
+########################################
+# File context (apply with restorecon)
+########################################
+# /etc/avakill/avakill.yaml          -- avakill_policy_t
+# /etc/avakill/avakill.yaml.sig      -- avakill_policy_t
+# /usr/lib/python.*/avakill/.*       -- avakill_exec_t

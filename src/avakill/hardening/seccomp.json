@@ -1,0 +1,27 @@
+{
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "architectures": [
+    "SCMP_ARCH_X86_64",
+    "SCMP_ARCH_X86",
+    "SCMP_ARCH_AARCH64"
+  ],
+  "syscalls": [
+    {
+      "names": [
+        "unlink",
+        "unlinkat",
+        "rename",
+        "renameat",
+        "renameat2",
+        "chmod",
+        "fchmod",
+        "fchmodat",
+        "ptrace",
+        "process_vm_writev"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "args": [],
+      "comment": "Block file deletion, renaming, permission changes, and process tracing to protect AvaKill policy files from agent manipulation."
+    }
+  ]
+}
