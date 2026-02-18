@@ -34,11 +34,13 @@ openai = ["openai>=1.0"]
 anthropic = ["anthropic>=0.40"]
 langchain = ["langchain-core>=0.3"]
 mcp = ["mcp>=1.0"]
+signed-policies = ["PyNaCl>=1.5.0"]
 all = [
     "avakill[openai]",
     "avakill[anthropic]",
     "avakill[langchain]",
     "avakill[mcp]",
+    "avakill[signed-policies]",
 ]
 dev = [
     "pytest",
