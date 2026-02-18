@@ -260,3 +260,24 @@ class TestGuardHardenedStatus:
         )
         assert r.returncode == 0, f"stderr: {r.stderr}"
         assert "ok" in r.stdout
+
+
+class TestCheckHardeningCLI:
+    def test_shows_c_hooks_status(self) -> None:
+        r = _run(
+            "import tempfile, os\n"
+            "from click.testing import CliRunner\n"
+            "from avakill.cli.main import cli\n"
+            "td = tempfile.mkdtemp()\n"
+            "pf = os.path.join(td, 'avakill.yaml')\n"
+            "with open(pf, 'w') as f:\n"
+            "    f.write(\"version: '1.0'\\ndefault_action: deny\\n\"\n"
+            "            \"policies:\\n  - name: t\\n    tools: [x]\\n    action: allow\\n\")\n"
+            "runner = CliRunner()\n"
+            "result = runner.invoke(cli, ['check-hardening', pf])\n"
+            "assert result.exit_code == 0\n"
+            "assert 'C-Level Hooks' in result.output\n"
+            "print('ok')\n"
+        )
+        assert r.returncode == 0, f"stderr: {r.stderr}"
+        assert "ok" in r.stdout

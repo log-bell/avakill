@@ -94,6 +94,22 @@ def check_hardening(policy_file: str) -> None:
     else:
         table.add_row("Signature", "[dim]N/A[/dim]", "Signing not configured")
 
+    # C-level audit hooks
+    from avakill.core.audit_hooks import c_hooks_available
+
+    if c_hooks_available():
+        table.add_row(
+            "C-Level Hooks",
+            "[green]Active[/green]",
+            "ctypes and gc introspection blocked",
+        )
+    else:
+        table.add_row(
+            "C-Level Hooks",
+            "[yellow]Not Installed[/yellow]",
+            "pip install avakill[hardened]",
+        )
+
     panel = Panel(
         table,
         title=f"Hardening Status: {policy_file}",
