@@ -262,6 +262,196 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now avakill
 ```
 
+## Daemon Deployment
+
+The AvaKill daemon is a persistent Unix socket server that evaluates tool calls from agent hooks and the `avakill evaluate` CLI.
+
+### Foreground Mode
+
+For debugging or systemd:
+
+```bash
+avakill daemon start --foreground --policy avakill.yaml
+```
+
+### Background Mode
+
+```bash
+avakill daemon start --policy avakill.yaml --log-db /var/lib/avakill/audit.db
+avakill daemon status
+# → Daemon is running (PID 12345)
+```
+
+### systemd Unit
+
+```ini
+[Unit]
+Description=AvaKill Evaluation Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=avakill
+Group=avakill
+ExecStart=/usr/local/bin/avakill daemon start --foreground \
+    --policy /etc/avakill/policy.yaml \
+    --log-db /var/lib/avakill/audit.db
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/avakill /run/avakill
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### SIGHUP Reload
+
+Reload the policy without restarting:
+
+```bash
+kill -HUP $(cat ~/.avakill/avakill.pid)
+# Or with systemd:
+sudo systemctl reload avakill
+```
+
+### Monitoring
+
+Check daemon status:
+
+```bash
+avakill daemon status
+```
+
+The daemon logs to stderr. In systemd, view logs with:
+
+```bash
+journalctl -u avakill -f
+```
+
+## Agent Hook Deployment
+
+Native hooks intercept tool calls at the agent level and route them to the daemon for evaluation.
+
+### Install Hooks
+
+```bash
+# Start the daemon first
+avakill daemon start --policy avakill.yaml
+
+# Install hooks
+avakill hook install --agent claude-code
+avakill hook install --agent all  # All detected agents
+
+# Verify
+avakill hook list
+```
+
+### Standalone Mode
+
+If the daemon is not running, hooks fall back to standalone evaluation using the `AVAKILL_POLICY` environment variable:
+
+```bash
+export AVAKILL_POLICY=/path/to/avakill.yaml
+```
+
+This is useful for environments where a persistent daemon isn't practical.
+
+### Per-Agent Configuration Paths
+
+| Agent | Hook Config Path |
+|-------|-----------------|
+| Claude Code | `~/.claude/settings.json` |
+| Gemini CLI | `~/.gemini/settings.json` |
+| Cursor | `~/.cursor/hooks.json` |
+| Windsurf | `~/.windsurf/hooks.json` |
+
+After installing hooks, restart the agent for changes to take effect.
+
+## OS-Level Enforcement
+
+OS-level enforcement provides kernel-level restrictions that complement policy-based evaluation.
+
+### Landlock (Linux 5.13+)
+
+```bash
+# Preview what would be restricted
+avakill enforce landlock --policy avakill.yaml --dry-run
+
+# Apply restrictions (irreversible for the current process)
+avakill enforce landlock --policy avakill.yaml
+```
+
+Landlock is unprivileged — no root required. Deny rules in the policy are translated into filesystem access restrictions (write, delete, execute).
+
+### sandbox-exec (macOS)
+
+```bash
+# Generate an SBPL profile
+avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+
+# Run your agent under the sandbox
+sandbox-exec -f avakill.sb python my_agent.py
+```
+
+### Tetragon (Kubernetes)
+
+```bash
+# Generate a TracingPolicy
+avakill enforce tetragon --policy avakill.yaml --output tetragon-policy.yaml
+
+# Deploy to your cluster
+kubectl apply -f tetragon-policy.yaml
+```
+
+Tetragon policies use kprobes to monitor system calls and kill processes that violate deny rules.
+
+## Compliance Deployment
+
+### Run Assessments
+
+```bash
+# Single framework
+avakill compliance report --framework soc2 --policy avakill.yaml
+
+# All frameworks as JSON
+avakill compliance report --framework all --policy avakill.yaml --format json --output compliance.json
+
+# Show gaps only
+avakill compliance gaps --policy avakill.yaml
+```
+
+### CI Integration
+
+Add compliance checks to your CI pipeline:
+
+```bash
+# Fail CI if compliance gaps exist
+avakill compliance gaps --policy avakill.yaml
+# Exit code 0 = no gaps, 1 = gaps found
+```
+
+### Approval Workflow
+
+For `require_approval` rules, manage approvals from the CLI:
+
+```bash
+# List pending approvals
+avakill approvals list
+
+# Approve or reject
+avakill approvals grant REQUEST_ID --approver admin
+avakill approvals reject REQUEST_ID --approver admin
+```
+
+Approval state is stored in SQLite at `~/.avakill/approvals.db` by default.
+
 ## MCP Deployment
 
 ### Claude Desktop
@@ -335,6 +525,8 @@ All AvaKill configuration can be set via environment variables:
 | `AVAKILL_POLICY_KEY` | HMAC signing key (hex) | Guard, `avakill sign`, `avakill verify` |
 | `AVAKILL_SIGNING_KEY` | Ed25519 private key (hex) | `avakill sign --ed25519` |
 | `AVAKILL_VERIFY_KEY` | Ed25519 public key (hex) | Guard, `avakill verify` |
+| `AVAKILL_SOCKET` | Unix domain socket path for daemon | Daemon, hooks, `avakill evaluate` |
+| `AVAKILL_POLICY` | Policy file path for standalone hook mode | Hook adapters |
 
 ### Policy Variable Substitution
 
@@ -364,3 +556,4 @@ export API_RATE_LIMIT=1000 # Development (more lenient)
 - **[Observability](observability.md)** — OTel + Prometheus setup
 - **[MCP Proxy](mcp-proxy.md)** — detailed MCP deployment guide
 - **[CLI Reference](cli-reference.md)** — all commands
+- **[Framework Integrations](framework-integrations.md)** — native hooks and SDK wrappers

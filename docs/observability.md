@@ -115,6 +115,8 @@ scrape_configs:
 
 **Histogram buckets (seconds):** 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0
 
+> **Note:** The metrics above are emitted by the in-process `Guard.evaluate()` path. When using the daemon with agent hooks, the daemon process emits these metrics. Hook scripts themselves are short-lived and do not emit metrics directly — monitor the daemon process for visibility into hook-driven evaluations.
+
 ## Grafana Dashboard
 
 A pre-built dashboard is included at `observability/grafana/dashboards/avakill-overview.json`.
@@ -160,6 +162,8 @@ The AvaKill dashboard is automatically provisioned.
 - **OTLP is the recommended export path.** The Jaeger exporter is deprecated upstream. Use OTLP to send traces to Jaeger, Tempo, Datadog, or any compatible backend.
 
 - **Cardinality:** The `agent_id` label on evaluations can be high-cardinality if you create many unique agent IDs. Consider using a bounded set of agent identifiers in production.
+
+- **Daemon socket latency:** When using the daemon for hook-based evaluation, add ~1-3ms for Unix socket round-trip on top of the policy evaluation time. Total hook evaluation is typically <5ms. Monitor daemon responsiveness with `avakill daemon status`.
 
 ## Further Reading
 

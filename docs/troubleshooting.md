@@ -255,6 +255,194 @@ histogram_quantile(0.99, rate(avakill_evaluation_duration_seconds_bucket[5m]))
 
 ---
 
+## Daemon Issues
+
+### Daemon not starting
+
+**Common causes:**
+
+- **Socket already in use** — another daemon instance may be running, or a stale socket file exists:
+  ```bash
+  avakill daemon status
+  # If not running but socket exists:
+  rm ~/.avakill/avakill.sock
+  avakill daemon start
+  ```
+
+- **Permission denied on socket directory** — ensure `~/.avakill/` exists and is writable:
+  ```bash
+  mkdir -p ~/.avakill
+  ```
+
+- **Policy file not found** — use an absolute path:
+  ```bash
+  avakill daemon start --policy /absolute/path/to/avakill.yaml
+  ```
+
+### Connection refused
+
+The daemon is not running or the socket path doesn't match:
+
+```bash
+# Check status
+avakill daemon status
+
+# Verify socket path matches
+echo $AVAKILL_SOCKET  # Should match daemon's --socket flag
+```
+
+### SIGHUP reload not working
+
+```bash
+# Verify the PID file exists and matches a running process
+cat ~/.avakill/avakill.pid
+kill -0 $(cat ~/.avakill/avakill.pid)  # Should succeed silently
+
+# Send reload signal
+kill -HUP $(cat ~/.avakill/avakill.pid)
+```
+
+If the policy file has syntax errors, the reload will fail silently and the old policy remains active. Validate first:
+
+```bash
+avakill validate avakill.yaml
+```
+
+### Stale PID file
+
+If the daemon crashes without cleanup, the PID file may reference a dead process:
+
+```bash
+# Check if PID is actually running
+kill -0 $(cat ~/.avakill/avakill.pid) 2>/dev/null || echo "Stale PID"
+
+# Clean up and restart
+rm ~/.avakill/avakill.pid ~/.avakill/avakill.sock
+avakill daemon start
+```
+
+---
+
+## Hook Issues
+
+### Hook not triggering
+
+**Common causes:**
+
+1. **Hook not installed** — verify with `avakill hook list`
+2. **Agent not restarted** — restart the agent after installing hooks
+3. **Daemon not running** — hooks need the daemon (or `AVAKILL_POLICY` env var for standalone mode):
+   ```bash
+   avakill daemon status
+   # If not running:
+   avakill daemon start --policy avakill.yaml
+   ```
+
+### Wrong tool names in policy
+
+Hooks use canonical tool names, not agent-native names. If your policy uses agent-native names, they won't match:
+
+```yaml
+# WRONG — uses Claude Code's native name
+- name: "block-shell"
+  tools: ["Bash"]
+  action: deny
+
+# CORRECT — uses canonical name
+- name: "block-shell"
+  tools: ["shell_execute"]
+  action: deny
+```
+
+See the [tool normalization table](framework-integrations.md#tool-normalization) for the full mapping.
+
+### Agent restart needed
+
+After installing or uninstalling hooks, the agent must be restarted for changes to take effect. This applies to all agents: Claude Code, Gemini CLI, Cursor, and Windsurf.
+
+### Standalone fallback not working
+
+If the daemon is unreachable and the hook should fall back to standalone mode:
+
+```bash
+# Set the policy path for standalone mode
+export AVAKILL_POLICY=/path/to/avakill.yaml
+```
+
+Without this environment variable, hooks that can't reach the daemon will deny all calls (fail-closed).
+
+---
+
+## Enforcement Issues
+
+### Landlock unavailable
+
+Landlock requires Linux 5.13+ with Landlock support enabled in the kernel:
+
+```bash
+avakill enforce landlock --policy avakill.yaml --dry-run
+# If unavailable: "Landlock is not available on this system"
+```
+
+**Fix:** Upgrade to Linux 5.13+ or check that `CONFIG_SECURITY_LANDLOCK=y` in your kernel config.
+
+### sandbox-exec macOS only
+
+`avakill enforce sandbox` only works on macOS:
+
+```bash
+avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+# On non-macOS: "sandbox-exec is only available on macOS"
+```
+
+### Tetragon kubectl issues
+
+The generated TracingPolicy requires Cilium Tetragon to be installed in your Kubernetes cluster:
+
+```bash
+# Check if Tetragon is installed
+kubectl get pods -n kube-system | grep tetragon
+
+# Apply the policy
+kubectl apply -f tetragon-policy.yaml
+
+# Check policy status
+kubectl get tracingpolicies
+```
+
+If `kubectl apply` fails, verify that the Tetragon CRDs are installed.
+
+---
+
+## Compliance Issues
+
+### All controls failing
+
+If every compliance control reports "fail", check these common causes:
+
+1. **Policy uses `default_action: allow`** — most frameworks require deny-by-default
+2. **No audit logging configured** — several controls check for logging:
+   ```python
+   from avakill.logging.sqlite_logger import SQLiteLogger
+   logger = SQLiteLogger("audit.db")
+   guard = Guard(policy="avakill.yaml", logger=logger)
+   ```
+3. **No rate limiting rules** — add `rate_limit` to at least some rules
+4. **No policy signing** — run `avakill keygen` and `avakill sign`
+
+### Approval database not found
+
+The `avakill approvals` commands use `~/.avakill/approvals.db` by default:
+
+```bash
+# Use a custom path
+avakill approvals list --db /path/to/approvals.db
+```
+
+The database is created automatically on first use. If it doesn't exist, ensure the directory is writable.
+
+---
+
 ## Still Stuck?
 
 - Check the [Policy Reference](policy-reference.md) for YAML syntax details

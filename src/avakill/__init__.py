@@ -57,6 +57,30 @@ def __getattr__(name: str):  # noqa: ANN001
         from avakill.daemon.client import DaemonClient
 
         return DaemonClient
+    if name == "ToolNormalizer":
+        from avakill.core.normalization import ToolNormalizer
+
+        return ToolNormalizer
+    if name == "PolicyCascade":
+        from avakill.core.cascade import PolicyCascade
+
+        return PolicyCascade
+    if name == "ComplianceAssessor":
+        from avakill.compliance.assessor import ComplianceAssessor
+
+        return ComplianceAssessor
+    if name == "ComplianceReporter":
+        from avakill.compliance.reporter import ComplianceReporter
+
+        return ComplianceReporter
+    if name == "ApprovalStore":
+        from avakill.core.approval import ApprovalStore
+
+        return ApprovalStore
+    if name == "AuditAnalytics":
+        from avakill.analytics.engine import AuditAnalytics
+
+        return AuditAnalytics
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -78,4 +102,10 @@ __all__ = [
     "PolicyWatcher",
     "DaemonServer",
     "DaemonClient",
+    "ToolNormalizer",
+    "PolicyCascade",
+    "ComplianceAssessor",
+    "ComplianceReporter",
+    "ApprovalStore",
+    "AuditAnalytics",
 ]

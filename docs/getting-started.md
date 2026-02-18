@@ -363,6 +363,98 @@ avakill dashboard --refresh 1.0              # Refresh interval in seconds
 avakill dashboard --policy avakill.yaml   # Policy file to monitor
 ```
 
+## 8. Protect AI Coding Agents with Hooks
+
+AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Cursor, and Windsurf without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
+
+### Start the daemon
+
+```bash
+avakill daemon start --policy avakill.yaml
+```
+
+The daemon listens on a Unix socket (`~/.avakill/avakill.sock`) and evaluates tool calls in <5ms.
+
+### Install hooks
+
+```bash
+# Install for a specific agent
+avakill hook install --agent claude-code
+
+# Or install for all detected agents
+avakill hook install --agent all
+```
+
+### Check status
+
+```bash
+avakill hook list
+```
+
+### How it works
+
+```
+Agent (e.g., Claude Code)
+  │
+  ├─ Tool call: Bash("rm -rf /")
+  │
+  ▼
+Hook Script (avakill-hook-claude-code)
+  │
+  ├─ Translates tool name: Bash → shell_execute
+  ├─ Sends EvaluateRequest to daemon
+  │
+  ▼
+AvaKill Daemon
+  │
+  ├─ Evaluates against policy
+  ├─ Returns: deny
+  │
+  ▼
+Hook Script
+  │
+  └─ Returns deny to agent → tool call blocked
+```
+
+Policies use **canonical tool names** so one policy works across all agents:
+
+| Agent | Native Name | Canonical Name |
+|-------|------------|----------------|
+| Claude Code | `Bash` | `shell_execute` |
+| Claude Code | `Write` | `file_write` |
+| Claude Code | `Read` | `file_read` |
+| Gemini CLI | `run_shell_command` | `shell_execute` |
+| Cursor | `shell_command` | `shell_execute` |
+| Windsurf | `run_command` | `shell_execute` |
+
+Write policies using canonical names:
+
+```yaml
+policies:
+  - name: "block-dangerous-shells"
+    tools: ["shell_execute"]
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "sudo", "chmod 777"]
+```
+
+## 9. Evaluate Tool Calls from the CLI
+
+You can evaluate tool calls directly without running an agent:
+
+```bash
+# Via the daemon
+echo '{"tool": "shell_execute", "args": {"command": "rm -rf /"}}' | avakill evaluate --agent cli
+# Exit code 2 (denied)
+
+# Standalone (no daemon needed)
+echo '{"tool": "file_read", "args": {"path": "README.md"}}' | avakill evaluate --agent cli --policy avakill.yaml
+# Exit code 0 (allowed)
+```
+
+Exit codes: `0` = allowed, `2` = denied, `1` = error.
+
 ## Next Steps
 
 - **[Policy Reference](policy-reference.md)** — full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
@@ -371,6 +463,9 @@ avakill dashboard --policy avakill.yaml   # Policy file to monitor
 - **[Security Hardening](security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
 - **[Deployment Guide](deployment.md)** — dev → staging → production patterns, Docker, and systemd.
 - **[Cookbook](cookbook.md)** — real-world policy recipes for common use cases.
-- **[CLI Reference](cli-reference.md)** — complete documentation for all 14 CLI commands.
+- **[CLI Reference](cli-reference.md)** — complete documentation for all CLI commands.
 - **[API Reference](api-reference.md)** — full Python API documentation.
 - **[Troubleshooting](troubleshooting.md)** — common issues and solutions.
+- **[Native Agent Hooks](framework-integrations.md#native-agent-hooks)** — per-agent hook details for Claude Code, Gemini CLI, Cursor, and Windsurf.
+- **[Daemon Deployment](deployment.md#daemon-deployment)** — running the daemon with systemd, monitoring, and SIGHUP reload.
+- **[Compliance Reporting](deployment.md#compliance-deployment)** — automated SOC 2, NIST, EU AI Act, and ISO 42001 assessments.

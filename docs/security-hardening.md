@@ -6,13 +6,17 @@ AvaKill uses defense in depth — multiple independent layers that each catch di
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Layer 4: OS Hardening (chattr/schg, SELinux, AppArmor)     │  ← Blocks kernel-level access
+│  Layer 6: OS Enforcement (Landlock, sandbox-exec, Tetragon)  │  ← Kernel-level restrictions
 ├──────────────────────────────────────────────────────────────┤
-│  Layer 3: Audit Hooks (Python + optional C extension)       │  ← Detects runtime bypasses
+│  Layer 5: Daemon Socket Security (Unix permissions, PID)     │  ← Controls daemon access
 ├──────────────────────────────────────────────────────────────┤
-│  Layer 2: Self-Protection (hardcoded rules)                 │  ← Blocks policy tampering
+│  Layer 4: OS Hardening (chattr/schg, SELinux, AppArmor)      │  ← Blocks kernel-level access
 ├──────────────────────────────────────────────────────────────┤
-│  Layer 1: Policy Engine (YAML rules)                        │  ← Controls tool calls
+│  Layer 3: Audit Hooks (Python + optional C extension)        │  ← Detects runtime bypasses
+├──────────────────────────────────────────────────────────────┤
+│  Layer 2: Self-Protection (hardcoded rules)                  │  ← Blocks policy tampering
+├──────────────────────────────────────────────────────────────┤
+│  Layer 1: Policy Engine (YAML rules)                         │  ← Controls tool calls
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -22,6 +26,8 @@ AvaKill uses defense in depth — multiple independent layers that each catch di
 | **Self-Protection** | Attempts to modify the policy file, uninstall avakill, or run `avakill approve` | Low-level file access outside tool calls |
 | **Audit Hooks** | Direct `open()` calls to protected files, import of ctypes/gc (C hooks) | Native code execution outside Python |
 | **OS Hardening** | Filesystem modifications even from root-equivalent processes | Physical access, kernel exploits |
+| **Daemon Socket Security** | Unauthorized processes connecting to the evaluation daemon | Processes running as the same user |
+| **OS Enforcement** | Filesystem writes, process execution, network access at the kernel level | Kernel exploits, physical access |
 
 ## Policy Signing & Verification
 
@@ -343,6 +349,103 @@ Key hardening features:
 - **Dropped capabilities** — minimal privileges
 - **Seccomp filter** — restricts system calls
 - **Resource limits** — prevents resource exhaustion
+
+## OS-Level Enforcement (Landlock, sandbox-exec, Tetragon)
+
+OS-level enforcement provides kernel-level restrictions that complement the policy engine. Unlike policy-based evaluation (which runs in userspace), these restrictions are enforced by the kernel and cannot be bypassed by the agent process.
+
+### Landlock (Linux 5.13+)
+
+Landlock is an unprivileged access-control mechanism in Linux. AvaKill translates deny rules into Landlock filesystem restrictions.
+
+```bash
+# Preview what would be restricted
+avakill enforce landlock --policy avakill.yaml --dry-run
+
+# Apply restrictions (IRREVERSIBLE for the current process)
+avakill enforce landlock --policy avakill.yaml
+```
+
+**How deny rules translate to Landlock restrictions:**
+
+| Deny Rule Tool Pattern | Landlock Access Flags Restricted |
+|------------------------|----------------------------------|
+| `file_write` | `WRITE_FILE`, `MAKE_REG`, `MAKE_DIR`, `MAKE_SYM` |
+| `file_delete` | `REMOVE_FILE`, `REMOVE_DIR` |
+| `file_edit` | `WRITE_FILE` |
+| `shell_execute` | `EXECUTE` |
+
+**Important:** Once Landlock restrictions are applied, they cannot be removed for the lifetime of the process. Even root cannot regain restricted access. Test with `--dry-run` first.
+
+### sandbox-exec (macOS)
+
+On macOS, AvaKill generates Seatbelt Profile Language (SBPL) files from deny rules.
+
+```bash
+# Generate SBPL profile
+avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+
+# Run your agent under the sandbox
+sandbox-exec -f avakill.sb python my_agent.py
+```
+
+**How deny rules translate to SBPL operations:**
+
+| Deny Rule Tool Pattern | SBPL Operations Denied |
+|------------------------|----------------------|
+| `file_write` | `file-write-data`, `file-write-create`, `file-write-unlink` |
+| `file_delete` | `file-write-unlink` |
+| `file_edit` | `file-write-data` |
+| `shell_execute` | `process-exec` |
+| `web_fetch` / `web_search` | `network-outbound` |
+
+### Tetragon (Kubernetes)
+
+For Kubernetes deployments, AvaKill generates Cilium Tetragon `TracingPolicy` resources with kprobes.
+
+```bash
+# Generate TracingPolicy
+avakill enforce tetragon --policy avakill.yaml --output tetragon-policy.yaml
+
+# Deploy to your cluster
+kubectl apply -f tetragon-policy.yaml
+```
+
+Tetragon monitors kernel syscalls and sends `Sigkill` to processes that violate deny rules. This provides enforcement at the container level without modifying the application.
+
+## Daemon Socket Security
+
+The AvaKill daemon communicates over a Unix domain socket. Socket security is important because any process that can connect to the socket can request evaluations.
+
+### Socket Permissions
+
+The socket is created at `~/.avakill/avakill.sock` by default (or the path in `AVAKILL_SOCKET`). It inherits the user's umask permissions.
+
+For production, restrict socket access:
+
+```bash
+# Restrict to owner only
+chmod 700 ~/.avakill/
+```
+
+### PID File
+
+The daemon writes its PID to `~/.avakill/avakill.pid`. This is used by:
+- `avakill daemon status` to check if the daemon is running
+- `avakill daemon stop` to send SIGTERM
+- SIGHUP reload: `kill -HUP $(cat ~/.avakill/avakill.pid)`
+
+### Signal Handling
+
+| Signal | Action |
+|--------|--------|
+| `SIGHUP` | Reload the policy file from disk without restarting |
+| `SIGTERM` | Graceful shutdown (close connections, clean up socket and PID files) |
+| `SIGINT` | Graceful shutdown |
+
+### Stale Socket Cleanup
+
+If the daemon crashes without cleaning up, the socket file may remain. The daemon detects stale sockets on startup and removes them if no process is listening.
 
 ## End-to-End: Hardened Production Setup
 

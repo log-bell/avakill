@@ -440,3 +440,30 @@ The proxy handles `SIGINT` and `SIGTERM`:
 5. Logs "AvaKill MCP proxy shut down."
 
 `Ctrl+C` in the terminal triggers a clean shutdown.
+
+## MCP Proxy vs Native Hooks
+
+AvaKill offers two ways to protect AI coding agents: the **MCP proxy** and **native agent hooks**. They serve different purposes:
+
+| | MCP Proxy | Native Hooks |
+|---|---|---|
+| **What it protects** | MCP tool calls only | All tool calls (shell, file, search, etc.) |
+| **How it works** | Inline stdio proxy between client and server | Agent hook script → AvaKill daemon |
+| **Setup** | Modify MCP server config (JSON) | `avakill hook install --agent <name>` |
+| **Agent support** | Any MCP client (Claude Desktop, Cursor, etc.) | Claude Code, Gemini CLI, Cursor, Windsurf |
+| **Tool coverage** | Only tools exposed by the proxied MCP server | Every tool the agent can invoke |
+| **Code changes** | None (config only) | None (config only) |
+
+**When to use the MCP proxy:**
+- You want to protect a specific MCP server's tools
+- Your agent isn't one of the four natively supported agents
+- You need to proxy MCP servers for Claude Desktop or other MCP clients
+
+**When to use native hooks:**
+- You want to protect *all* tool calls, not just MCP tools
+- You're using Claude Code, Gemini CLI, Cursor, or Windsurf
+- You want a single policy with canonical tool names across agents
+
+You can use both simultaneously — the MCP proxy protects MCP-specific tools while native hooks protect everything else.
+
+See the [Native Agent Hooks](framework-integrations.md#native-agent-hooks) guide for setup instructions.

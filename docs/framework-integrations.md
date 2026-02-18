@@ -534,6 +534,166 @@ avakill dashboard --db avakill_audit.db
 4. **Allowed**: the request is forwarded to the upstream server normally.
 5. **Denied**: the proxy returns a well-formed MCP error response directly to the client. The upstream server never sees the request.
 
+## Native Agent Hooks
+
+Native hooks intercept tool calls directly at the agent level — no MCP proxy, no code changes, no SDK wrappers. AvaKill registers a hook script with the agent, and every tool call is evaluated before execution.
+
+### How Hooks Differ from MCP Proxy
+
+| | MCP Proxy | Native Hooks |
+|---|---|---|
+| **Scope** | Only MCP tool calls | All tool calls (shell, file, search, etc.) |
+| **Setup** | Modify MCP server config | `avakill hook install --agent <name>` |
+| **Architecture** | Inline stdio proxy | Agent hook → daemon (Unix socket) |
+| **Agent support** | Any MCP client | Claude Code, Gemini CLI, Cursor, Windsurf |
+| **Code changes** | None (config only) | None (config only) |
+
+Use **native hooks** when you want to protect all of an agent's tool calls. Use the **MCP proxy** when you only need to protect a specific MCP server.
+
+### Claude Code
+
+Claude Code supports `PreToolUse` hooks that run before any tool executes.
+
+**Install:**
+
+```bash
+avakill hook install --agent claude-code
+```
+
+**How it works:**
+1. Claude Code sends a JSON payload to stdin with `tool_name`, `tool_input`, and `hook_event_name: "PreToolUse"`
+2. The hook script (`avakill-hook-claude-code`) translates the tool name (e.g., `Bash` → `shell_execute`) and sends an `EvaluateRequest` to the daemon
+3. If denied, the hook returns `{"hookSpecificOutput": {"permissionDecision": "deny"}}` to stdout
+4. If allowed, the hook outputs nothing (empty response)
+
+**Tool name mapping:**
+
+| Claude Code Name | Canonical Name |
+|-----------------|----------------|
+| `Bash` | `shell_execute` |
+| `Read` | `file_read` |
+| `Write` | `file_write` |
+| `Edit` / `MultiEdit` | `file_edit` |
+| `Glob` | `file_search` |
+| `Grep` | `content_search` |
+| `WebFetch` | `web_fetch` |
+| `WebSearch` | `web_search` |
+| `Task` | `agent_spawn` |
+| `LS` | `file_list` |
+
+### Gemini CLI
+
+Gemini CLI supports `BeforeTool` hooks.
+
+**Install:**
+
+```bash
+avakill hook install --agent gemini-cli
+```
+
+**How it works:**
+1. Gemini CLI sends a JSON payload with snake_case tool names
+2. The hook script (`avakill-hook-gemini-cli`) normalizes tool names and evaluates via the daemon
+3. Deny response: `{"hookSpecificOutput": {"permissionDecision": "deny"}}`
+
+**Tool name mapping:**
+
+| Gemini CLI Name | Canonical Name |
+|----------------|----------------|
+| `run_shell_command` | `shell_execute` |
+| `read_file` | `file_read` |
+| `write_file` | `file_write` |
+| `edit_file` | `file_edit` |
+
+### Cursor
+
+Cursor supports `beforeShellExecution`, `beforeMCPExecution`, and `beforeReadFile` hooks.
+
+**Install:**
+
+```bash
+avakill hook install --agent cursor
+```
+
+**How it works:**
+1. Cursor sends hook-specific JSON payloads
+2. The hook script (`avakill-hook-cursor`) always returns JSON with `continue`, `permission`, and `agentMessage` fields
+3. Deny: `{"continue": false, "permission": "deny", "agentMessage": "Blocked by AvaKill"}`
+4. Allow: `{"continue": true, "permission": "allow"}`
+5. Always exits with code 0 (Cursor requires it)
+
+**Tool name mapping:**
+
+| Cursor Name | Canonical Name |
+|------------|----------------|
+| `shell_command` | `shell_execute` |
+| `read_file` | `file_read` |
+
+### Windsurf
+
+Windsurf supports Cascade Hooks: `pre_run_command`, `pre_write_code`, `pre_read_code`, `pre_mcp_tool_use`.
+
+**Install:**
+
+```bash
+avakill hook install --agent windsurf
+```
+
+**How it works:**
+1. Windsurf sends hook-specific JSON payloads
+2. The hook script (`avakill-hook-windsurf`) normalizes the action name to a tool name
+3. Deny: exit code 2 + reason written to stderr
+4. Allow: exit code 0 (silent)
+
+**Tool name mapping:**
+
+| Windsurf Action | Canonical Name |
+|----------------|----------------|
+| `pre_run_command` | `run_command` → `shell_execute` |
+| `pre_write_code` | `write_code` → `file_write` |
+| `pre_read_code` | `read_code` → `file_read` |
+| `pre_mcp_tool_use` | `mcp_tool` |
+
+### Tool Normalization
+
+All hooks use the `ToolNormalizer` to translate agent-specific tool names into canonical names. This means you can write **one policy** that works across all agents:
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "block-dangerous-shells"
+    tools: ["shell_execute"]
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "sudo", "chmod 777"]
+
+  - name: "allow-reads"
+    tools: ["file_read", "file_search", "content_search", "file_list"]
+    action: allow
+
+  - name: "allow-writes"
+    tools: ["file_write", "file_edit"]
+    action: allow
+    rate_limit:
+      max_calls: 30
+      window: "60s"
+```
+
+This policy blocks dangerous shell commands, allows reads, and rate-limits writes — regardless of whether the agent is Claude Code, Gemini CLI, Cursor, or Windsurf.
+
+### Standalone Mode
+
+If the daemon is unreachable, hooks fall back to standalone evaluation. Set the `AVAKILL_POLICY` environment variable to a policy file path:
+
+```bash
+export AVAKILL_POLICY=/path/to/avakill.yaml
+```
+
+In standalone mode, the hook script loads the policy directly and evaluates without the daemon. This is useful for environments where running a persistent daemon isn't practical.
+
 ## Custom Integrations
 
 If your framework isn't listed above, use the `Guard` API directly.

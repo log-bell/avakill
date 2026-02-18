@@ -347,6 +347,104 @@ And it's hardcoded — no YAML config to tamper with.
 
 ---
 
+## Level 7: A Persistent Daemon
+
+Your safety checks work great... inside your Python process. But AI coding agents like Claude Code and Cursor run as separate processes. They can't import your Python guard.
+
+You need a **server** that any process can talk to:
+
+```python
+import socket
+import json
+
+def start_daemon(policy_path, socket_path="/tmp/avakill.sock"):
+    guard = Guard(policy=policy_path)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(socket_path)
+    server.listen()
+
+    while True:
+        conn, _ = server.accept()
+        data = conn.recv(4096)
+        request = json.loads(data)
+
+        decision = guard.evaluate(
+            tool=request["tool"],
+            args=request.get("args", {}),
+        )
+
+        response = json.dumps({
+            "decision": "allow" if decision.allowed else "deny",
+            "reason": decision.reason,
+        })
+        conn.sendall(response.encode() + b"\n")
+        conn.close()
+```
+
+Now any process — a shell script, a hook, another language entirely — can send a JSON request to the Unix socket and get a policy decision back. No Python import needed.
+
+But there's a problem: every agent has different tool names. Claude Code calls it `Bash`, Gemini CLI calls it `run_shell_command`, Cursor calls it `shell_command`. You need a **normalizer**:
+
+```python
+TOOL_MAP = {
+    "claude-code": {"Bash": "shell_execute", "Read": "file_read", "Write": "file_write"},
+    "gemini-cli": {"run_shell_command": "shell_execute", "read_file": "file_read"},
+}
+
+def normalize(tool: str, agent: str) -> str:
+    return TOOL_MAP.get(agent, {}).get(tool, tool)
+```
+
+Now you write policies using canonical names (`shell_execute`, `file_read`) and the daemon translates agent-native names on the fly. One policy, every agent.
+
+AvaKill's `DaemonServer` does exactly this — with async I/O, SIGHUP reload, PID file management, and the `ToolNormalizer` for every supported agent. The `DaemonClient` provides a synchronous interface for short-lived hook scripts, and the `PolicyCascade` discovers policies from system, global, project, and local levels.
+
+```bash
+avakill daemon start --policy avakill.yaml
+avakill hook install --agent claude-code
+# Every tool call is now evaluated before execution
+```
+
+---
+
+## Level 8: OS-Level Enforcement
+
+Policy checks run in userspace. A sufficiently clever agent could theoretically bypass them — modify memory, call syscalls directly, or exploit a vulnerability in Python itself.
+
+The ultimate defense is the **kernel**. What if the operating system itself refused to let the process write files or execute commands?
+
+On Linux 5.13+, there's Landlock — an unprivileged security mechanism:
+
+```python
+import ctypes
+
+# Simplified — real Landlock requires careful syscall setup
+def restrict_writes():
+    """After this call, the process CANNOT write files. Period."""
+    # Create a Landlock ruleset that handles write access
+    # Add rules for allowed paths
+    # Restrict self — IRREVERSIBLE
+    pass
+```
+
+The key word is **irreversible**. Once Landlock restrictions are applied, they cannot be removed — not even by root. The process has permanently given up the ability to write files (or whatever you restricted).
+
+AvaKill translates your deny rules into Landlock restrictions automatically:
+
+```bash
+# See what would be restricted
+avakill enforce landlock --policy avakill.yaml --dry-run
+
+# Apply — no going back
+avakill enforce landlock --policy avakill.yaml
+```
+
+On macOS, `sandbox-exec` provides similar restrictions via SBPL profiles. On Kubernetes, Cilium Tetragon monitors syscalls with kprobes and kills violating processes.
+
+This is the nuclear option — and sometimes that's exactly what you need.
+
+---
+
 ## The Real Thing
 
 You've just built, piece by piece, every major component of AvaKill:
@@ -359,6 +457,8 @@ You've just built, piece by piece, every major component of AvaKill:
 | SQLite audit logging | `SQLiteLogger` + `avakill logs` CLI |
 | Client wrapper for OpenAI | `GuardedOpenAIClient` |
 | Self-protection rules | `SelfProtection` class |
+| Unix socket daemon + tool normalizer | `DaemonServer` + `ToolNormalizer` + `PolicyCascade` |
+| Kernel-level restrictions | `LandlockEnforcer` + `SandboxExecEnforcer` + `TetragonPolicyGenerator` |
 
 Here's the thing: AvaKill does all of the above in a single YAML file and three lines of code.
 

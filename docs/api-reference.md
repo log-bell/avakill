@@ -441,6 +441,442 @@ async with guard.watch() as watcher:
 
 ---
 
+## avakill.DaemonServer
+
+Persistent Unix domain socket server for evaluating tool calls. Used by agent hooks and the `avakill evaluate` CLI command.
+
+### Constructor
+
+```python
+DaemonServer(
+    guard: Guard,
+    socket_path: str | Path | None = None,
+    pid_file: str | Path | None = None,
+    normalizer: ToolNormalizer | None = None,
+)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `guard` | `Guard` | *(required)* | Guard instance for policy evaluation |
+| `socket_path` | `str \| Path \| None` | `None` | Unix socket path. Defaults to `AVAKILL_SOCKET` env var or `~/.avakill/avakill.sock`. |
+| `pid_file` | `str \| Path \| None` | `None` | PID file path. Defaults to `~/.avakill/avakill.pid`. |
+| `normalizer` | `ToolNormalizer \| None` | `None` | Tool name normalizer for agent-specific tool names |
+
+### start()
+
+```python
+await DaemonServer.start() -> None
+```
+
+Create the Unix socket, install signal handlers (SIGHUP for reload, SIGTERM/SIGINT for shutdown), and begin accepting connections.
+
+### stop()
+
+```python
+await DaemonServer.stop() -> None
+```
+
+Close the server, clean up socket and PID files.
+
+### serve_forever()
+
+```python
+await DaemonServer.serve_forever() -> None
+```
+
+Start and block until a stop signal is received.
+
+### is_running()
+
+```python
+@staticmethod
+DaemonServer.is_running(pid_file: str | Path | None = None) -> tuple[bool, int | None]
+```
+
+Check if a daemon is running. Returns `(True, pid)` or `(False, None)`.
+
+---
+
+## avakill.DaemonClient
+
+Synchronous client for communicating with the AvaKill daemon. Designed for short-lived hook scripts.
+
+### Constructor
+
+```python
+DaemonClient(
+    socket_path: str | Path | None = None,
+    timeout: float = 5.0,
+)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `socket_path` | `str \| Path \| None` | `None` | Unix socket path. Defaults to `AVAKILL_SOCKET` env var or `~/.avakill/avakill.sock`. |
+| `timeout` | `float` | `5.0` | Connection and read timeout in seconds |
+
+### evaluate()
+
+```python
+DaemonClient.evaluate(request: EvaluateRequest) -> EvaluateResponse
+```
+
+Send an evaluation request to the daemon. **Fail-closed:** returns a deny response on any error (connection refused, timeout, parse failure).
+
+### ping()
+
+```python
+DaemonClient.ping() -> bool
+```
+
+Check daemon connectivity. Returns `True` if the daemon responds.
+
+---
+
+## Wire Protocol Models
+
+Available from `avakill.daemon.protocol`.
+
+### EvaluateRequest
+
+```python
+from avakill.daemon.protocol import EvaluateRequest
+
+request = EvaluateRequest(
+    agent="claude-code",
+    tool="Bash",
+    args={"command": "rm -rf /"},
+)
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `version` | `int` | `1` | Protocol version |
+| `agent` | `str` | *(required)* | Agent identifier (e.g., `"claude-code"`, `"gemini-cli"`, `"cli"`) |
+| `event` | `str` | `"pre_tool_use"` | Hook event name |
+| `tool` | `str` | *(required)* | Agent-native tool name |
+| `args` | `dict[str, Any]` | `{}` | Tool arguments |
+| `context` | `dict[str, Any]` | `{}` | Additional context |
+
+### EvaluateResponse
+
+```python
+from avakill.daemon.protocol import EvaluateResponse
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `decision` | `Literal["allow", "deny", "require_approval"]` | *(required)* | The policy decision |
+| `reason` | `str \| None` | `None` | Human-readable explanation |
+| `policy` | `str \| None` | `None` | Name of the matching policy rule |
+| `latency_ms` | `float` | `0.0` | Evaluation time in milliseconds |
+| `modified_args` | `dict[str, Any] \| None` | `None` | Modified arguments (reserved) |
+
+### Serialization
+
+```python
+from avakill.daemon.protocol import (
+    serialize_request, deserialize_request,
+    serialize_response, deserialize_response,
+)
+
+# Newline-delimited JSON over Unix socket
+data = serialize_request(request)    # -> bytes
+req = deserialize_request(data)      # -> EvaluateRequest
+data = serialize_response(response)  # -> bytes
+resp = deserialize_response(data)    # -> EvaluateResponse
+```
+
+---
+
+## avakill.ToolNormalizer
+
+Translates agent-specific tool names to canonical names for universal policy evaluation.
+
+Available from `avakill.core.normalization`.
+
+### Constructor
+
+```python
+ToolNormalizer(custom_mappings: dict[str, dict[str, str]] | None = None)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `custom_mappings` | `dict[str, dict[str, str]] \| None` | `None` | Additional agent-to-canonical mappings merged with built-in ones |
+
+### normalize()
+
+```python
+ToolNormalizer.normalize(tool: str, agent: str | None = None) -> str
+```
+
+Translate an agent-native tool name to its canonical name. Returns the original name if no mapping exists.
+
+```python
+normalizer = ToolNormalizer()
+normalizer.normalize("Bash", agent="claude-code")       # → "shell_execute"
+normalizer.normalize("run_shell_command", agent="gemini-cli")  # → "shell_execute"
+normalizer.normalize("unknown_tool", agent="claude-code")      # → "unknown_tool"
+```
+
+### denormalize()
+
+```python
+ToolNormalizer.denormalize(canonical: str, agent: str) -> str | None
+```
+
+Reverse lookup: canonical name to agent-native name. Returns `None` if no mapping exists.
+
+### AGENT_TOOL_MAP
+
+Built-in mapping of agent-native tool names to canonical names:
+
+| Agent | Native Name | Canonical Name |
+|-------|------------|----------------|
+| `claude-code` | `Bash` | `shell_execute` |
+| `claude-code` | `Read` | `file_read` |
+| `claude-code` | `Write` | `file_write` |
+| `claude-code` | `Edit` / `MultiEdit` | `file_edit` |
+| `claude-code` | `Glob` | `file_search` |
+| `claude-code` | `Grep` | `content_search` |
+| `claude-code` | `WebFetch` | `web_fetch` |
+| `claude-code` | `WebSearch` | `web_search` |
+| `claude-code` | `Task` | `agent_spawn` |
+| `claude-code` | `LS` | `file_list` |
+| `gemini-cli` | `run_shell_command` | `shell_execute` |
+| `gemini-cli` | `read_file` | `file_read` |
+| `gemini-cli` | `write_file` | `file_write` |
+| `gemini-cli` | `edit_file` | `file_edit` |
+| `cursor` | `shell_command` | `shell_execute` |
+| `cursor` | `read_file` | `file_read` |
+| `windsurf` | `run_command` | `shell_execute` |
+| `windsurf` | `write_code` | `file_write` |
+| `windsurf` | `read_code` | `file_read` |
+
+MCP tool names (prefixed with `mcp__` or `mcp:`) pass through without normalization.
+
+---
+
+## avakill.PolicyCascade
+
+Discovers and merges policy files from multiple levels. Available from `avakill.core.cascade`.
+
+### discover()
+
+```python
+PolicyCascade.discover(cwd: Path | None = None) -> list[tuple[PolicyLevel, Path]]
+```
+
+Find all policy files in discovery order. `PolicyLevel` is `Literal["system", "global", "project", "local"]`.
+
+**Discovery paths (in priority order):**
+
+| Level | Path | Description |
+|-------|------|-------------|
+| System | `/etc/avakill/policy.yaml` | Organization-wide defaults (admin-managed) |
+| Global | `~/.config/avakill/policy.yaml` | User-wide defaults |
+| Project | `.avakill/policy.yaml` or `avakill.yaml` | Project-specific (walks up directory tree) |
+| Local | `.avakill/policy.local.yaml` | Local overrides (gitignored) |
+
+### load()
+
+```python
+PolicyCascade.load(cwd: Path | None = None) -> PolicyConfig
+```
+
+Discover, load, and merge all policy files into a single `PolicyConfig`.
+
+### merge()
+
+```python
+@staticmethod
+PolicyCascade.merge(configs: list[PolicyConfig]) -> PolicyConfig
+```
+
+Merge multiple configs with **deny-wins semantics**:
+- Default action: `"deny"` if any level says deny
+- Deny rules: union across all levels
+- Allow rules: kept only if no higher-level hard-deny overrides them
+- Rate limits: most restrictive (lowest `max_calls`) wins
+- Hard enforcement at a higher level cannot be relaxed by lower levels
+
+---
+
+## Hook Adapters
+
+Available from `avakill.hooks`. Each adapter translates agent-specific hook payloads into `EvaluateRequest` objects.
+
+### HookAdapter (base class)
+
+```python
+from avakill.hooks.base import HookAdapter
+```
+
+Abstract base class for all hook adapters.
+
+| Method | Description |
+|--------|-------------|
+| `agent_name: str` | Class attribute identifying the agent |
+| `parse_stdin(raw: str) -> EvaluateRequest` | Parse agent's stdin payload into a request |
+| `format_response(response: EvaluateResponse) -> tuple[str \| None, int]` | Format response as `(stdout_content, exit_code)` |
+| `run(stdin_data: str \| None = None)` | Main entry point: read stdin, evaluate, write response |
+
+### Built-in Adapters
+
+| Adapter | Agent | Hook Event | Deny Signal |
+|---------|-------|-----------|-------------|
+| `ClaudeCodeAdapter` | `claude-code` | PreToolUse | `permissionDecision: "deny"` in JSON |
+| `GeminiCliAdapter` | `gemini-cli` | BeforeTool | `permissionDecision: "deny"` in JSON |
+| `CursorAdapter` | `cursor` | beforeShellExecution | `continue: false` in JSON (always exit 0) |
+| `WindsurfAdapter` | `windsurf` | pre_run_command | Exit code 2 + reason on stderr |
+
+Each adapter has a corresponding console script entry point: `avakill-hook-claude-code`, `avakill-hook-gemini-cli`, `avakill-hook-cursor`, `avakill-hook-windsurf`.
+
+**Standalone mode:** If the daemon is unreachable, adapters fall back to standalone evaluation using the policy file at `AVAKILL_POLICY` environment variable.
+
+---
+
+## Enforcement Backends
+
+Available from `avakill.enforcement`.
+
+### LandlockEnforcer
+
+Linux 5.13+ unprivileged filesystem access restrictions.
+
+```python
+from avakill.enforcement.landlock import LandlockEnforcer
+
+# Check availability
+LandlockEnforcer.available()  # → True on Linux 5.13+
+
+# Dry run — see what would be restricted
+ruleset = LandlockEnforcer.generate_ruleset(policy_config)
+
+# Apply — IRREVERSIBLE for the current process
+LandlockEnforcer.apply(policy_config)
+```
+
+### SandboxExecEnforcer
+
+macOS Seatbelt Profile Language (SBPL) generation.
+
+```python
+from avakill.enforcement.sandbox_exec import SandboxExecEnforcer
+
+# Check availability
+SandboxExecEnforcer.available()  # → True on macOS
+
+# Generate SBPL profile string
+profile = SandboxExecEnforcer.generate_profile(policy_config)
+
+# Write to file
+SandboxExecEnforcer.write_profile(policy_config, Path("avakill.sb"))
+```
+
+### TetragonPolicyGenerator
+
+Cilium Tetragon Kubernetes TracingPolicy generation.
+
+```python
+from avakill.enforcement.tetragon import TetragonPolicyGenerator
+
+# Generate TracingPolicy YAML
+yaml_str = TetragonPolicyGenerator.generate(policy_config)
+
+# Write to file
+TetragonPolicyGenerator.write(policy_config, Path("tetragon-policy.yaml"))
+```
+
+---
+
+## Compliance & Approvals
+
+### ComplianceAssessor
+
+Automated compliance assessment. Available from `avakill.compliance.assessor`.
+
+```python
+from avakill.compliance.assessor import ComplianceAssessor
+
+assessor = ComplianceAssessor(guard=guard, logger=logger)
+
+# Assess single framework
+report = assessor.assess("soc2")
+
+# Assess all frameworks
+reports = assessor.assess_all()  # → dict[str, ComplianceReport]
+```
+
+**Supported frameworks:**
+
+| Framework | ID | Controls |
+|-----------|-----|----------|
+| SOC 2 Type II | `soc2` | CC6.1, CC6.3, CC7.1, CC7.2, CC8.1 |
+| NIST AI RMF | `nist-ai-rmf` | GOVERN, MAP, MEASURE, MANAGE |
+| EU AI Act | `eu-ai-act` | Art.9, Art.12, Art.14 |
+| ISO 42001 | `iso-42001` | A.2.3, A.5, A.6, A.7, A.8 |
+
+### ComplianceReporter
+
+Format compliance reports. Available from `avakill.compliance.reporter`.
+
+```python
+from avakill.compliance.reporter import ComplianceReporter
+
+table = ComplianceReporter.to_rich_table(report)  # Rich Table for terminal
+json_str = ComplianceReporter.to_json(report)       # JSON string
+md_str = ComplianceReporter.to_markdown(report)     # Markdown string
+```
+
+### ApprovalStore
+
+SQLite-backed approval workflow. Available from `avakill.core.approval`.
+
+```python
+from avakill.core.approval import ApprovalStore
+
+async with ApprovalStore("approvals.db") as store:
+    # Create approval request (default TTL: 1 hour)
+    request = await store.create(tool_call, decision, agent="claude-code", ttl_seconds=3600)
+
+    # List pending
+    pending = await store.get_pending()
+
+    # Approve or deny
+    approved = await store.approve(request.id, approver="admin")
+    denied = await store.deny(request.id, approver="admin")
+
+    # Clean up expired
+    count = await store.cleanup_expired()
+```
+
+### AuditAnalytics
+
+Audit log analysis engine. Available from `avakill.analytics.engine`.
+
+```python
+from avakill.analytics.engine import AuditAnalytics
+
+analytics = AuditAnalytics(logger=sqlite_logger)
+
+# Denial trends (time-bucketed)
+trends = await analytics.denial_trend(hours=24, bucket_minutes=60)
+
+# Per-tool usage summary
+usage = await analytics.tool_usage_summary()  # → {"tool": {"allowed": N, "denied": N}}
+
+# Per-agent risk scores (0.0 = safe, 1.0 = all denied)
+scores = await analytics.agent_risk_scores()
+
+# Per-rule effectiveness
+effectiveness = await analytics.policy_effectiveness()
+```
+
+---
+
 ## Internal (for contributors)
 
 These are not part of the public API and may change between versions.
@@ -456,5 +892,17 @@ These are not part of the public API and may change between versions.
 | `SelfProtection` | `avakill.core.self_protection` | Hardcoded self-protection rules |
 | `AuditHookManager` | `avakill.core.audit_hooks` | Python `sys.addaudithook()` manager |
 | `RateLimitBackend` | `avakill.core.rate_limit_store` | Protocol for persistent rate-limit storage |
+| `DaemonServer` | `avakill.daemon.server` | Unix domain socket server for persistent evaluation |
+| `DaemonClient` | `avakill.daemon.client` | Synchronous client for hook scripts |
+| `ToolNormalizer` | `avakill.core.normalization` | Agent-native to canonical tool name translation |
+| `PolicyCascade` | `avakill.core.cascade` | Multi-level policy discovery and merge |
+| `HookAdapter` | `avakill.hooks.base` | Abstract base class for agent hook adapters |
+| `LandlockEnforcer` | `avakill.enforcement.landlock` | Linux Landlock filesystem restrictions |
+| `SandboxExecEnforcer` | `avakill.enforcement.sandbox_exec` | macOS SBPL profile generation |
+| `TetragonPolicyGenerator` | `avakill.enforcement.tetragon` | Cilium Kubernetes TracingPolicy generation |
+| `ComplianceAssessor` | `avakill.compliance.assessor` | Automated compliance framework assessment |
+| `ComplianceReporter` | `avakill.compliance.reporter` | Compliance report formatting (table/JSON/Markdown) |
+| `ApprovalStore` | `avakill.core.approval` | SQLite-backed approval workflow |
+| `AuditAnalytics` | `avakill.analytics.engine` | Audit log analysis and risk scoring |
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full architecture overview.

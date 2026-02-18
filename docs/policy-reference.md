@@ -64,6 +64,7 @@ policies:
 | `name` | string | Yes | — | Human-readable name. Appears in decisions and audit logs. |
 | `tools` | list[string] | Yes | — | Tool-name patterns this rule applies to. Must have at least one entry. |
 | `action` | string | Yes | — | One of `"allow"`, `"deny"`, or `"require_approval"`. |
+| `enforcement` | string | No | `"hard"` | Enforcement level: `"hard"`, `"soft"`, or `"advisory"`. See [Enforcement Levels](#enforcement-levels). |
 | `conditions` | object | No | `null` | Argument-matching conditions (see [Conditions](#conditions)). |
 | `rate_limit` | object | No | `null` | Rate limiting configuration (see [Rate Limiting](#rate-limiting)). |
 | `message` | string | No | `null` | Custom message included in the decision's `reason` field. |
@@ -76,6 +77,35 @@ policies:
 | `allow` | `true` | Tool call proceeds normally. |
 | `deny` | `false` | Tool call is blocked. `PolicyViolation` raised (or `decision.allowed` is `false`). |
 | `require_approval` | `false` | Tool call is flagged for human review. Treated as denied until approved. |
+
+### Enforcement Levels
+
+Each rule can specify an `enforcement` level that controls how strictly the rule is applied:
+
+| Level | Behavior |
+|-------|----------|
+| `hard` | Decision is final. Cannot be overridden by lower-level policies. **(default)** |
+| `soft` | Decision is applied but can be overridden by project or local policies. |
+| `advisory` | Decision is logged but not enforced. Useful for monitoring before enforcing. |
+
+```yaml
+policies:
+  - name: "block-destructive-sql"
+    tools: ["execute_sql"]
+    action: deny
+    enforcement: hard
+    conditions:
+      args_match:
+        query: ["DROP", "DELETE", "TRUNCATE"]
+
+  - name: "warn-large-queries"
+    tools: ["execute_sql"]
+    action: deny
+    enforcement: advisory
+    message: "Large query detected (advisory only — not enforced)"
+```
+
+Advisory rules generate audit events with the deny decision but do not actually block the tool call. Use them to test new rules before enforcing them.
 
 ## Tool Matching Patterns
 
@@ -254,7 +284,16 @@ except RateLimitExceeded as e:
 - Rate limits use a **sliding window** with an in-memory deque of timestamps.
 - The window slides continuously — it is not reset at fixed intervals.
 - Rate limits are tracked per tool name, not per rule.
-- Rate limit state is thread-safe (protected by a lock) but not persisted across process restarts.
+- Rate limit state is thread-safe (protected by a lock). By default, timestamps are stored in-memory and reset on process restart. For persistence across restarts, use the `SQLiteBackend`:
+
+```python
+from avakill.core.rate_limit_store import SQLiteBackend
+
+backend = SQLiteBackend("avakill_rate_limits.db")
+guard = Guard(policy="avakill.yaml", rate_limit_backend=backend)
+```
+
+This prevents agents from bypassing rate limits by triggering a restart.
 
 ## Environment Variable Substitution
 
@@ -523,3 +562,79 @@ guard.reload_policy("policies/updated.yaml")
 ```
 
 This replaces the policy engine atomically. In-flight evaluations complete with the old policy; new evaluations use the new one.
+
+## Policy Cascade
+
+AvaKill supports multi-level policy files that are automatically discovered and merged. This lets system administrators set organization-wide defaults while individual projects can add their own rules.
+
+### Discovery Levels
+
+Policy files are discovered in this order (highest priority first for deny rules):
+
+| Level | Path | Description |
+|-------|------|-------------|
+| **System** | `/etc/avakill/policy.yaml` | Organization-wide defaults. Managed by admins. |
+| **Global** | `~/.config/avakill/policy.yaml` | User-wide defaults. |
+| **Project** | `.avakill/policy.yaml` or `avakill.yaml` | Project-specific rules. Walks up the directory tree. |
+| **Local** | `.avakill/policy.local.yaml` | Local overrides. Gitignored. |
+
+### Merge Semantics
+
+When multiple policy files are found, they are merged with **deny-wins** semantics:
+
+- **Default action:** `"deny"` if any level sets it to deny
+- **Deny rules:** Unioned across all levels (all deny rules from all files apply)
+- **Allow rules:** Kept only if no higher-level `hard` enforcement denies the same tools
+- **Rate limits:** The most restrictive (lowest `max_calls`) wins
+- **Hard enforcement** at a higher level cannot be relaxed by lower levels
+
+### Example
+
+System admin sets a hard deny on destructive SQL:
+
+```yaml
+# /etc/avakill/policy.yaml (system level)
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "system-block-destructive-sql"
+    tools: ["execute_sql"]
+    action: deny
+    enforcement: hard
+    conditions:
+      args_match:
+        query: ["DROP", "TRUNCATE"]
+```
+
+Project adds its own allow rules:
+
+```yaml
+# .avakill/policy.yaml (project level)
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "allow-safe-sql"
+    tools: ["execute_sql"]
+    action: allow
+```
+
+Result: `SELECT` queries are allowed, but `DROP` and `TRUNCATE` are blocked — the system-level hard deny cannot be overridden.
+
+### Using the Cascade
+
+```python
+from avakill.core.cascade import PolicyCascade
+
+cascade = PolicyCascade()
+
+# Discover all policy files
+levels = cascade.discover()
+# → [("system", Path("/etc/avakill/policy.yaml")), ("project", Path("avakill.yaml"))]
+
+# Load and merge
+config = cascade.load()
+```
+
+The `avakill daemon` and hook adapters use the cascade automatically.

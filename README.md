@@ -118,6 +118,34 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 
 </td>
 </tr>
+<tr>
+<td>
+
+:satellite: **Native Agent Hooks**<br>
+Drop-in hooks for Claude Code, Gemini CLI, Cursor, and Windsurf. One command to install — no code changes to your agent.
+
+</td>
+<td>
+
+:gear: **Persistent Daemon**<br>
+Unix socket server with <5ms evaluation. Start once, protect every agent on your machine. SIGHUP to reload policies.
+
+</td>
+</tr>
+<tr>
+<td>
+
+:shield: **OS-Level Enforcement**<br>
+Landlock (Linux), sandbox-exec (macOS), and Tetragon (Kubernetes). Kernel-level restrictions that even root can't bypass.
+
+</td>
+<td>
+
+:scroll: **Compliance Reporting**<br>
+Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate reports in table, JSON, or Markdown format.
+
+</td>
+</tr>
 </table>
 
 ## Why AvaKill?
@@ -131,9 +159,25 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 | Full audit trail | :x: | :x: | :white_check_mark: |
 | MCP server support | — | :x: | :white_check_mark: |
 | <1ms overhead | — | :x: (LLM round-trip) | :white_check_mark: |
+| Native agent hooks (no code changes) | — | :x: | :white_check_mark: |
+| OS-level kernel enforcement | — | :x: | :white_check_mark: |
 | Open source | — | Some | :white_check_mark: AGPL 3.0 |
 
 ## Framework Integrations
+
+### Native Agent Hooks
+
+Protect AI coding agents with zero code changes — just install the hook:
+
+```bash
+avakill daemon start --policy avakill.yaml
+avakill hook install --agent claude-code  # or gemini-cli, cursor, windsurf, all
+avakill hook list
+```
+
+AvaKill intercepts every tool call at the agent level. Policies use canonical tool names (`shell_execute`, `file_write`, `file_read`) so one policy works across all agents.
+
+> See [`docs/framework-integrations.md`](docs/framework-integrations.md#native-agent-hooks) for per-agent details and the full tool normalization table.
 
 ### OpenAI
 
@@ -321,6 +365,28 @@ avakill schema
 # Generate an LLM prompt for policy creation
 avakill schema --format=prompt
 avakill schema --format=prompt --tools="file_read,shell_exec" --use-case="code assistant"
+
+# Start the persistent daemon
+avakill daemon start --policy avakill.yaml
+
+# Evaluate a tool call via the daemon
+echo '{"tool": "shell_execute", "args": {"command": "rm -rf /"}}' | avakill evaluate --agent cli
+
+# Install hooks for all detected agents
+avakill hook install --agent all
+avakill hook list
+
+# Generate OS-level enforcement
+avakill enforce landlock --policy avakill.yaml --dry-run
+avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+
+# Run compliance assessment
+avakill compliance report --framework soc2 --policy avakill.yaml
+avakill compliance gaps --policy avakill.yaml
+
+# Manage approval workflows
+avakill approvals list
+avakill approvals grant REQUEST_ID
 ```
 
 ## Dashboard
@@ -338,20 +404,26 @@ The dashboard shows:
 ## Architecture
 
 ```
-┌──────────────┐     ┌──────────────────────────────────────┐     ┌──────────┐
-│              │     │           AvaKill                 │     │          │
-│  Your Agent  │────>│  Intercept ─> Policy Check ─> Log   │────>│   Tool   │
-│  (any LLM)   │     │                  │                   │     │          │
-│              │     │            ┌─────┴─────┐            │     │          │
-└──────────────┘     │        Allow        Deny             │     └──────────┘
-                     │            │         │ ──> Audit Log  │
-                     │            v         v               │
-                     │     Forward to    Block &            │
-                     │       Tool       Return Error        │
-                     └──────────────────────────────────────┘
+┌─────────────────┐     ┌─────────────────────────────────────────────────┐     ┌──────────┐
+│                  │     │              AvaKill                            │     │          │
+│  AI Agent        │     │                                                 │     │   Tool   │
+│  (Claude Code,   │────>│  Native Hook ──> Daemon ──> Policy ──> Log     │────>│          │
+│   Gemini CLI,    │     │       │              │           │               │     │          │
+│   Cursor, etc.)  │     │       │         ┌────┴────┐     │               │     └──────────┘
+│                  │     │       │      Allow      Deny    │               │
+└─────────────────┘     │       │         │         │ ──> Audit Log       │
+                        │       │         v         v      │               │
+                        │       │   Forward to    Block &  │               │
+                        │       │     Tool       Return    │               │
+                        │       │                Error     │               │
+                        │       v                          v               │
+                        │  ┌─ OS Enforcement ──────────────────────────┐   │
+                        │  │ Landlock · sandbox-exec · Tetragon        │   │
+                        │  └───────────────────────────────────────────┘   │
+                        └─────────────────────────────────────────────────┘
 ```
 
-AvaKill protects your agents by killing dangerous tool calls **in-process** — no network hop, no sidecar, no external service. The policy engine is a pure Python function that runs in <1ms.
+AvaKill protects your agents at multiple levels: **native hooks** intercept tool calls at the agent level, a **persistent daemon** provides sub-5ms evaluation over a Unix socket, **policy rules** enforce first-match-wins logic with glob patterns and rate limiting, and **OS-level enforcement** (Landlock, sandbox-exec, Tetragon) provides kernel-level restrictions.
 
 **Core components:**
 - **`Guard`** — the main entry point. Wraps a `PolicyEngine`, records audit events.
@@ -360,6 +432,12 @@ AvaKill protects your agents by killing dangerous tool calls **in-process** — 
 - **MCP Proxy** — transparent stdio proxy that sits in front of any MCP server.
 - **Audit Logger** — async SQLite logger with batched writes and WAL mode.
 - **Event Bus** — in-process pub/sub for real-time dashboard and monitoring.
+- **`DaemonServer`** — persistent Unix socket server for <5ms evaluation without in-process integration.
+- **`Hook Adapters`** — native integrations for Claude Code, Gemini CLI, Cursor, and Windsurf.
+- **`ToolNormalizer`** — translates agent-specific tool names to canonical names for universal policies.
+- **`PolicyCascade`** — discovers and merges policies from system, global, project, and local levels.
+- **`Enforcement Backends`** — Landlock (Linux), sandbox-exec (macOS), and Tetragon (Kubernetes) for OS-level restrictions.
+- **`ComplianceAssessor`** — automated compliance checks for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001.
 
 ## Roadmap
 
@@ -398,7 +476,7 @@ We welcome contributions! AvaKill is early-stage and there's a lot to build.
 git clone https://github.com/avakill/avakill.git
 cd avakill
 make dev    # Install in dev mode with all dependencies
-make test   # Run the test suite (322 tests)
+make test   # Run the test suite (955 tests)
 ```
 
 See [**CONTRIBUTING.md**](CONTRIBUTING.md) for the full guide — architecture overview, code style, and PR process.

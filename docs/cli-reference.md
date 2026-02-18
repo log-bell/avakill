@@ -16,6 +16,18 @@ avakill [--version] <command> [options]
 
 **Integration:** [mcp-proxy](#avakill-mcp-proxy) | [schema](#avakill-schema)
 
+**Daemon:** [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status)
+
+**Evaluation:** [evaluate](#avakill-evaluate)
+
+**Agent Hooks:** [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list)
+
+**OS Enforcement:** [enforce landlock](#avakill-enforce-landlock) | [enforce sandbox](#avakill-enforce-sandbox) | [enforce tetragon](#avakill-enforce-tetragon)
+
+**Compliance:** [compliance report](#avakill-compliance-report) | [compliance gaps](#avakill-compliance-gaps)
+
+**Approvals:** [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
+
 ---
 
 ## avakill init
@@ -477,9 +489,395 @@ avakill schema --format=prompt -o prompt.txt
 
 ---
 
+## avakill daemon start
+
+Start the AvaKill evaluation daemon.
+
+```
+avakill daemon start [--policy PATH] [--socket PATH] [--log-db PATH] [--foreground]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | `avakill.yaml` | Path to the policy file |
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path. Also set via `AVAKILL_SOCKET` env var. |
+| `--log-db` | *(none)* | Path to the audit database |
+| `--foreground` | `false` | Run in foreground instead of daemonizing |
+
+The daemon listens on a Unix domain socket and evaluates tool calls sent by agent hooks or the `avakill evaluate` command. It creates a PID file at `~/.avakill/avakill.pid`.
+
+**Signal handling:**
+
+| Signal | Action |
+|--------|--------|
+| `SIGHUP` | Reload the policy file from disk |
+| `SIGTERM` | Graceful shutdown |
+| `SIGINT` | Graceful shutdown |
+
+**Examples:**
+
+```bash
+# Start in background with default settings
+avakill daemon start
+
+# Start with explicit policy and logging
+avakill daemon start --policy policies/strict.yaml --log-db /var/log/avakill/audit.db
+
+# Start in foreground (for debugging or systemd)
+avakill daemon start --foreground
+
+# Reload policy without restarting
+kill -HUP $(cat ~/.avakill/avakill.pid)
+```
+
+---
+
+## avakill daemon stop
+
+Stop the running AvaKill daemon.
+
+```
+avakill daemon stop [--socket PATH]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path |
+
+Sends SIGTERM to the daemon process and waits for shutdown. Cleans up socket and PID files.
+
+**Example:**
+
+```bash
+avakill daemon stop
+```
+
+---
+
+## avakill daemon status
+
+Check the AvaKill daemon status.
+
+```
+avakill daemon status [--socket PATH]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path |
+
+Reports whether the daemon is running and its PID.
+
+**Example:**
+
+```bash
+avakill daemon status
+# → Daemon is running (PID 12345)
+```
+
+---
+
+## avakill evaluate
+
+Evaluate a tool call against the policy.
+
+```
+avakill evaluate --agent AGENT [--socket PATH] [--policy FILE] [--json]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--agent` | *(required)* | Agent identifier (e.g., `cli`, `claude-code`, `gemini-cli`) |
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path (for daemon mode) |
+| `--policy` | *(none)* | Policy file path (for standalone mode, bypasses daemon) |
+| `--json` | `false` | Output full JSON response |
+
+Reads a JSON object from stdin with `tool` and `args` fields. Tries the daemon first; falls back to standalone evaluation if `--policy` is provided.
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `0` | Tool call allowed |
+| `2` | Tool call denied |
+| `1` | Error (invalid input, daemon unreachable without fallback) |
+
+**Examples:**
+
+```bash
+# Evaluate via daemon
+echo '{"tool": "shell_execute", "args": {"command": "rm -rf /"}}' | avakill evaluate --agent cli
+
+# Evaluate standalone (no daemon needed)
+echo '{"tool": "file_write", "args": {"path": "/etc/passwd"}}' | avakill evaluate --agent cli --policy avakill.yaml
+
+# JSON output
+echo '{"tool": "file_read", "args": {"path": "README.md"}}' | avakill evaluate --agent cli --json
+```
+
+---
+
+## avakill hook install
+
+Register AvaKill hooks in an agent's configuration.
+
+```
+avakill hook install --agent AGENT
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--agent` | *(required)* | Agent to install hook for: `claude-code`, `gemini-cli`, `cursor`, `windsurf`, or `all` |
+
+Writes the appropriate hook configuration to the agent's config directory.
+
+**Per-agent configuration paths:**
+
+| Agent | Config Path |
+|-------|-------------|
+| Claude Code | `~/.claude/settings.json` |
+| Gemini CLI | `~/.gemini/settings.json` |
+| Cursor | `~/.cursor/hooks.json` |
+| Windsurf | `~/.windsurf/hooks.json` |
+
+**Examples:**
+
+```bash
+avakill hook install --agent claude-code
+avakill hook install --agent all
+```
+
+---
+
+## avakill hook uninstall
+
+Remove AvaKill hooks from an agent's configuration.
+
+```
+avakill hook uninstall --agent AGENT
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--agent` | *(required)* | Agent to uninstall hook for: `claude-code`, `gemini-cli`, `cursor`, `windsurf`, or `all` |
+
+**Example:**
+
+```bash
+avakill hook uninstall --agent claude-code
+```
+
+---
+
+## avakill hook list
+
+Show detected agents and hook installation status.
+
+```
+avakill hook list
+```
+
+No options. Displays a table of all supported agents with their detection and hook installation status.
+
+**Example:**
+
+```bash
+$ avakill hook list
+     Agent Hook Status
+┌─────────────┬──────────┬────────────────┐
+│ Agent       │ Detected │ Hook Installed │
+├─────────────┼──────────┼────────────────┤
+│ claude-code │ yes      │ yes            │
+│ gemini-cli  │ no       │ no             │
+│ cursor      │ yes      │ no             │
+│ windsurf    │ no       │ no             │
+└─────────────┴──────────┴────────────────┘
+```
+
+---
+
+## avakill enforce landlock
+
+Apply Landlock filesystem restrictions (Linux 5.13+).
+
+```
+avakill enforce landlock --policy PATH [--dry-run]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | *(required)* | Path to the policy file |
+| `--dry-run` | `false` | Show what would be restricted without applying |
+
+Translates deny rules into Landlock filesystem access restrictions. **Applying is irreversible for the current process.** Requires Linux 5.13+, unprivileged.
+
+**Examples:**
+
+```bash
+avakill enforce landlock --policy avakill.yaml --dry-run
+avakill enforce landlock --policy avakill.yaml
+```
+
+---
+
+## avakill enforce sandbox
+
+Generate a macOS sandbox-exec SBPL profile.
+
+```
+avakill enforce sandbox --policy PATH --output PATH
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | *(required)* | Path to the policy file |
+| `--output` | *(required)* | Output path for the SBPL profile |
+
+macOS only.
+
+**Examples:**
+
+```bash
+avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+sandbox-exec -f avakill.sb python my_agent.py
+```
+
+---
+
+## avakill enforce tetragon
+
+Generate a Cilium Tetragon TracingPolicy.
+
+```
+avakill enforce tetragon --policy PATH --output PATH
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | *(required)* | Path to the policy file |
+| `--output` | *(required)* | Output path for the TracingPolicy YAML |
+
+**Examples:**
+
+```bash
+avakill enforce tetragon --policy avakill.yaml --output tetragon-policy.yaml
+kubectl apply -f tetragon-policy.yaml
+```
+
+---
+
+## avakill compliance report
+
+Generate a compliance assessment report.
+
+```
+avakill compliance report --framework FRAMEWORK --policy PATH [--format FORMAT] [--output FILE]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--framework` | *(required)* | Framework: `soc2`, `nist-ai-rmf`, `eu-ai-act`, `iso-42001`, or `all` |
+| `--policy` | *(required)* | Path to the policy file |
+| `--format` | `table` | Output format: `table`, `json`, or `markdown` |
+| `--output` | *(stdout)* | Write output to file |
+
+**Examples:**
+
+```bash
+avakill compliance report --framework soc2 --policy avakill.yaml
+avakill compliance report --framework all --policy avakill.yaml --format json --output compliance.json
+```
+
+---
+
+## avakill compliance gaps
+
+Show compliance gaps for the current configuration.
+
+```
+avakill compliance gaps --policy PATH
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | *(required)* | Path to the policy file |
+
+**Example:**
+
+```bash
+avakill compliance gaps --policy avakill.yaml
+```
+
+---
+
+## avakill approvals list
+
+List pending approval requests.
+
+```
+avakill approvals list [--db PATH]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--db` | `~/.avakill/approvals.db` | Path to the approvals database |
+
+**Example:**
+
+```bash
+avakill approvals list
+```
+
+---
+
+## avakill approvals grant
+
+Approve a pending approval request.
+
+```
+avakill approvals grant REQUEST_ID [--db PATH] [--approver NAME]
+```
+
+| Argument/Option | Default | Description |
+|-----------------|---------|-------------|
+| `REQUEST_ID` | *(required)* | ID of the approval request |
+| `--db` | `~/.avakill/approvals.db` | Path to the approvals database |
+| `--approver` | *(current user)* | Name of the approver |
+
+**Example:**
+
+```bash
+avakill approvals grant abc123 --approver admin
+```
+
+---
+
+## avakill approvals reject
+
+Reject a pending approval request.
+
+```
+avakill approvals reject REQUEST_ID [--db PATH] [--approver NAME]
+```
+
+| Argument/Option | Default | Description |
+|-----------------|---------|-------------|
+| `REQUEST_ID` | *(required)* | ID of the approval request |
+| `--db` | `~/.avakill/approvals.db` | Path to the approvals database |
+| `--approver` | *(current user)* | Name of the approver |
+
+**Example:**
+
+```bash
+avakill approvals reject abc123 --approver admin
+```
+
+---
+
 ## Further Reading
 
 - **[Getting Started](getting-started.md)** — walkthrough using the CLI
 - **[Policy Reference](policy-reference.md)** — full YAML schema
 - **[Security Hardening](security-hardening.md)** — signing and hardening workflows
 - **[Deployment](deployment.md)** — production deployment patterns
+- **[Framework Integrations](framework-integrations.md)** — native hooks and SDK wrappers

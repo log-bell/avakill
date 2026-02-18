@@ -50,17 +50,46 @@ make test
 
 ```
 src/avakill/
-├── __init__.py              # Public API: Guard, protect, exceptions
+├── __init__.py              # Public API: Guard, protect, exceptions, lazy imports
 ├── core/
 │   ├── engine.py            # Guard class (main entry point) + GuardSession
 │   ├── policy.py            # PolicyEngine — YAML parsing + rule evaluation
 │   ├── models.py            # Pydantic v2 models: ToolCall, Decision, PolicyConfig, etc.
-│   └── exceptions.py        # PolicyViolation, ConfigError, RateLimitExceeded
+│   ├── exceptions.py        # PolicyViolation, ConfigError, RateLimitExceeded
+│   ├── normalization.py     # ToolNormalizer — agent-native to canonical name mapping
+│   ├── cascade.py           # PolicyCascade — multi-level policy discovery and merge
+│   ├── approval.py          # ApprovalStore — SQLite-backed approval workflow
+│   ├── rate_limit_store.py  # RateLimitBackend protocol + SQLiteBackend
+│   ├── self_protection.py   # Hardcoded self-protection rules
+│   ├── integrity.py         # PolicyIntegrity, FileSnapshot — signing and verification
+│   └── watcher.py           # PolicyWatcher — file change detection and auto-reload
 ├── interceptors/
 │   ├── decorator.py         # @protect decorator for any Python function
 │   ├── openai_wrapper.py    # GuardedOpenAIClient — wraps OpenAI client
 │   ├── anthropic_wrapper.py # GuardedAnthropicClient — wraps Anthropic client
 │   └── langchain_handler.py # AvaKillCallbackHandler + LangGraph wrapper
+├── daemon/
+│   ├── server.py            # DaemonServer — Unix socket server with SIGHUP reload
+│   ├── client.py            # DaemonClient — synchronous client for hook scripts
+│   └── protocol.py          # EvaluateRequest/EvaluateResponse wire protocol
+├── hooks/
+│   ├── __init__.py          # Adapter registry (ADAPTERS dict, get_adapter())
+│   ├── base.py              # HookAdapter abstract base class
+│   ├── installer.py         # install_hook(), uninstall_hook(), detect_agents()
+│   ├── claude_code.py       # ClaudeCodeAdapter — PreToolUse hook
+│   ├── gemini_cli.py        # GeminiCliAdapter — BeforeTool hook
+│   ├── cursor.py            # CursorAdapter — beforeShellExecution hook
+│   └── windsurf.py          # WindsurfAdapter — Cascade Hooks
+├── enforcement/
+│   ├── landlock.py          # LandlockEnforcer — Linux 5.13+ filesystem restrictions
+│   ├── sandbox_exec.py      # SandboxExecEnforcer — macOS SBPL profile generation
+│   └── tetragon.py          # TetragonPolicyGenerator — Kubernetes TracingPolicy
+├── compliance/
+│   ├── assessor.py          # ComplianceAssessor — framework compliance checks
+│   ├── frameworks.py        # FRAMEWORKS dict — SOC 2, NIST, EU AI Act, ISO 42001
+│   └── reporter.py          # ComplianceReporter — table/JSON/Markdown output
+├── analytics/
+│   └── engine.py            # AuditAnalytics — denial trends, risk scores, effectiveness
 ├── mcp/
 │   └── proxy.py             # MCPProxyServer — stdio transparent proxy
 ├── logging/
@@ -69,11 +98,17 @@ src/avakill/
 │   └── event_bus.py         # EventBus — in-process pub/sub singleton
 └── cli/
     ├── main.py              # Click CLI entry point
-    ├── init_cmd.py          # avakill init — generate policy files
-    ├── validate_cmd.py      # avakill validate — check policy syntax
-    ├── logs_cmd.py          # avakill logs — query audit trail
-    ├── dashboard_cmd.py     # avakill dashboard — Rich terminal UI
-    └── mcp_proxy_cmd.py     # avakill mcp-proxy — start the proxy
+    ├── init_cmd.py          # avakill init
+    ├── validate_cmd.py      # avakill validate
+    ├── logs_cmd.py          # avakill logs
+    ├── dashboard_cmd.py     # avakill dashboard
+    ├── mcp_proxy_cmd.py     # avakill mcp-proxy
+    ├── daemon_cmd.py        # avakill daemon start/stop/status
+    ├── evaluate_cmd.py      # avakill evaluate
+    ├── hook_cmd.py          # avakill hook install/uninstall/list
+    ├── enforce_cmd.py       # avakill enforce landlock/sandbox/tetragon
+    ├── compliance_cmd.py    # avakill compliance report/gaps
+    └── approval_cmd.py      # avakill approvals list/grant/reject
 ```
 
 ### How It Works
@@ -215,6 +250,59 @@ Want to add support for a new framework (CrewAI, AutoGen, etc.)? Here's the patt
 5. **Add an example** in `examples/<framework>_example.py` — must run without an API key
 6. **Add the optional dependency** in `pyproject.toml` under `[project.optional-dependencies]`
 7. **Update the README** integration section
+
+## Adding a New Hook Adapter
+
+Want to add support for a new AI coding agent (e.g., Aider, Continue, Zed)? Here's the 7-step process:
+
+1. **Create the adapter** in `src/avakill/hooks/<agent_name>.py`
+
+2. **Subclass `HookAdapter`** and implement the two required methods:
+   ```python
+   from avakill.hooks.base import HookAdapter
+   from avakill.daemon.protocol import EvaluateRequest, EvaluateResponse
+
+   class MyAgentAdapter(HookAdapter):
+       agent_name = "my-agent"
+
+       def parse_stdin(self, raw: str) -> EvaluateRequest:
+           """Parse the agent's hook payload into an EvaluateRequest."""
+           data = json.loads(raw)
+           return EvaluateRequest(
+               agent=self.agent_name,
+               tool=data["tool_name"],
+               args=data.get("arguments", {}),
+           )
+
+       def format_response(self, response: EvaluateResponse) -> tuple[str | None, int]:
+           """Format the response for the agent. Returns (stdout, exit_code)."""
+           if response.decision == "deny":
+               return json.dumps({"blocked": True, "reason": response.reason}), 0
+           return None, 0  # Allow: no output
+   ```
+
+3. **Add tool name normalization** in `src/avakill/core/normalization.py`:
+   ```python
+   AGENT_TOOL_MAP["my-agent"] = {
+       "agent_native_name": "canonical_name",
+       # ...
+   }
+   ```
+
+4. **Add agent detection** in `src/avakill/hooks/installer.py` — implement logic to detect if the agent is installed and to write/remove the hook configuration file.
+
+5. **Add a console script** in `pyproject.toml`:
+   ```toml
+   [project.scripts]
+   avakill-hook-my-agent = "avakill.hooks.my_agent:main"
+   ```
+
+6. **Write tests** in `tests/test_hooks_my_agent.py`:
+   - Test `parse_stdin()` with valid and malformed payloads
+   - Test `format_response()` for allow and deny decisions
+   - Test the full `run()` flow with mocked stdin/daemon
+
+7. **Register the adapter** — add a lazy import in `src/avakill/hooks/__init__.py` so `get_adapter("my-agent")` returns your class, and add `"my-agent"` to the `--agent` choices in `src/avakill/cli/hook_cmd.py`.
 
 ## Code of Conduct
 

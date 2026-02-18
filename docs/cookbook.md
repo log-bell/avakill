@@ -406,6 +406,293 @@ groups:
 
 ---
 
+## Hook Setup for Claude Code
+
+**Problem:** You want to protect Claude Code from executing dangerous tool calls without modifying any code or MCP configuration.
+
+**Setup:**
+
+```bash
+# 1. Start the daemon with your policy
+avakill daemon start --policy avakill.yaml
+
+# 2. Install the Claude Code hook
+avakill hook install --agent claude-code
+
+# 3. Verify installation
+avakill hook list
+# → claude-code: Detected=yes, Hook Installed=yes
+```
+
+**Verification:**
+
+```bash
+# Check daemon is running
+avakill daemon status
+
+# Test with a dangerous command — should be blocked
+echo '{"tool": "Bash", "args": {"command": "rm -rf /"}}' | avakill evaluate --agent claude-code
+echo $?  # → 2 (denied)
+
+# Test with a safe command — should pass
+echo '{"tool": "Read", "args": {"file_path": "README.md"}}' | avakill evaluate --agent claude-code
+echo $?  # → 0 (allowed)
+```
+
+**Policy:** Use canonical tool names — the hook automatically translates Claude Code's native names (`Bash`, `Read`, `Write`) to canonical names (`shell_execute`, `file_read`, `file_write`):
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "block-dangerous-shells"
+    tools: ["shell_execute"]
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "sudo", "chmod 777", "> /dev/"]
+
+  - name: "allow-reads"
+    tools: ["file_read", "file_search", "content_search", "file_list"]
+    action: allow
+
+  - name: "allow-writes"
+    tools: ["file_write", "file_edit"]
+    action: allow
+    rate_limit:
+      max_calls: 30
+      window: "60s"
+
+  - name: "allow-safe-shells"
+    tools: ["shell_execute"]
+    action: allow
+    rate_limit:
+      max_calls: 20
+      window: "60s"
+```
+
+---
+
+## Writing Policies with Canonical Tool Names
+
+**Problem:** You use multiple AI coding agents and want one policy that works across all of them.
+
+**Key insight:** AvaKill's `ToolNormalizer` translates agent-native tool names to canonical names. Write policies using canonical names and they work everywhere.
+
+**Canonical tool name reference:**
+
+| Canonical Name | Claude Code | Gemini CLI | Cursor | Windsurf |
+|---------------|-------------|------------|--------|----------|
+| `shell_execute` | `Bash` | `run_shell_command` | `shell_command` | `run_command` |
+| `file_read` | `Read` | `read_file` | `read_file` | `read_code` |
+| `file_write` | `Write` | `write_file` | — | `write_code` |
+| `file_edit` | `Edit` / `MultiEdit` | `edit_file` | — | — |
+| `file_search` | `Glob` | — | — | — |
+| `content_search` | `Grep` | — | — | — |
+| `web_fetch` | `WebFetch` | — | — | — |
+| `web_search` | `WebSearch` | — | — | — |
+
+**Universal policy:**
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "block-dangerous-shells"
+    tools: ["shell_execute"]
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"]
+    message: "Dangerous shell command blocked."
+
+  - name: "allow-all-reads"
+    tools: ["file_read", "file_search", "content_search", "file_list", "web_search", "web_fetch"]
+    action: allow
+
+  - name: "rate-limit-writes"
+    tools: ["file_write", "file_edit"]
+    action: allow
+    rate_limit:
+      max_calls: 50
+      window: "60s"
+
+  - name: "rate-limit-shells"
+    tools: ["shell_execute"]
+    action: allow
+    rate_limit:
+      max_calls: 20
+      window: "60s"
+```
+
+Deploy to all agents:
+
+```bash
+avakill daemon start --policy universal-policy.yaml
+avakill hook install --agent all
+```
+
+---
+
+## Multi-Level Policy Cascade
+
+**Problem:** Your security team needs organization-wide deny rules that individual projects cannot override, but projects should be able to add their own allow rules.
+
+**System-level policy** (`/etc/avakill/policy.yaml`) — managed by admins:
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "org-block-destructive"
+    tools: ["shell_execute"]
+    action: deny
+    enforcement: hard
+    conditions:
+      args_match:
+        command: ["rm -rf /", "mkfs", "dd if=/dev/zero"]
+    message: "Blocked by organization policy"
+
+  - name: "org-block-network-exfil"
+    tools: ["shell_execute"]
+    action: deny
+    enforcement: hard
+    conditions:
+      args_match:
+        command: ["curl", "wget", "nc", "scp"]
+    message: "Network commands blocked by organization policy"
+```
+
+**Project-level policy** (`avakill.yaml`) — managed by the team:
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: "allow-git"
+    tools: ["shell_execute"]
+    action: allow
+    conditions:
+      args_match:
+        command: ["git"]
+
+  - name: "allow-reads"
+    tools: ["file_read", "file_search", "content_search"]
+    action: allow
+
+  - name: "allow-writes"
+    tools: ["file_write", "file_edit"]
+    action: allow
+```
+
+**Result:** The project allows `git` commands and file operations, but the system-level hard deny on `rm -rf /`, `curl`, etc. cannot be overridden. The cascade merges both levels automatically.
+
+---
+
+## OS-Level Enforcement
+
+**Problem:** Policy-level enforcement runs in userspace and could theoretically be bypassed. You want kernel-level restrictions as an additional layer.
+
+### Landlock (Linux)
+
+```bash
+# Preview restrictions (dry-run)
+avakill enforce landlock --policy avakill.yaml --dry-run
+# Shows which filesystem operations would be restricted
+
+# Apply (irreversible for the process)
+avakill enforce landlock --policy avakill.yaml
+```
+
+Landlock translates deny rules into filesystem access restrictions:
+- `file_write` deny → blocks `WRITE_FILE`, `MAKE_REG`, `MAKE_DIR`, `MAKE_SYM`
+- `file_delete` deny → blocks `REMOVE_FILE`, `REMOVE_DIR`
+- `shell_execute` deny → blocks `EXECUTE`
+
+### sandbox-exec (macOS)
+
+```bash
+# Generate SBPL profile
+avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+
+# Run agent under sandbox
+sandbox-exec -f avakill.sb python my_agent.py
+```
+
+### Tetragon (Kubernetes)
+
+```bash
+# Generate TracingPolicy
+avakill enforce tetragon --policy avakill.yaml --output tetragon-policy.yaml
+
+# Deploy
+kubectl apply -f tetragon-policy.yaml
+```
+
+Tetragon monitors kernel syscalls via kprobes and kills processes that violate deny rules with `Sigkill`.
+
+---
+
+## Compliance Assessment Workflow
+
+**Problem:** Your compliance team needs to verify that your AI agent deployment meets regulatory requirements.
+
+### Generate Reports
+
+```bash
+# SOC 2 Type II assessment
+avakill compliance report --framework soc2 --policy avakill.yaml
+
+# All frameworks at once
+avakill compliance report --framework all --policy avakill.yaml --format json --output compliance-report.json
+
+# Markdown for documentation
+avakill compliance report --framework eu-ai-act --policy avakill.yaml --format markdown --output eu-ai-act-report.md
+```
+
+### Identify Gaps
+
+```bash
+avakill compliance gaps --policy avakill.yaml
+```
+
+This shows only failing or partial controls with actionable recommendations.
+
+### Common Gap Fixes
+
+| Gap | Fix |
+|-----|-----|
+| "No deny-by-default" | Set `default_action: deny` |
+| "No rate limiting" | Add `rate_limit` to high-frequency rules |
+| "No audit logging" | Add `SQLiteLogger` to your Guard |
+| "No policy signing" | Run `avakill keygen` and `avakill sign` |
+| "No self-protection" | Ensure `self_protection=True` (default) |
+| "No human oversight" | Add `require_approval` rules for sensitive operations |
+
+### Approval Workflow
+
+For `require_approval` rules:
+
+```bash
+# Agent triggers a tool call that requires approval
+# → Approval request is created automatically
+
+# Admin reviews and approves
+avakill approvals list
+avakill approvals grant abc123-request-id --approver admin
+
+# Or rejects
+avakill approvals reject abc123-request-id --approver admin
+```
+
+Approvals expire after 1 hour by default. Expired approvals are automatically cleaned up.
+
+---
+
 ## Further Reading
 
 - **[Policy Reference](policy-reference.md)** — full YAML schema and pattern matching
