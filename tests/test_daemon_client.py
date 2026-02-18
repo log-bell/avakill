@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import tempfile
 from pathlib import Path
 
@@ -15,6 +16,11 @@ from avakill.daemon.protocol import EvaluateRequest
 from avakill.daemon.server import DaemonServer
 from avakill.logging.event_bus import EventBus
 
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Unix domain sockets not available on Windows",
+)
+
 
 @pytest.fixture(autouse=True)
 def _reset_event_bus() -> None:
@@ -25,7 +31,7 @@ def _reset_event_bus() -> None:
 
 @pytest.fixture
 def socket_path() -> Path:
-    d = tempfile.mkdtemp(prefix="ak_", dir="/tmp")
+    d = tempfile.mkdtemp(prefix="ak_", dir=tempfile.gettempdir())
     yield Path(d) / "ak.sock"
     import shutil
 

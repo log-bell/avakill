@@ -67,8 +67,11 @@ class MCPProxyServer:
         """Start the proxy: spawn the upstream process and relay stdio."""
         loop = asyncio.get_running_loop()
 
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, lambda: asyncio.ensure_future(self.shutdown()))
+        if sys.platform == "win32":
+            signal.signal(signal.SIGINT, lambda *_: asyncio.ensure_future(self.shutdown()))
+        else:
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, lambda: asyncio.ensure_future(self.shutdown()))
 
         self.upstream_process = await asyncio.create_subprocess_exec(
             self.upstream_cmd,

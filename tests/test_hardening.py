@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -34,6 +35,10 @@ class TestCheckImmutable:
         assert check_immutable(tmp_path / "nonexistent.txt") is False
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="os.getuid()/os.getgid() not available on Windows",
+)
 class TestCheckFilePermissions:
     """Test check_file_permissions utility function."""
 

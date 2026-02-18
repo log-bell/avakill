@@ -99,6 +99,11 @@ def harden(
         raise SystemExit(1)
 
     # Check root privileges
+    if sys.platform == "win32":
+        console.print("[red]Error:[/red] Immutable file flags are not supported on Windows.")
+        console.print("Use --selinux, --apparmor, or --seccomp for template output.")
+        raise SystemExit(1)
+
     if os.geteuid() != 0:
         flag = "--chattr" if use_chattr else "--schg"
         console.print("[red]Error:[/red] Setting immutable flag requires root privileges.")

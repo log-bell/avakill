@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import tempfile
 from pathlib import Path
 
@@ -20,6 +21,11 @@ from avakill.daemon.protocol import (
 from avakill.daemon.server import DaemonServer
 from avakill.logging.event_bus import EventBus
 
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Unix domain sockets not available on Windows",
+)
+
 
 @pytest.fixture(autouse=True)
 def _reset_event_bus() -> None:
@@ -32,7 +38,7 @@ def _reset_event_bus() -> None:
 def socket_path() -> Path:
     # macOS AF_UNIX path limit is 104 bytes; pytest tmp_path is too long.
     # Use a short temp dir under /tmp instead.
-    d = tempfile.mkdtemp(prefix="ak_", dir="/tmp")
+    d = tempfile.mkdtemp(prefix="ak_", dir=tempfile.gettempdir())
     yield Path(d) / "ak.sock"
     import shutil
 

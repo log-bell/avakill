@@ -15,20 +15,27 @@ if TYPE_CHECKING:
 @click.command()
 @click.option("--agent", default="cli", help="Agent identifier.")
 @click.option("--socket", default=None, help="Unix socket path for daemon mode.")
+@click.option("--tcp-port", default=None, type=int, help="TCP port for daemon mode.")
 @click.option(
     "--policy",
     default=None,
     help="Policy file for standalone evaluation (bypasses daemon).",
 )
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON.")
-def evaluate(agent: str, socket: str | None, policy: str | None, output_json: bool) -> None:
+def evaluate(
+    agent: str,
+    socket: str | None,
+    tcp_port: int | None,
+    policy: str | None,
+    output_json: bool,
+) -> None:
     """Evaluate a tool call. Reads JSON from stdin, outputs decision.
 
     Exit codes: 0 = allow, 2 = deny, 1 = error.
 
     \b
     Modes:
-      Daemon mode (default): connects to running daemon via socket.
+      Daemon mode (default): connects to running daemon via socket or TCP.
       Standalone mode (--policy): evaluates directly without daemon.
 
     \b
@@ -56,7 +63,7 @@ def evaluate(agent: str, socket: str | None, policy: str | None, output_json: bo
     if policy:
         response = _evaluate_standalone(policy, agent, tool, args)
     else:
-        response = _evaluate_daemon(socket, agent, tool, args)
+        response = _evaluate_daemon(socket, tcp_port, agent, tool, args)
 
     if response is None:
         raise SystemExit(1)
@@ -97,13 +104,23 @@ def _evaluate_standalone(
 
 
 def _evaluate_daemon(
-    socket_path: str | None, agent: str, tool: str, args: dict
+    socket_path: str | None,
+    tcp_port: int | None,
+    agent: str,
+    tool: str,
+    args: dict,
 ) -> EvaluateResponse | None:
     """Evaluate via the running daemon."""
     from avakill.daemon.client import DaemonClient
     from avakill.daemon.protocol import EvaluateRequest
 
-    client = DaemonClient(socket_path=socket_path)
+    client_kwargs: dict = {}
+    if socket_path:
+        client_kwargs["socket_path"] = socket_path
+    if tcp_port is not None:
+        client_kwargs["tcp_port"] = tcp_port
+
+    client = DaemonClient(**client_kwargs)
     if not client.ping():
         click.echo(
             "Error: daemon not running. Start with 'avakill daemon start' "

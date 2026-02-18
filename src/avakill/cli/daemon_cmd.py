@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
 
 import click
@@ -15,10 +16,17 @@ def daemon() -> None:
 
 @daemon.command()
 @click.option("--policy", default="avakill.yaml", help="Path to policy file.")
-@click.option("--socket", default=None, help="Unix socket path.")
+@click.option("--socket", default=None, help="Unix socket path (ignored on Windows).")
+@click.option("--tcp-port", default=None, type=int, help="TCP port for daemon.")
 @click.option("--log-db", default=None, help="SQLite audit log path.")
 @click.option("--foreground", "-f", is_flag=True, help="Run in foreground (don't daemonize).")
-def start(policy: str, socket: str | None, log_db: str | None, foreground: bool) -> None:
+def start(
+    policy: str,
+    socket: str | None,
+    tcp_port: int | None,
+    log_db: str | None,
+    foreground: bool,
+) -> None:
     """Start the AvaKill daemon."""
     import asyncio
     from pathlib import Path
@@ -46,8 +54,10 @@ def start(policy: str, socket: str | None, log_db: str | None, foreground: bool)
     guard = Guard(**kwargs)
 
     server_kwargs: dict = {}
-    if socket:
+    if socket and sys.platform != "win32":
         server_kwargs["socket_path"] = socket
+    if tcp_port is not None:
+        server_kwargs["tcp_port"] = tcp_port
 
     server = DaemonServer(guard, **server_kwargs)
 
@@ -56,20 +66,18 @@ def start(policy: str, socket: str | None, log_db: str | None, foreground: bool)
         asyncio.run(server.serve_forever())
     else:
         click.echo(f"Starting AvaKill daemon (policy: {policy})...")
-        _daemonize(server)
+        _daemonize(policy, socket, tcp_port, log_db)
 
 
 @daemon.command()
 @click.option("--socket", default=None, help="Unix socket path (to find PID file).")
-def stop(socket: str | None) -> None:
+@click.option("--tcp-port", default=None, type=int, help="TCP port.")
+def stop(socket: str | None, tcp_port: int | None) -> None:
     """Stop the running daemon."""
-    import signal
-
     from avakill.daemon.server import DaemonServer
 
     pid_file = None
     if socket:
-        # Derive pid_file from socket path convention
         from pathlib import Path
 
         pid_file = str(Path(socket).with_suffix(".pid"))
@@ -85,9 +93,11 @@ def stop(socket: str | None) -> None:
 
 @daemon.command()
 @click.option("--socket", default=None, help="Unix socket path.")
-def status(socket: str | None) -> None:
+@click.option("--tcp-port", default=None, type=int, help="TCP port.")
+def status(socket: str | None, tcp_port: int | None) -> None:
     """Show daemon status."""
     from avakill.daemon.server import DaemonServer
+    from avakill.daemon.transport import DEFAULT_TCP_PORT, _default_port_file
 
     pid_file = None
     if socket:
@@ -97,31 +107,55 @@ def status(socket: str | None) -> None:
 
     running, pid = DaemonServer.is_running(pid_file=pid_file)
     if running:
-        sock_path = socket or str(DaemonServer.default_socket_path())
         click.echo(f"Daemon is running (PID {pid}).")
-        click.echo(f"Socket: {sock_path}")
+        if sys.platform == "win32" or tcp_port is not None:
+            port_file = _default_port_file()
+            if port_file.exists():
+                port = port_file.read_text().strip()
+                click.echo(f"Listening: 127.0.0.1:{port}")
+            else:
+                click.echo(f"Listening: 127.0.0.1:{tcp_port or DEFAULT_TCP_PORT}")
+        else:
+            sock_path = socket or str(DaemonServer.default_socket_path())
+            click.echo(f"Socket: {sock_path}")
     else:
         click.echo("Daemon is not running.")
 
 
-def _daemonize(server: object) -> None:
-    """Fork into background and run the daemon server."""
-    import asyncio
+def _daemonize(
+    policy: str,
+    socket: str | None,
+    tcp_port: int | None,
+    log_db: str | None,
+) -> None:
+    """Launch daemon as a detached background process."""
+    import subprocess
 
-    pid = os.fork()
-    if pid > 0:
-        # Parent — report and exit
-        click.echo(f"Daemon started (PID {pid}).")
-        sys.exit(0)
+    cmd = [sys.executable, "-m", "avakill", "daemon", "start", "--foreground", "--policy", policy]
+    if socket and sys.platform != "win32":
+        cmd.extend(["--socket", socket])
+    if tcp_port is not None:
+        cmd.extend(["--tcp-port", str(tcp_port)])
+    if log_db:
+        cmd.extend(["--log-db", log_db])
 
-    # Child — new session, run server
-    os.setsid()
+    if sys.platform == "win32":
+        # DETACHED_PROCESS | CREATE_NO_WINDOW
+        creationflags = 0x00000008 | 0x08000000
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+    else:
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
 
-    # Redirect stdio to /dev/null
-    devnull = os.open(os.devnull, os.O_RDWR)
-    os.dup2(devnull, 0)
-    os.dup2(devnull, 1)
-    os.dup2(devnull, 2)
-    os.close(devnull)
-
-    asyncio.run(server.serve_forever())  # type: ignore[attr-defined]
+    click.echo(f"Daemon started (PID {proc.pid}).")

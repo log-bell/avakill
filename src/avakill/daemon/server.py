@@ -1,4 +1,4 @@
-"""Persistent AvaKill daemon over a Unix domain socket.
+"""Persistent AvaKill daemon over Unix domain socket or TCP localhost.
 
 The daemon wraps an existing :class:`Guard` instance and evaluates
 incoming :class:`EvaluateRequest` messages, returning an
@@ -16,6 +16,7 @@ import os
 import signal
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from avakill.core.engine import Guard
 from avakill.core.exceptions import RateLimitExceeded
@@ -27,6 +28,9 @@ from avakill.daemon.protocol import (
     serialize_response,
 )
 
+if TYPE_CHECKING:
+    from avakill.daemon.transport import ServerTransport
+
 logger = logging.getLogger("avakill.daemon")
 
 _CONNECTION_TIMEOUT = 5.0  # seconds
@@ -35,7 +39,10 @@ _DEFAULT_MAX_CONNECTIONS = 100
 
 
 class DaemonServer:
-    """Asyncio Unix-socket server wrapping :class:`Guard`.
+    """Asyncio server wrapping :class:`Guard`.
+
+    Supports both Unix domain sockets (Linux/macOS) and TCP localhost
+    (Windows) via the transport abstraction.
 
     Usage::
 
@@ -51,6 +58,8 @@ class DaemonServer:
         pid_file: str | Path | None = None,
         normalizer: ToolNormalizer | None = None,
         max_connections: int = _DEFAULT_MAX_CONNECTIONS,
+        transport: ServerTransport | None = None,
+        tcp_port: int | None = None,
     ) -> None:
         self._guard = guard
         self._socket_path = Path(socket_path) if socket_path else self.default_socket_path()
@@ -60,6 +69,22 @@ class DaemonServer:
         self._conn_semaphore: asyncio.Semaphore | None = None
         self._server: asyncio.AbstractServer | None = None
         self._stop_event: asyncio.Event | None = None
+
+        if transport is not None:
+            self._transport = transport
+        else:
+            from avakill.daemon.transport import (
+                TCPServerTransport,
+                UnixServerTransport,
+                default_server_transport,
+            )
+
+            if socket_path is not None:
+                self._transport = UnixServerTransport(self._socket_path)
+            elif tcp_port is not None:
+                self._transport = TCPServerTransport(port=tcp_port)
+            else:
+                self._transport = default_server_transport()
 
     # ------------------------------------------------------------------
     # Defaults
@@ -83,34 +108,25 @@ class DaemonServer:
     # ------------------------------------------------------------------
 
     async def start(self) -> None:
-        """Create the socket and begin accepting connections.
+        """Create the socket/listener and begin accepting connections.
 
-        - Creates parent directory for the socket
-        - Removes stale socket file if present
+        - Delegates binding to the transport
         - Writes a PID file
         - Installs SIGTERM/SIGINT handlers for graceful shutdown
-        - Installs SIGHUP handler for policy reload
+        - Installs SIGHUP handler for policy reload (Unix only)
         """
-        self._socket_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Remove stale socket
-        if self._socket_path.exists():
-            self._socket_path.unlink()
-
         self._stop_event = asyncio.Event()
         self._conn_semaphore = asyncio.Semaphore(self._max_connections)
 
-        self._server = await asyncio.start_unix_server(
-            self._handle_connection,
-            path=str(self._socket_path),
-            limit=_MAX_REQUEST_SIZE,
+        self._server = await self._transport.start(
+            self._handle_connection, limit=_MAX_REQUEST_SIZE
         )
 
         # PID file
         self._pid_path.parent.mkdir(parents=True, exist_ok=True)
         self._pid_path.write_text(str(os.getpid()))
 
-        # Signal handlers (only if running in the main thread)
+        # Signal handlers (Unix only — Windows uses signal.signal() in CLI)
         if sys.platform != "win32":
             loop = asyncio.get_running_loop()
             with contextlib.suppress(RuntimeError):
@@ -118,17 +134,20 @@ class DaemonServer:
                     loop.add_signal_handler(sig, self._request_stop)
                 loop.add_signal_handler(signal.SIGHUP, self._request_reload)
 
-        logger.info("AvaKill daemon started on %s (PID %d)", self._socket_path, os.getpid())
+        logger.info(
+            "AvaKill daemon started on %s (PID %d)",
+            self._transport.display_address(),
+            os.getpid(),
+        )
 
     async def stop(self) -> None:
-        """Close the server and clean up socket + PID files."""
+        """Close the server and clean up transport artifacts + PID file."""
         if self._server is not None:
             self._server.close()
             await self._server.wait_closed()
             self._server = None
 
-        if self._socket_path.exists():
-            self._socket_path.unlink(missing_ok=True)
+        await self._transport.cleanup()
 
         if self._pid_path.exists():
             self._pid_path.unlink(missing_ok=True)
@@ -161,7 +180,10 @@ class DaemonServer:
                     self._conn_semaphore.acquire(), timeout=_CONNECTION_TIMEOUT
                 )
             except asyncio.TimeoutError:
-                logger.warning("Connection rejected: server at capacity (%d).", self._max_connections)
+                logger.warning(
+                    "Connection rejected: server at capacity (%d).",
+                    self._max_connections,
+                )
                 resp = EvaluateResponse(decision="deny", reason="server at capacity")
                 writer.write(serialize_response(resp))
                 await writer.drain()
