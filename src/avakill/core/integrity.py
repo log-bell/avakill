@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +89,41 @@ class PolicyIntegrity:
     def signing_enabled(self) -> bool:
         """Whether HMAC signing is active."""
         return self._signing_key is not None
+
+    @staticmethod
+    def sign_file(path: str | Path, key: bytes) -> Path:
+        """Sign a policy file, creating a .sig sidecar.
+
+        Args:
+            path: Path to the policy YAML file.
+            key: 32-byte HMAC signing key.
+
+        Returns:
+            Path to the created .sig file.
+        """
+        path = Path(path)
+        content = path.read_bytes()
+        sig = hmac.new(key, content, hashlib.sha256).hexdigest()
+        sig_path = Path(str(path) + ".sig")
+        sig_path.write_text(sig)
+        return sig_path
+
+    @staticmethod
+    def verify_file(path: str | Path, key: bytes) -> bool:
+        """Verify a policy file's HMAC signature.
+
+        Args:
+            path: Path to the policy YAML file.
+            key: 32-byte HMAC signing key.
+
+        Returns:
+            True if signature is valid, False otherwise.
+        """
+        path = Path(path)
+        sig_path = Path(str(path) + ".sig")
+        if not sig_path.exists():
+            return False
+        content = path.read_bytes()
+        expected = hmac.new(key, content, hashlib.sha256).hexdigest()
+        actual = sig_path.read_text().strip()
+        return hmac.compare_digest(expected, actual)

@@ -76,3 +76,57 @@ class TestFileSnapshot:
         ok, msg = snap.verify(str(link))
         assert ok is False
         assert "path" in msg.lower() or "redirect" in msg.lower()
+
+
+class TestHMACSigning:
+    @pytest.fixture
+    def key(self) -> bytes:
+        return bytes.fromhex("aa" * 32)
+
+    @pytest.fixture
+    def policy_file(self, tmp_path: Path) -> Path:
+        p = tmp_path / "avakill.yaml"
+        p.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: allow-read\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        return p
+
+    def test_sign_creates_sidecar(self, policy_file: Path, key: bytes) -> None:
+        sig_path = PolicyIntegrity.sign_file(policy_file, key)
+        assert sig_path.exists()
+        assert sig_path == policy_file.with_suffix(".yaml.sig")
+        assert len(sig_path.read_text().strip()) == 64  # hex sha256
+
+    def test_verify_valid_signature(self, policy_file: Path, key: bytes) -> None:
+        PolicyIntegrity.sign_file(policy_file, key)
+        assert PolicyIntegrity.verify_file(policy_file, key) is True
+
+    def test_verify_tampered_content(self, policy_file: Path, key: bytes) -> None:
+        PolicyIntegrity.sign_file(policy_file, key)
+        policy_file.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
+        assert PolicyIntegrity.verify_file(policy_file, key) is False
+
+    def test_verify_bad_signature(self, policy_file: Path, key: bytes) -> None:
+        PolicyIntegrity.sign_file(policy_file, key)
+        sig_path = policy_file.with_suffix(".yaml.sig")
+        sig_path.write_text("0" * 64)
+        assert PolicyIntegrity.verify_file(policy_file, key) is False
+
+    def test_verify_missing_sidecar(self, policy_file: Path, key: bytes) -> None:
+        assert PolicyIntegrity.verify_file(policy_file, key) is False
+
+    def test_verify_wrong_key(self, policy_file: Path, key: bytes) -> None:
+        PolicyIntegrity.sign_file(policy_file, key)
+        wrong_key = bytes.fromhex("bb" * 32)
+        assert PolicyIntegrity.verify_file(policy_file, wrong_key) is False
+
+    def test_sign_roundtrip_different_keys_fail(self, policy_file: Path) -> None:
+        key_a = bytes.fromhex("aa" * 32)
+        key_b = bytes.fromhex("bb" * 32)
+        PolicyIntegrity.sign_file(policy_file, key_a)
+        assert PolicyIntegrity.verify_file(policy_file, key_b) is False
