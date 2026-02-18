@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import click
@@ -12,6 +13,7 @@ from rich.table import Table
 from rich.text import Text
 
 from avakill.core.exceptions import ConfigError
+from avakill.core.integrity import PolicyIntegrity
 from avakill.core.policy import PolicyEngine
 
 
@@ -117,3 +119,20 @@ def validate(policy_file: str) -> None:
         console.print()
 
     console.print("[bold green]Policy is valid.[/bold green]")
+
+    # Show integrity status if signing key is available
+    key_hex = os.environ.get("AVAKILL_POLICY_KEY")
+    if key_hex:
+        try:
+            key_bytes = bytes.fromhex(key_hex)
+            signed = PolicyIntegrity.verify_file(policy_path, key_bytes)
+            if signed:
+                console.print("[bold green]Signature: valid[/bold green]")
+            else:
+                sig_path = Path(str(policy_path) + ".sig")
+                if sig_path.exists():
+                    console.print("[bold red]Signature: INVALID[/bold red]")
+                else:
+                    console.print("[yellow]Signature: unsigned[/yellow]")
+        except (ValueError, OSError):
+            pass

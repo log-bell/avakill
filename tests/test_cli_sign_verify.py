@@ -174,3 +174,28 @@ class TestVerifyCommand:
         )
         assert result.exit_code == 0
         assert "sha-256" in result.output.lower() or "sha256" in result.output.lower()
+
+
+class TestApproveAutoSign:
+    def test_approve_auto_signs_when_key_set(
+        self, runner: CliRunner, tmp_path: Path, key_hex: str
+    ) -> None:
+        proposed = tmp_path / "avakill.proposed.yaml"
+        proposed.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: test\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        result = runner.invoke(
+            cli,
+            ["approve", str(proposed), "--yes"],
+            env={"AVAKILL_POLICY_KEY": key_hex},
+        )
+        assert result.exit_code == 0
+        target = tmp_path / "avakill.yaml"
+        assert target.exists()
+        sig = Path(str(target) + ".sig")
+        assert sig.exists()

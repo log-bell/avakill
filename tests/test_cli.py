@@ -94,6 +94,8 @@ class TestCLIBasics:
         assert "mcp-proxy" in result.output
         assert "review" in result.output
         assert "validate" in result.output
+        assert "sign" in result.output
+        assert "verify" in result.output
 
     def test_cli_version(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["--version"])

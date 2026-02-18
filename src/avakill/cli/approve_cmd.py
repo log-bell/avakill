@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from rich.console import Console
 from rich.text import Text
 
 from avakill.core.exceptions import ConfigError
+from avakill.core.integrity import PolicyIntegrity
 from avakill.core.policy import PolicyEngine
 
 
@@ -90,3 +92,13 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
     # Copy proposed to target
     shutil.copy2(str(proposed_path), str(target_path))
     console.print(f"[bold green]Policy activated:[/bold green] {target_path}")
+
+    # Auto-sign if signing key is available
+    key_hex = os.environ.get("AVAKILL_POLICY_KEY")
+    if key_hex:
+        try:
+            key_bytes = bytes.fromhex(key_hex)
+            sig_path = PolicyIntegrity.sign_file(target_path, key_bytes)
+            console.print(f"[bold green]Auto-signed:[/bold green] {sig_path}")
+        except (ValueError, OSError) as exc:
+            console.print(f"[yellow]Warning: could not auto-sign:[/yellow] {exc}")
