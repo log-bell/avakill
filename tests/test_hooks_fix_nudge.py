@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from avakill.daemon.protocol import EvaluateResponse
 from avakill.hooks.claude_code import ClaudeCodeAdapter
-from avakill.hooks.gemini_cli import GeminiCLIAdapter
 from avakill.hooks.cursor import CursorAdapter
+from avakill.hooks.gemini_cli import GeminiCLIAdapter
 from avakill.hooks.windsurf import WindsurfAdapter
 
 _FIX_NUDGE = "avakill fix"
