@@ -9,6 +9,7 @@ from typing import Any
 
 from avakill.core.engine import Guard
 from avakill.core.exceptions import PolicyViolation
+from avakill.core.recovery import recovery_hint_for
 
 
 class AvaKillCallbackHandler:
@@ -66,7 +67,8 @@ class AvaKillCallbackHandler:
         self.decisions.append(decision)
 
         if not decision.allowed:
-            raise PolicyViolation(tool_name, decision)
+            hint = recovery_hint_for(decision)
+            raise PolicyViolation(tool_name, decision, recovery_hint=hint)
 
     def on_tool_end(self, output: str, **kwargs: Any) -> None:
         """Called when a tool finishes successfully. Logged for audit."""

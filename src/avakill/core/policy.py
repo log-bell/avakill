@@ -22,6 +22,7 @@ from avakill.core.models import (
     RuleConditions,
     ToolCall,
 )
+from avakill.core.rate_limit_store import InMemoryBackend, RateLimitBackend
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{(\w+)\}")
 
@@ -48,20 +49,58 @@ class PolicyEngine:
     6. If no rule matches, use default_action
     """
 
-    def __init__(self, config: PolicyConfig) -> None:
+    def __init__(
+        self,
+        config: PolicyConfig,
+        rate_limit_backend: RateLimitBackend | None = None,
+    ) -> None:
         """Initialise the engine with a parsed policy config.
 
         Args:
             config: The validated policy configuration.
+            rate_limit_backend: Optional persistent backend for rate-limit
+                timestamps.  When ``None`` (the default), an
+                :class:`InMemoryBackend` is used and counters reset on
+                restart.
         """
         self._config = config
         self._rate_limit_windows: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._backend: RateLimitBackend = rate_limit_backend or InMemoryBackend()
+        self._persistent = not isinstance(self._backend, InMemoryBackend)
+
+        # Hydrate in-memory deques from the persistent backend
+        if self._persistent:
+            self._hydrate()
 
     @property
     def config(self) -> PolicyConfig:
         """The underlying policy configuration."""
         return self._config
+
+    def _hydrate(self) -> None:
+        """Load unexpired timestamps from the persistent backend into memory.
+
+        Uses the maximum configured window across all rules so that no
+        unexpired data is discarded.  Also cleans up rows that have
+        expired beyond the max window.
+        """
+        max_window = max(
+            (
+                r.rate_limit.window_seconds()
+                for r in self._config.policies
+                if r.rate_limit
+            ),
+            default=0,
+        )
+        if max_window == 0:
+            return
+
+        # Prune stale rows, then load everything still within the max window
+        self._backend.cleanup(max_window)
+        all_timestamps = self._backend.load_all(max_window)
+        for tool_name, timestamps in all_timestamps.items():
+            self._rate_limit_windows[tool_name] = deque(timestamps)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> PolicyEngine:
@@ -162,7 +201,9 @@ class PolicyEngine:
                 continue
 
             # Rule matches — check rate limit before returning decision
-            if rule.rate_limit and not self._check_rate_limit(tool_call.tool_name, rule.rate_limit):
+            if rule.rate_limit and not self._check_rate_limit(
+                tool_call.tool_name, rule.rate_limit
+            ):
                 elapsed = (time.monotonic() - start) * 1000
                 decision = Decision(
                     allowed=False,
@@ -177,12 +218,29 @@ class PolicyEngine:
                 raise RateLimitExceeded(tool_call.tool_name, decision)
 
             elapsed = (time.monotonic() - start) * 1000
+
+            # Advisory enforcement: log the match but always allow
+            if rule.enforcement == "advisory" and rule.action == "deny":
+                return Decision(
+                    allowed=True,
+                    action="allow",
+                    policy_name=rule.name,
+                    reason=f"[advisory] {rule.message or f'Matched rule {rule.name!r}'}",
+                    latency_ms=elapsed,
+                )
+
             allowed = rule.action == "allow"
+            reason = rule.message or f"Matched rule '{rule.name}'"
+
+            # Soft enforcement: deny still blocks by default, but flag as overridable
+            if rule.enforcement == "soft" and not allowed:
+                reason = f"[overridable] {reason}"
+
             return Decision(
                 allowed=allowed,
                 action=rule.action,
                 policy_name=rule.name,
-                reason=rule.message or f"Matched rule '{rule.name}'",
+                reason=reason,
                 latency_ms=elapsed,
             )
 
@@ -217,7 +275,9 @@ class PolicyEngine:
                 return True
         return False
 
-    def _check_conditions(self, tool_call: ToolCall, conditions: RuleConditions) -> bool:
+    def _check_conditions(
+        self, tool_call: ToolCall, conditions: RuleConditions
+    ) -> bool:
         """Evaluate rule conditions against a tool call's arguments.
 
         - ``args_match``: ALL keys must match (AND). For each key the
@@ -253,7 +313,9 @@ class PolicyEngine:
         """Check whether a tool call is within the configured rate limit.
 
         Uses a sliding-window approach with an in-memory deque of
-        timestamps, protected by a thread lock.
+        timestamps, protected by a thread lock.  When a persistent
+        backend is configured, wall-clock time (``time.time()``) is used
+        so that timestamps survive process restarts.
 
         Args:
             tool_name: The tool name to track.
@@ -263,7 +325,7 @@ class PolicyEngine:
             True if the call is within the limit, False if exceeded.
         """
         window_secs = rate_limit.window_seconds()
-        now = time.monotonic()
+        now = time.time() if self._persistent else time.monotonic()
 
         with self._lock:
             timestamps = self._rate_limit_windows[tool_name]
@@ -276,7 +338,12 @@ class PolicyEngine:
                 return False
 
             timestamps.append(now)
-            return True
+
+        # Persist outside the lock to keep the critical section short
+        if self._persistent:
+            self._backend.record(tool_name, now)
+
+        return True
 
 
 def load_policy(path: str | Path | None = None) -> PolicyEngine:
@@ -302,4 +369,6 @@ def load_policy(path: str | Path | None = None) -> PolicyEngine:
         if candidate.exists():
             return PolicyEngine.from_yaml(candidate)
 
-    raise ConfigError("No policy file found. Create an avakill.yaml or pass an explicit path.")
+    raise ConfigError(
+        "No policy file found. Create an avakill.yaml or pass an explicit path."
+    )

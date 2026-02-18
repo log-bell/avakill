@@ -16,10 +16,10 @@ import os
 import signal
 import sys
 from pathlib import Path
-from typing import Any
 
 from avakill.core.engine import Guard
 from avakill.core.exceptions import RateLimitExceeded
+from avakill.core.normalization import ToolNormalizer
 from avakill.daemon.protocol import (
     EvaluateRequest,
     EvaluateResponse,
@@ -47,10 +47,12 @@ class DaemonServer:
         guard: Guard,
         socket_path: str | Path | None = None,
         pid_file: str | Path | None = None,
+        normalizer: ToolNormalizer | None = None,
     ) -> None:
         self._guard = guard
         self._socket_path = Path(socket_path) if socket_path else self.default_socket_path()
         self._pid_path = Path(pid_file) if pid_file else self.default_pid_path()
+        self._normalizer = normalizer or ToolNormalizer()
         self._server: asyncio.AbstractServer | None = None
         self._stop_event: asyncio.Event | None = None
 
@@ -177,9 +179,10 @@ class DaemonServer:
 
     def _evaluate(self, req: EvaluateRequest) -> EvaluateResponse:
         """Translate an :class:`EvaluateRequest` into a Guard evaluation."""
+        canonical_tool = self._normalizer.normalize(req.tool, req.agent)
         try:
             decision = self._guard.evaluate(
-                tool=req.tool,
+                tool=canonical_tool,
                 args=req.args,
                 agent_id=req.agent,
                 session_id=req.context.get("session_id"),

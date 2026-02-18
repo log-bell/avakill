@@ -14,12 +14,16 @@ from uuid import uuid4
 
 from avakill._telemetry import record_duration as otel_record_duration
 from avakill._telemetry import record_evaluation as otel_record_evaluation
-from avakill._telemetry import record_self_protection_block as otel_record_sp_block
+from avakill._telemetry import (
+    record_self_protection_block as otel_record_sp_block,
+)
 from avakill._telemetry import record_violation as otel_record_violation
 from avakill.core.exceptions import PolicyViolation, RateLimitExceeded
 from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, Decision, PolicyConfig, ToolCall
 from avakill.core.policy import PolicyEngine, load_policy
+from avakill.core.rate_limit_store import RateLimitBackend
+from avakill.core.recovery import recovery_hint_for
 from avakill.core.self_protection import SelfProtection
 from avakill.logging.base import AuditLogger
 from avakill.logging.event_bus import EventBus
@@ -58,6 +62,7 @@ class Guard:
         self_protection: bool = True,
         signing_key: bytes | None = None,
         verify_key: bytes | None = None,
+        rate_limit_backend: RateLimitBackend | None = None,
     ) -> None:
         """Initialise the Guard.
 
@@ -75,6 +80,8 @@ class Guard:
                 verification. If None, reads from AVAKILL_POLICY_KEY env var.
             verify_key: Optional 32-byte Ed25519 public key for policy
                 verification. If None, reads from AVAKILL_VERIFY_KEY env var.
+            rate_limit_backend: Optional persistent backend for rate-limit
+                timestamps. When ``None``, rate limits are in-memory only.
 
         Raises:
             ConfigError: If the policy cannot be loaded or parsed.
@@ -93,6 +100,7 @@ class Guard:
 
         self._integrity: PolicyIntegrity | None = None
         self._policy_path: Path | None = None
+        self._rate_limit_backend = rate_limit_backend
 
         if isinstance(policy, (str, Path)):
             self._policy_path = Path(policy)
@@ -104,12 +112,16 @@ class Guard:
                 signing_key=signing_key, verify_key=verify_key
             )
             config = self._integrity.load_verified(policy)
-            self._engine = PolicyEngine(config)
+            self._engine = PolicyEngine(
+                config, rate_limit_backend=rate_limit_backend
+            )
             self._policy_status = (
-                "verified" if self._integrity.get_last_known_good() is not None else "deny-all"
+                "verified"
+                if self._integrity.get_last_known_good() is not None
+                else "deny-all"
             )
         else:
-            self._engine = self._build_engine(policy)
+            self._engine = self._build_engine(policy, rate_limit_backend)
             self._policy_status = "unsigned"
 
         self._signing_key = signing_key
@@ -123,16 +135,36 @@ class Guard:
         self._watcher: PolicyWatcher | None = None
 
     @staticmethod
-    def _build_engine(policy: str | Path | dict | PolicyConfig | None) -> PolicyEngine:
+    def _build_engine(
+        policy: str | Path | dict | PolicyConfig | None,
+        rate_limit_backend: RateLimitBackend | None = None,
+    ) -> PolicyEngine:
         """Construct a PolicyEngine from the various supported input types."""
         if isinstance(policy, PolicyConfig):
-            return PolicyEngine(policy)
+            return PolicyEngine(
+                policy, rate_limit_backend=rate_limit_backend
+            )
         if isinstance(policy, dict):
-            return PolicyEngine.from_dict(policy)
+            engine = PolicyEngine.from_dict(policy)
+            if rate_limit_backend is not None:
+                engine._backend = rate_limit_backend
+                engine._persistent = True
+                engine._hydrate()
+            return engine
         if isinstance(policy, (str, Path)):
-            return PolicyEngine.from_yaml(policy)
-        # None → auto-detect
-        return load_policy()
+            engine = PolicyEngine.from_yaml(policy)
+            if rate_limit_backend is not None:
+                engine._backend = rate_limit_backend
+                engine._persistent = True
+                engine._hydrate()
+            return engine
+        # None -> auto-detect
+        engine = load_policy()
+        if rate_limit_backend is not None:
+            engine._backend = rate_limit_backend
+            engine._persistent = True
+            engine._hydrate()
+        return engine
 
     @property
     def engine(self) -> PolicyEngine:
@@ -216,6 +248,10 @@ class Guard:
         try:
             decision = self._engine.evaluate(tool_call)
         except RateLimitExceeded as exc:
+            if exc.recovery_hint is None:
+                exc.recovery_hint = recovery_hint_for(
+                    exc.decision, policy_status=self._policy_status
+                )
             decision = exc.decision
             self._record(tool_call, decision, start)
             raise
@@ -253,7 +289,8 @@ class Guard:
         """
         decision = self.evaluate(tool, args, **kwargs)
         if not decision.allowed:
-            raise PolicyViolation(tool, decision)
+            hint = recovery_hint_for(decision, policy_status=self._policy_status)
+            raise PolicyViolation(tool, decision, recovery_hint=hint)
         return decision
 
     def session(
@@ -292,14 +329,18 @@ class Guard:
 
         if self._integrity is not None and reload_path is not None:
             config = self._integrity.load_verified(reload_path)
-            self._engine = PolicyEngine(config)
+            self._engine = PolicyEngine(
+                config, rate_limit_backend=self._rate_limit_backend
+            )
             self._policy_status = (
                 "verified"
                 if self._integrity.get_last_known_good() is not None
                 else "deny-all"
             )
         else:
-            self._engine = self._build_engine(reload_path)
+            self._engine = self._build_engine(
+                reload_path, self._rate_limit_backend
+            )
 
         if isinstance(reload_path, (str, Path)):
             self._policy_path = Path(reload_path)
@@ -321,7 +362,9 @@ class Guard:
             ValueError: If the guard has no file-based policy.
         """
         if self._watcher is not None:
-            raise RuntimeError("A PolicyWatcher is already active; call unwatch() first")
+            raise RuntimeError(
+                "A PolicyWatcher is already active; call unwatch() first"
+            )
         from avakill.core.watcher import PolicyWatcher as _PW
 
         self._watcher = _PW(self, **kwargs)
@@ -344,7 +387,12 @@ class Guard:
         _start: float,
     ) -> None:
         """Create an AuditEvent, log it asynchronously, and emit to bus."""
-        event = AuditEvent(tool_call=tool_call, decision=decision)
+        hint = None
+        if not decision.allowed:
+            hint = recovery_hint_for(decision, policy_status=self._policy_status)
+        event = AuditEvent(
+            tool_call=tool_call, decision=decision, recovery_hint=hint
+        )
 
         # Fire-and-forget async logging
         if self._logger is not None:
@@ -362,7 +410,9 @@ class Guard:
                 action=decision.action,
                 agent_id=tool_call.agent_id,
             )
-            otel_record_duration(tool=tool_call.tool_name, duration_ms=elapsed_ms)
+            otel_record_duration(
+                tool=tool_call.tool_name, duration_ms=elapsed_ms
+            )
             if not decision.allowed:
                 otel_record_violation(
                     tool=tool_call.tool_name,

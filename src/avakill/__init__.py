@@ -49,6 +49,14 @@ def __getattr__(name: str):  # noqa: ANN001
         from avakill.core.watcher import PolicyWatcher
 
         return PolicyWatcher
+    if name == "DaemonServer":
+        from avakill.daemon.server import DaemonServer
+
+        return DaemonServer
+    if name == "DaemonClient":
+        from avakill.daemon.client import DaemonClient
+
+        return DaemonClient
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -68,4 +76,6 @@ __all__ = [
     "FileSnapshot",
     "get_metrics_registry",
     "PolicyWatcher",
+    "DaemonServer",
+    "DaemonClient",
 ]

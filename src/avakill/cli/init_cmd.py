@@ -168,10 +168,28 @@ def init(template: str | None, output: str) -> None:
             console.print("[dim]Other detected frameworks:[/dim]", ", ".join(detected[1:]))
             console.print("[dim]Run [bold]avakill init --help[/bold] for more options.[/dim]")
 
+    # Detect AI coding agents and suggest hook installation.
+    from avakill.hooks.installer import detect_agents
+
+    agents = detect_agents()
+    if agents:
+        console.print()
+        console.print(f"[bold]Detected agents:[/bold] {', '.join(agents)}")
+        console.print(
+            "Run [bold cyan]avakill hook install --agent all[/bold cyan] to register hooks."
+        )
+
     console.print()
     console.print("[bold]Next steps:[/bold]")
     console.print("  1. Review and customise [cyan]avakill.yaml[/cyan]")
     console.print("  2. Add AvaKill to your agent code (see snippet above)")
-    console.print("  3. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")
-    console.print("  4. Run [cyan]avakill validate[/cyan] to check your policy")
+    if agents:
+        console.print(
+            "  3. Run [cyan]avakill hook install --agent all[/cyan] to register agent hooks"
+        )
+        console.print("  4. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")
+        console.print("  5. Run [cyan]avakill validate[/cyan] to check your policy")
+    else:
+        console.print("  3. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")
+        console.print("  4. Run [cyan]avakill validate[/cyan] to check your policy")
     console.print()

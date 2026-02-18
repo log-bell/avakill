@@ -64,6 +64,10 @@ dev = [
 
 [project.scripts]
 avakill = "avakill.cli.main:cli"
+avakill-hook-claude-code = "avakill.hooks.claude_code:main"
+avakill-hook-gemini-cli = "avakill.hooks.gemini_cli:main"
+avakill-hook-cursor = "avakill.hooks.cursor:main"
+avakill-hook-windsurf = "avakill.hooks.windsurf:main"
 
 [project.urls]
 Homepage = "https://github.com/avakill/avakill"

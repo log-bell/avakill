@@ -10,6 +10,7 @@ from typing import Any, Literal, TypeVar, overload
 
 from avakill.core.engine import Guard
 from avakill.core.exceptions import PolicyViolation
+from avakill.core.recovery import recovery_hint_for
 
 T = TypeVar("T")
 
@@ -96,7 +97,8 @@ def protect(
                 return None
             if on_deny == "callback" and deny_callback is not None:
                 return deny_callback(name, decision, f_args, f_kwargs)
-            raise PolicyViolation(name, decision)
+            hint = recovery_hint_for(decision)
+            raise PolicyViolation(name, decision, recovery_hint=hint)
 
         if inspect.iscoroutinefunction(func):
 

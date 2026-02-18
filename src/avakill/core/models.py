@@ -70,6 +70,7 @@ class AuditEvent(BaseModel):
     decision: Decision
     execution_result: Any | None = None
     error: str | None = None
+    recovery_hint: Any | None = None
 
 
 class RuleConditions(BaseModel):
@@ -131,6 +132,7 @@ class PolicyRule(BaseModel):
         name: Human-readable name for this rule.
         tools: List of tool-name patterns this rule applies to (supports globs).
         action: What to do when this rule matches.
+        enforcement: Enforcement level for this rule.
         conditions: Optional conditions for matching tool call arguments.
         rate_limit: Optional rate limiting for this rule.
         message: Custom message to include in violations or audit logs.
@@ -153,6 +155,13 @@ class PolicyRule(BaseModel):
     action: Literal["allow", "deny", "require_approval"] = Field(
         description="Action to take when this rule matches. "
         "'allow' permits the call, 'deny' blocks it, 'require_approval' pauses for human review.",
+    )
+    enforcement: Literal["hard", "soft", "advisory"] = Field(
+        default="hard",
+        description="Enforcement level. "
+        "'hard' cannot be overridden, "
+        "'soft' is overridable with audit trail, "
+        "'advisory' logs the match but always allows.",
     )
     conditions: RuleConditions | None = None
     rate_limit: RateLimit | None = None

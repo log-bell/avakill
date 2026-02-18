@@ -14,7 +14,7 @@
 
 **Stop your AI agents from deleting your database, wiping your files, or going rogue.**
 
-[Quickstart](#quickstart) · [Integrations](#framework-integrations) · [Policy Reference](#policy-configuration) · [Examples](examples/) · [Contributing](CONTRIBUTING.md)
+[Quickstart](#quickstart) · [Tutorial](docs/tutorial-you-couldve-invented-avakill.md) · [Integrations](#framework-integrations) · [Policy Reference](#policy-configuration) · [Security](docs/security-hardening.md) · [Deployment](docs/deployment.md) · [CLI](docs/cli-reference.md) · [Cookbook](docs/cookbook.md) · [API](docs/api-reference.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -369,7 +369,13 @@ AvaKill protects your agents by killing dangerous tool calls **in-process** — 
 - [x] MCP transparent proxy (stdio transport)
 - [x] SQLite audit logging with async batched writes
 - [x] Rich terminal dashboard with live event stream
-- [x] CLI: `init`, `validate`, `logs`, `dashboard`, `mcp-proxy`
+- [x] CLI: `init`, `validate`, `logs`, `dashboard`, `mcp-proxy`, `schema`
+- [x] Policy signing (HMAC-SHA256 + Ed25519)
+- [x] Self-protection (hardcoded anti-tampering rules)
+- [x] OS-level hardening (chattr/schg, SELinux, AppArmor, seccomp)
+- [x] C-level audit hooks (optional hardened extension)
+- [x] Hot-reload with file watcher
+- [x] OpenTelemetry + Prometheus observability
 - [ ] Web dashboard (Next.js)
 - [ ] Slack / webhook / PagerDuty notifications
 - [ ] Human-in-the-loop approval workflows (require_approval action)

@@ -67,6 +67,8 @@ def test_all_exports():
         "FileSnapshot",
         "get_metrics_registry",
         "PolicyWatcher",
+        "DaemonServer",
+        "DaemonClient",
     }
     assert set(avakill.__all__) == expected
 
@@ -76,3 +78,17 @@ def test_lazy_import_policy_watcher():
     from avakill.core.watcher import PolicyWatcher
 
     assert cls is PolicyWatcher
+
+
+def test_daemon_server_importable():
+    cls = avakill.DaemonServer
+    from avakill.daemon.server import DaemonServer
+
+    assert cls is DaemonServer
+
+
+def test_daemon_client_importable():
+    cls = avakill.DaemonClient
+    from avakill.daemon.client import DaemonClient
+
+    assert cls is DaemonClient

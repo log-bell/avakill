@@ -26,16 +26,22 @@ class PolicyViolation(AvaKillError):
         tool_name: str,
         decision: Decision,
         message: str | None = None,
+        recovery_hint: object | None = None,
     ) -> None:
         self.tool_name = tool_name
         self.decision = decision
         self.message = message or decision.reason or "Policy violation"
+        self.recovery_hint = recovery_hint
         super().__init__(str(self))
 
     def __str__(self) -> str:
         parts = [f"AvaKill blocked '{self.tool_name}': {self.message}"]
         if self.decision.policy_name:
             parts.append(f"[policy: {self.decision.policy_name}]")
+        if self.recovery_hint is not None:
+            summary = getattr(self.recovery_hint, "summary", None)
+            if summary:
+                parts.append(f"[recovery: {summary}]")
         return " ".join(parts)
 
 

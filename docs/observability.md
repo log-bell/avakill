@@ -160,3 +160,9 @@ The AvaKill dashboard is automatically provisioned.
 - **OTLP is the recommended export path.** The Jaeger exporter is deprecated upstream. Use OTLP to send traces to Jaeger, Tempo, Datadog, or any compatible backend.
 
 - **Cardinality:** The `agent_id` label on evaluations can be high-cardinality if you create many unique agent IDs. Consider using a bounded set of agent identifiers in production.
+
+## Further Reading
+
+- **[Deployment Guide](deployment.md)** — production setup with Prometheus alerting and Docker patterns.
+- **[Cookbook: Audit & Compliance](cookbook.md#audit--compliance)** — Prometheus alert rules for denial spikes and self-protection triggers.
+- **[Troubleshooting](troubleshooting.md#performance)** — diagnosing evaluation latency.
