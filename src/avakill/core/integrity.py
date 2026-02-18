@@ -1,4 +1,4 @@
-"""Policy integrity: file integrity monitoring, HMAC signing, and fail-closed loading."""
+"""Policy integrity: file integrity monitoring, HMAC/Ed25519 signing, and fail-closed loading."""
 
 from __future__ import annotations
 
@@ -12,6 +12,17 @@ from pathlib import Path
 from avakill.core.models import PolicyConfig
 
 logger = logging.getLogger(__name__)
+
+# Optional Ed25519 support via PyNaCl
+try:
+    from nacl.exceptions import BadSignatureError
+    from nacl.signing import SigningKey, VerifyKey
+
+    HAS_NACL = True
+except ImportError:  # pragma: no cover
+    HAS_NACL = False
+
+_ED25519_PREFIX = "ed25519:"
 
 _DENY_ALL = PolicyConfig(
     version="1.0",
@@ -92,15 +103,28 @@ class FileSnapshot:
 class PolicyIntegrity:
     """Manages policy file integrity: signing, verification, and fail-closed loading."""
 
-    def __init__(self, signing_key: bytes | None = None) -> None:
+    def __init__(
+        self,
+        signing_key: bytes | None = None,
+        verify_key: bytes | None = None,
+    ) -> None:
         self._signing_key = signing_key
+        self._verify_key = verify_key
         self._baseline: FileSnapshot | None = None
         self._last_known_good: PolicyConfig | None = None
 
+        if verify_key is not None and not HAS_NACL:
+            logger.warning(
+                "Ed25519 verify key provided but PyNaCl is not installed. "
+                "Falling back to HMAC verification. "
+                "Install with: pip install avakill[signed-policies]"
+            )
+            self._verify_key = None
+
     @property
     def signing_enabled(self) -> bool:
-        """Whether HMAC signing is active."""
-        return self._signing_key is not None
+        """Whether signing (HMAC or Ed25519) is active."""
+        return self._signing_key is not None or self._verify_key is not None
 
     def load_verified(self, path: str | Path) -> PolicyConfig:
         """Load a policy file with TOCTOU-safe verification.
@@ -134,8 +158,8 @@ class PolicyIntegrity:
         except OSError as exc:
             return self._fallback(f"cannot read file: {exc}")
 
-        # Step 2: Verify HMAC if signing is enabled
-        if self._signing_key is not None:
+        # Step 2: Verify signature if signing is enabled
+        if self._signing_key is not None or self._verify_key is not None:
             sig_path = Path(str(path) + ".sig")
             if not sig_path.exists():
                 return self._fallback("signature file missing")
@@ -143,11 +167,31 @@ class PolicyIntegrity:
                 actual_sig = sig_path.read_text().strip()
             except OSError as exc:
                 return self._fallback(f"cannot read signature: {exc}")
-            expected_sig = hmac.new(
-                self._signing_key, raw, hashlib.sha256
-            ).hexdigest()
-            if not hmac.compare_digest(expected_sig, actual_sig):
-                return self._fallback("HMAC signature mismatch")
+
+            # Auto-detect signature type
+            if actual_sig.startswith(_ED25519_PREFIX):
+                # Ed25519 verification
+                if self._verify_key is None:
+                    return self._fallback(
+                        "Ed25519 signature found but no verify key configured"
+                    )
+                sig_hex = actual_sig[len(_ED25519_PREFIX) :]
+                try:
+                    vk = VerifyKey(self._verify_key)
+                    vk.verify(raw, bytes.fromhex(sig_hex))
+                except (BadSignatureError, ValueError, Exception) as exc:
+                    return self._fallback(f"Ed25519 signature invalid: {exc}")
+            else:
+                # HMAC verification
+                if self._signing_key is None:
+                    return self._fallback(
+                        "HMAC signature found but no HMAC key configured"
+                    )
+                expected_sig = hmac.new(
+                    self._signing_key, raw, hashlib.sha256
+                ).hexdigest()
+                if not hmac.compare_digest(expected_sig, actual_sig):
+                    return self._fallback("HMAC signature mismatch")
 
         # Step 3: Parse the verified bytes (never re-read file)
         try:
@@ -211,7 +255,7 @@ class PolicyIntegrity:
 
     @staticmethod
     def sign_file(path: str | Path, key: bytes) -> Path:
-        """Sign a policy file, creating a .sig sidecar.
+        """Sign a policy file with HMAC-SHA256, creating a .sig sidecar.
 
         Args:
             path: Path to the policy YAML file.
@@ -228,12 +272,44 @@ class PolicyIntegrity:
         return sig_path
 
     @staticmethod
-    def verify_file(path: str | Path, key: bytes) -> bool:
-        """Verify a policy file's HMAC signature.
+    def sign_file_ed25519(path: str | Path, private_key: bytes) -> Path:
+        """Sign a policy file with Ed25519, creating a .sig sidecar.
 
         Args:
             path: Path to the policy YAML file.
-            key: 32-byte HMAC signing key.
+            private_key: 32-byte Ed25519 private (signing) key.
+
+        Returns:
+            Path to the created .sig file.
+
+        Raises:
+            RuntimeError: If PyNaCl is not installed.
+        """
+        if not HAS_NACL:
+            raise RuntimeError(
+                "PyNaCl is required for Ed25519 signing. "
+                "Install with: pip install avakill[signed-policies]"
+            )
+        path = Path(path)
+        content = path.read_bytes()
+        sk = SigningKey(private_key)
+        signed = sk.sign(content)
+        sig_hex = signed.signature.hex()
+        sig_path = Path(str(path) + ".sig")
+        sig_path.write_text(f"{_ED25519_PREFIX}{sig_hex}")
+        return sig_path
+
+    @staticmethod
+    def verify_file(path: str | Path, key: bytes) -> bool:
+        """Verify a policy file's signature, auto-detecting HMAC or Ed25519.
+
+        For HMAC signatures, ``key`` is the shared HMAC key.
+        For Ed25519 signatures (prefixed with ``ed25519:``), ``key`` is
+        the 32-byte public (verify) key.
+
+        Args:
+            path: Path to the policy YAML file.
+            key: Signing/verify key bytes (type depends on signature format).
 
         Returns:
             True if signature is valid, False otherwise.
@@ -243,6 +319,22 @@ class PolicyIntegrity:
         if not sig_path.exists():
             return False
         content = path.read_bytes()
-        expected = hmac.new(key, content, hashlib.sha256).hexdigest()
         actual = sig_path.read_text().strip()
+
+        if actual.startswith(_ED25519_PREFIX):
+            if not HAS_NACL:
+                logger.warning(
+                    "Ed25519 signature found but PyNaCl is not installed"
+                )
+                return False
+            sig_hex = actual[len(_ED25519_PREFIX) :]
+            try:
+                vk = VerifyKey(key)
+                vk.verify(content, bytes.fromhex(sig_hex))
+                return True
+            except Exception:
+                return False
+
+        # HMAC verification (default)
+        expected = hmac.new(key, content, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, actual)

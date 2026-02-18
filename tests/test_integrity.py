@@ -307,3 +307,172 @@ class TestPackageExports:
         pi = avakill.PolicyIntegrity
         from avakill.core.integrity import PolicyIntegrity as direct
         assert pi is direct
+
+
+# --- Ed25519 signing tests (require PyNaCl) ---
+
+nacl_signing = pytest.importorskip("nacl.signing")
+
+
+@pytest.fixture
+def ed25519_keypair() -> tuple[bytes, bytes]:
+    """Generate an Ed25519 keypair, returning (private_key, public_key) as raw bytes."""
+    sk = nacl_signing.SigningKey.generate()
+    return sk.encode(), sk.verify_key.encode()
+
+
+@pytest.fixture
+def ed25519_policy(tmp_path: Path) -> Path:
+    """Create a valid policy file for Ed25519 tests."""
+    p = tmp_path / "avakill.yaml"
+    p.write_text(
+        "version: '1.0'\n"
+        "default_action: deny\n"
+        "policies:\n"
+        "  - name: allow-read\n"
+        "    tools: [file_read]\n"
+        "    action: allow\n"
+    )
+    return p
+
+
+class TestEd25519Signing:
+    def test_sign_creates_sidecar_with_prefix(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, _ = ed25519_keypair
+        sig_path = PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        assert sig_path.exists()
+        content = sig_path.read_text().strip()
+        assert content.startswith("ed25519:")
+        # Ed25519 signature is 64 bytes = 128 hex chars after prefix
+        sig_hex = content[len("ed25519:"):]
+        assert len(sig_hex) == 128
+        bytes.fromhex(sig_hex)  # should not raise
+
+    def test_verify_valid_ed25519_signature(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, public_key = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        assert PolicyIntegrity.verify_file(ed25519_policy, public_key) is True
+
+    def test_verify_tampered_content_ed25519(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, public_key = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        ed25519_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
+        assert PolicyIntegrity.verify_file(ed25519_policy, public_key) is False
+
+    def test_verify_bad_ed25519_signature(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, public_key = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        sig_path = Path(str(ed25519_policy) + ".sig")
+        sig_path.write_text("ed25519:" + "00" * 64)
+        assert PolicyIntegrity.verify_file(ed25519_policy, public_key) is False
+
+    def test_verify_wrong_public_key(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, _ = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        # Generate a different keypair
+        other_sk = nacl_signing.SigningKey.generate()
+        wrong_public = other_sk.verify_key.encode()
+        assert PolicyIntegrity.verify_file(ed25519_policy, wrong_public) is False
+
+    def test_verify_missing_sidecar_ed25519(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        _, public_key = ed25519_keypair
+        assert PolicyIntegrity.verify_file(ed25519_policy, public_key) is False
+
+    def test_autodetect_hmac_vs_ed25519(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        """verify_file auto-detects based on signature prefix."""
+        private_key, public_key = ed25519_keypair
+        hmac_key = bytes.fromhex("dd" * 32)
+
+        # First sign with HMAC
+        PolicyIntegrity.sign_file(ed25519_policy, hmac_key)
+        assert PolicyIntegrity.verify_file(ed25519_policy, hmac_key) is True
+        # HMAC sig should not verify with Ed25519 key
+        assert PolicyIntegrity.verify_file(ed25519_policy, public_key) is False
+
+        # Now sign with Ed25519
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        assert PolicyIntegrity.verify_file(ed25519_policy, public_key) is True
+        # Ed25519 sig should not verify with HMAC key
+        assert PolicyIntegrity.verify_file(ed25519_policy, hmac_key) is False
+
+
+class TestEd25519LoadVerified:
+    def test_load_verified_with_ed25519(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, public_key = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        pi = PolicyIntegrity(verify_key=public_key)
+        config = pi.load_verified(ed25519_policy)
+        assert isinstance(config, PolicyConfig)
+        assert config.version == "1.0"
+        assert len(config.policies) == 1
+
+    def test_rejects_tampered_ed25519_signed_policy(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, public_key = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        # Tamper
+        ed25519_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
+        pi = PolicyIntegrity(verify_key=public_key)
+        config = pi.load_verified(ed25519_policy)
+        assert config.default_action == "deny"  # deny-all fallback
+
+    def test_rejects_unsigned_when_verify_key_set(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        _, public_key = ed25519_keypair
+        pi = PolicyIntegrity(verify_key=public_key)
+        config = pi.load_verified(ed25519_policy)
+        assert config.default_action == "deny"  # signature file missing
+
+    def test_ed25519_falls_back_to_last_known_good(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        private_key, public_key = ed25519_keypair
+        PolicyIntegrity.sign_file_ed25519(ed25519_policy, private_key)
+        pi = PolicyIntegrity(verify_key=public_key)
+        good = pi.load_verified(ed25519_policy)
+        assert len(good.policies) == 1
+
+        # Tamper
+        ed25519_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
+        fallback = pi.load_verified(ed25519_policy)
+        assert len(fallback.policies) == 1  # last-known-good
+
+    def test_hmac_sig_with_only_verify_key_falls_back(
+        self, ed25519_policy: Path, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        """If an HMAC sig is present but only verify_key is set, should fall back."""
+        _, public_key = ed25519_keypair
+        hmac_key = bytes.fromhex("dd" * 32)
+        PolicyIntegrity.sign_file(ed25519_policy, hmac_key)
+        pi = PolicyIntegrity(verify_key=public_key)
+        config = pi.load_verified(ed25519_policy)
+        assert config.default_action == "deny"  # HMAC sig but no HMAC key
+
+    def test_signing_enabled_with_verify_key(
+        self, ed25519_keypair: tuple[bytes, bytes]
+    ) -> None:
+        _, public_key = ed25519_keypair
+        pi = PolicyIntegrity(verify_key=public_key)
+        assert pi.signing_enabled is True
+
+    def test_signing_enabled_without_keys(self) -> None:
+        pi = PolicyIntegrity()
+        assert pi.signing_enabled is False
