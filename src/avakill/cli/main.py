@@ -28,6 +28,7 @@ from avakill.cli.review_cmd import review  # noqa: E402
 from avakill.cli.schema_cmd import schema  # noqa: E402
 from avakill.cli.sign_cmd import sign  # noqa: E402
 from avakill.cli.validate_cmd import validate  # noqa: E402
+from avakill.cli.verify_cmd import verify  # noqa: E402
 
 cli.add_command(approve)
 cli.add_command(init)
@@ -38,3 +39,4 @@ cli.add_command(review)
 cli.add_command(schema)
 cli.add_command(sign)
 cli.add_command(validate)
+cli.add_command(verify)
