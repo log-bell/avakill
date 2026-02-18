@@ -45,6 +45,7 @@ class Guard:
         agent_id: str | None = None,
         self_protection: bool = True,
         signing_key: bytes | None = None,
+        verify_key: bytes | None = None,
     ) -> None:
         """Initialise the Guard.
 
@@ -60,6 +61,8 @@ class Guard:
                 Set to False only for testing.
             signing_key: Optional 32-byte HMAC signing key for policy
                 verification. If None, reads from AVAKILL_POLICY_KEY env var.
+            verify_key: Optional 32-byte Ed25519 public key for policy
+                verification. If None, reads from AVAKILL_VERIFY_KEY env var.
 
         Raises:
             ConfigError: If the policy cannot be loaded or parsed.
@@ -70,6 +73,12 @@ class Guard:
             if key_hex:
                 signing_key = bytes.fromhex(key_hex)
 
+        # Auto-read Ed25519 verify key from environment if not provided
+        if verify_key is None:
+            vk_hex = os.environ.get("AVAKILL_VERIFY_KEY")
+            if vk_hex:
+                verify_key = bytes.fromhex(vk_hex)
+
         self._integrity: PolicyIntegrity | None = None
         self._policy_path: Path | None = None
 
@@ -77,8 +86,11 @@ class Guard:
             self._policy_path = Path(policy)
 
         # Use PolicyIntegrity for file-based policies when signing is available
-        if signing_key is not None and isinstance(policy, (str, Path)):
-            self._integrity = PolicyIntegrity(signing_key=signing_key)
+        has_signing = signing_key is not None or verify_key is not None
+        if has_signing and isinstance(policy, (str, Path)):
+            self._integrity = PolicyIntegrity(
+                signing_key=signing_key, verify_key=verify_key
+            )
             config = self._integrity.load_verified(policy)
             self._engine = PolicyEngine(config)
             self._policy_status = (
@@ -89,6 +101,7 @@ class Guard:
             self._policy_status = "unsigned"
 
         self._signing_key = signing_key
+        self._verify_key = verify_key
         self._logger = logger
         self._agent_id = agent_id
         self._self_protection: SelfProtection | None = (
