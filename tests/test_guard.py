@@ -426,7 +426,7 @@ class TestGuardIntegrity:
         )
         PolicyIntegrity.sign_file(policy_file, key)
         guard = Guard(policy=policy_file, signing_key=key, self_protection=False)
-        assert guard.policy_status == "verified"
+        assert guard.policy_status in ("verified", "hardened")
 
     def test_unsigned_policy_works_without_key(self, tmp_policy_file: Path) -> None:
         guard = Guard(policy=tmp_policy_file, self_protection=False)
@@ -443,7 +443,7 @@ class TestGuardIntegrity:
         )
         PolicyIntegrity.sign_file(policy_file, key)
         guard = Guard(policy=policy_file, signing_key=key, self_protection=False)
-        assert guard.policy_status == "verified"
+        assert guard.policy_status in ("verified", "hardened")
 
         # Tamper with the file
         policy_file.write_text(
@@ -467,7 +467,7 @@ class TestGuardIntegrity:
         )
         PolicyIntegrity.sign_file(policy_file, key)
         guard = Guard(policy=policy_file, self_protection=False)
-        assert guard.policy_status == "verified"
+        assert guard.policy_status in ("verified", "hardened")
 
     def test_policy_status_deny_all(self, tmp_path: Path) -> None:
         key = bytes.fromhex("dd" * 32)

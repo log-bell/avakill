@@ -237,3 +237,26 @@ class TestAuditHooksIntegration:
         )
         assert r.returncode == 0
         assert "ok" in r.stdout
+
+
+class TestGuardHardenedStatus:
+    def test_guard_reports_hardened(self) -> None:
+        r = _run(
+            "import tempfile, os\n"
+            "from avakill._avakill_hooks import arm\n"
+            "arm()\n"
+            "from avakill.core.integrity import PolicyIntegrity\n"
+            "key = bytes.fromhex('aa' * 32)\n"
+            "td = tempfile.mkdtemp()\n"
+            "pf = os.path.join(td, 'avakill.yaml')\n"
+            "with open(pf, 'w') as f:\n"
+            "    f.write(\"version: '1.0'\\ndefault_action: deny\\n\"\n"
+            "            \"policies:\\n  - name: t\\n    tools: [x]\\n    action: allow\\n\")\n"
+            "PolicyIntegrity.sign_file(pf, key)\n"
+            "from avakill.core.engine import Guard\n"
+            "g = Guard(policy=pf, signing_key=key, self_protection=False)\n"
+            "assert g.policy_status == 'hardened', f'got {g.policy_status}'\n"
+            "print('ok')\n"
+        )
+        assert r.returncode == 0, f"stderr: {r.stderr}"
+        assert "ok" in r.stdout

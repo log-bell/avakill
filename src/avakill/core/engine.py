@@ -133,7 +133,12 @@ class Guard:
 
     @property
     def policy_status(self) -> str:
-        """Current integrity status: verified/last-known-good/deny-all/unsigned."""
+        """Current integrity status: hardened/verified/last-known-good/deny-all/unsigned."""
+        if self._policy_status == "verified":
+            from avakill.core.audit_hooks import c_hooks_available
+
+            if c_hooks_available():
+                return "hardened"
         return self._policy_status
 
     def evaluate(
