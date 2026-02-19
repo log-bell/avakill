@@ -362,6 +362,184 @@ class TestToolNameDetection:
 
 
 # -------------------------------------------------------------------
+# Hook binary protection
+# -------------------------------------------------------------------
+
+
+class TestHookBinaryProtection:
+    """Self-protection blocks shell commands and write tools targeting hook binaries."""
+
+    def test_blocks_rm_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "rm /usr/local/bin/avakill-hook-claude-code"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "hook binary" in d.reason.lower()
+
+    def test_blocks_redirect_to_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "echo '' > /usr/local/bin/avakill-hook-claude-code"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "redirect" in d.reason.lower() or "hook binary" in d.reason.lower()
+
+    def test_blocks_truncate_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "truncate -s 0 /path/to/avakill-hook-gemini-cli"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_mv_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "mv /usr/local/bin/avakill-hook-claude-code /tmp/gone"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_chmod_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "chmod 000 /usr/local/bin/avakill-hook-claude-code"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_write_tool_to_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/usr/local/bin/avakill-hook-claude-code", "content": ""},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_read_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_read",
+            arguments={"path": "/usr/local/bin/avakill-hook-claude-code"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_execute_hook_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill-hook-claude-code"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_unrelated_file_write(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/tmp/output.txt", "content": "data"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+
+# -------------------------------------------------------------------
+# Hook config file protection
+# -------------------------------------------------------------------
+
+
+class TestHookConfigProtection:
+    """Self-protection blocks writes to agent hook configuration files."""
+
+    def test_blocks_write_claude_settings(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/home/user/.claude/settings.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "hook config" in d.reason.lower()
+
+    def test_blocks_write_claude_settings_local(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/home/user/.claude/settings.local.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_write_gemini_settings(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/home/user/.gemini/settings.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_write_cursor_hooks(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/project/.cursor/hooks.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_write_windsurf_hooks(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/home/user/.codeium/windsurf/hooks.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_file_delete_config(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_delete",
+            arguments={"path": "/home/user/.claude/settings.json"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_read_config(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_read",
+            arguments={"path": "/home/user/.claude/settings.json"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_unrelated_json_write(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/project/config/app.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_write_to_non_agent_settings(self, sp: SelfProtection) -> None:
+        """settings.json in a non-agent directory should be allowed."""
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "/project/.vscode/settings.json", "content": "{}"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+
+# -------------------------------------------------------------------
 # Guard integration
 # -------------------------------------------------------------------
 
