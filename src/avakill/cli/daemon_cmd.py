@@ -20,12 +20,14 @@ def daemon() -> None:
 @click.option("--tcp-port", default=None, type=int, help="TCP port for daemon.")
 @click.option("--log-db", default=None, help="SQLite audit log path.")
 @click.option("--foreground", "-f", is_flag=True, help="Run in foreground (don't daemonize).")
+@click.option("--enforce", is_flag=True, help="Apply OS-level enforcement (Landlock/sandbox-exec).")
 def start(
     policy: str,
     socket: str | None,
     tcp_port: int | None,
     log_db: str | None,
     foreground: bool,
+    enforce: bool,
 ) -> None:
     """Start the AvaKill daemon."""
     import asyncio
@@ -59,14 +61,14 @@ def start(
     if tcp_port is not None:
         server_kwargs["tcp_port"] = tcp_port
 
-    server = DaemonServer(guard, **server_kwargs)
+    server = DaemonServer(guard, os_enforce=enforce, **server_kwargs)
 
     if foreground:
         click.echo(f"Starting AvaKill daemon in foreground (policy: {policy})...")
         asyncio.run(server.serve_forever())
     else:
         click.echo(f"Starting AvaKill daemon (policy: {policy})...")
-        _daemonize(policy, socket, tcp_port, log_db)
+        _daemonize(policy, socket, tcp_port, log_db, enforce=enforce)
 
 
 @daemon.command()
@@ -127,6 +129,8 @@ def _daemonize(
     socket: str | None,
     tcp_port: int | None,
     log_db: str | None,
+    *,
+    enforce: bool = False,
 ) -> None:
     """Launch daemon as a detached background process."""
     import subprocess
@@ -138,6 +142,8 @@ def _daemonize(
         cmd.extend(["--tcp-port", str(tcp_port)])
     if log_db:
         cmd.extend(["--log-db", log_db])
+    if enforce:
+        cmd.append("--enforce")
 
     if sys.platform == "win32":
         # DETACHED_PROCESS | CREATE_NO_WINDOW

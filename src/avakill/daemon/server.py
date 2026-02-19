@@ -60,6 +60,7 @@ class DaemonServer:
         max_connections: int = _DEFAULT_MAX_CONNECTIONS,
         transport: ServerTransport | None = None,
         tcp_port: int | None = None,
+        os_enforce: bool = False,
     ) -> None:
         self._guard = guard
         self._socket_path = Path(socket_path) if socket_path else self.default_socket_path()
@@ -69,6 +70,7 @@ class DaemonServer:
         self._conn_semaphore: asyncio.Semaphore | None = None
         self._server: asyncio.AbstractServer | None = None
         self._stop_event: asyncio.Event | None = None
+        self._os_enforce = os_enforce
 
         if transport is not None:
             self._transport = transport
@@ -110,11 +112,15 @@ class DaemonServer:
     async def start(self) -> None:
         """Create the socket/listener and begin accepting connections.
 
+        - Applies OS-level enforcement if ``os_enforce`` is enabled
         - Delegates binding to the transport
         - Writes a PID file
         - Installs SIGTERM/SIGINT handlers for graceful shutdown
         - Installs SIGHUP handler for policy reload (Unix only)
         """
+        if self._os_enforce:
+            self._apply_os_enforcement()
+
         self._stop_event = asyncio.Event()
         self._conn_semaphore = asyncio.Semaphore(self._max_connections)
 
@@ -249,6 +255,61 @@ class DaemonServer:
             policy=decision.policy_name,
             latency_ms=decision.latency_ms,
         )
+
+    # ------------------------------------------------------------------
+    # OS-level enforcement
+    # ------------------------------------------------------------------
+
+    def _apply_os_enforcement(self) -> None:
+        """Apply OS-level filesystem restrictions based on policy deny rules.
+
+        - Linux: applies Landlock restrictions to the current process.
+        - macOS: generates a sandbox-exec SBPL profile and logs the path.
+        - Other platforms: logs a warning that OS enforcement is unavailable.
+        """
+        config = self._guard.engine.config
+
+        # Check if there are any deny rules to enforce
+        has_deny = any(r.action == "deny" for r in config.policies)
+        if not has_deny:
+            logger.info("OS enforcement: no deny rules found, skipping.")
+            return
+
+        if sys.platform == "linux":
+            try:
+                from avakill.enforcement.landlock import LandlockEnforcer
+
+                enforcer = LandlockEnforcer()
+                if enforcer.available():
+                    enforcer.apply(config)
+                    logger.info("OS enforcement: Landlock restrictions applied.")
+                else:
+                    logger.warning("OS enforcement: Landlock not available on this kernel.")
+            except Exception:
+                logger.warning("OS enforcement: failed to apply Landlock.", exc_info=True)
+
+        elif sys.platform == "darwin":
+            try:
+                from avakill.enforcement.sandbox_exec import SandboxExecEnforcer
+
+                enforcer = SandboxExecEnforcer()
+                profile_path = Path.home() / ".avakill" / "sandbox.sb"
+                enforcer.write_profile(config, profile_path)
+                logger.info(
+                    "OS enforcement: sandbox-exec profile written to %s. "
+                    "Launch with: sandbox-exec -f %s <command>",
+                    profile_path,
+                    profile_path,
+                )
+            except Exception:
+                logger.warning("OS enforcement: failed to write sandbox profile.", exc_info=True)
+
+        else:
+            logger.warning(
+                "OS enforcement: not supported on %s. "
+                "Supported: Linux (Landlock), macOS (sandbox-exec).",
+                sys.platform,
+            )
 
     # ------------------------------------------------------------------
     # Signal helpers

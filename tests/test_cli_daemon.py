@@ -75,6 +75,49 @@ class TestDaemonCLI:
         assert result.exit_code == 1
         assert "not found" in result.stderr
 
+    def test_start_enforce_flag_accepted(self, runner: CliRunner):
+        result = runner.invoke(cli, ["daemon", "start", "--help"])
+        assert "--enforce" in result.output
+
+    def test_start_enforce_flag_passes_to_server(self, runner: CliRunner, policy_file: Path):
+        """--enforce flag should be forwarded to DaemonServer."""
+        captured_kwargs: list[dict] = []
+
+        import avakill.daemon.server as server_mod
+
+        original_cls = server_mod.DaemonServer
+
+        def capture_init(self_server, *args, **kwargs):
+            captured_kwargs.append(kwargs)
+            original_cls.__init__(self_server, *args, **kwargs)
+
+        with (
+            patch("avakill.daemon.server.DaemonServer.is_running", return_value=(False, None)),
+            patch.object(server_mod.DaemonServer, "__init__", capture_init),
+            patch.object(server_mod.DaemonServer, "serve_forever", side_effect=SystemExit(0)),
+        ):
+            runner.invoke(
+                cli,
+                ["daemon", "start", "--policy", str(policy_file), "--foreground", "--enforce"],
+                catch_exceptions=True,
+            )
+        assert len(captured_kwargs) >= 1
+        assert captured_kwargs[0].get("os_enforce") is True
+
+    def test_daemonize_forwards_enforce_flag(self, runner: CliRunner, policy_file: Path):
+        """_daemonize should include --enforce in subprocess args."""
+        with (
+            patch("avakill.daemon.server.DaemonServer.is_running", return_value=(False, None)),
+            patch("avakill.cli.daemon_cmd._daemonize") as mock_daemonize,
+        ):
+            runner.invoke(
+                cli,
+                ["daemon", "start", "--policy", str(policy_file), "--enforce"],
+            )
+            if mock_daemonize.called:
+                _, kwargs = mock_daemonize.call_args
+                assert kwargs.get("enforce") is True
+
 
 # -------------------------------------------------------------------
 # TestEvaluateCLI

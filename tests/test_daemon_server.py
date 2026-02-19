@@ -392,6 +392,91 @@ class TestDaemonServerBoundedReads:
             await server.stop()
 
 
+class TestDaemonServerOSEnforcement:
+    """OS enforcement (--enforce) flag wiring."""
+
+    def test_init_stores_os_enforce_false(
+        self, guard: Guard, socket_path: Path, pid_path: Path
+    ) -> None:
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
+        assert server._os_enforce is False
+
+    def test_init_stores_os_enforce_true(
+        self, guard: Guard, socket_path: Path, pid_path: Path
+    ) -> None:
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path, os_enforce=True)
+        assert server._os_enforce is True
+
+    async def test_start_without_enforce_skips_enforcement(
+        self, guard: Guard, socket_path: Path, pid_path: Path
+    ) -> None:
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path, os_enforce=False)
+        called = []
+        server._apply_os_enforcement = lambda: called.append(True)  # type: ignore[assignment]
+        await server.start()
+        try:
+            assert len(called) == 0
+        finally:
+            await server.stop()
+
+    async def test_start_with_enforce_calls_enforcement(
+        self, guard: Guard, socket_path: Path, pid_path: Path
+    ) -> None:
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path, os_enforce=True)
+        called = []
+        server._apply_os_enforcement = lambda: called.append(True)  # type: ignore[assignment]
+        await server.start()
+        try:
+            assert len(called) == 1
+        finally:
+            await server.stop()
+
+    async def test_enforce_no_deny_rules_logs_skip(
+        self, socket_path: Path, pid_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When no deny rules exist, enforcement logs 'no deny rules' and skips."""
+        import logging
+
+        policy = PolicyConfig(policies=[PolicyRule(name="allow-all", tools=["*"], action="allow")])
+        guard = Guard(policy=policy, self_protection=False)
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path, os_enforce=True)
+        with caplog.at_level(logging.INFO, logger="avakill.daemon"):
+            await server.start()
+        try:
+            assert any("no deny rules" in r.message.lower() for r in caplog.records)
+        finally:
+            await server.stop()
+
+    async def test_enforce_unsupported_platform_logs_warning(
+        self,
+        guard: Guard,
+        socket_path: Path,
+        pid_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """On unsupported platform, enforcement logs a warning."""
+        import logging
+
+        monkeypatch.setattr("avakill.daemon.server.sys.platform", "freebsd13")
+        # Need a policy with deny rules
+        deny_policy = PolicyConfig(
+            policies=[
+                PolicyRule(name="deny-all", tools=["*"], action="deny"),
+            ]
+        )
+        guard_deny = Guard(policy=deny_policy, self_protection=False)
+        server = DaemonServer(
+            guard_deny, socket_path=socket_path, pid_file=pid_path, os_enforce=True
+        )
+        with caplog.at_level(logging.WARNING, logger="avakill.daemon"):
+            await server.start()
+        try:
+            assert any("not supported" in r.message.lower() for r in caplog.records)
+        finally:
+            await server.stop()
+
+
 class TestDaemonServerEvents:
     """EventBus integration."""
 
