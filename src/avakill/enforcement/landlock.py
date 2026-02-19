@@ -431,6 +431,123 @@ class LandlockEnforcer:
                 0,
             )
 
+    def apply_to_child(
+        self,
+        *,
+        read_paths: list[str],
+        write_paths: list[str],
+        exec_paths: list[str],
+        connect_ports: list[int] | None = None,
+        abi_version: int | None = None,
+    ) -> None:
+        """Apply Landlock restrictions for a child process (preexec_fn).
+
+        Unlike apply() which restricts based on deny rules, this method
+        builds an allow-based sandbox from explicit path and port lists.
+        Designed to be called from preexec_fn - only uses async-signal-safe
+        operations via ctypes.
+        """
+        libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+
+        abi = abi_version or self.abi_version()
+
+        handled_fs = ALL_ACCESS_FS
+        if abi >= 2:
+            handled_fs |= LANDLOCK_ACCESS_FS_REFER
+        if abi >= 3:
+            handled_fs |= LANDLOCK_ACCESS_FS_TRUNCATE
+
+        handled_net = 0
+        if abi >= 4 and connect_ports:
+            handled_net = LANDLOCK_ACCESS_NET_CONNECT_TCP
+
+        PR_SET_NO_NEW_PRIVS = 38  # noqa: N806
+        libc.prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+
+        attr = LandlockRulesetAttr(
+            handled_access_fs=handled_fs,
+            handled_access_net=handled_net,
+        )
+        ruleset_fd = libc.syscall(
+            LANDLOCK_CREATE_RULESET,
+            ctypes.byref(attr),
+            ctypes.sizeof(attr),
+            0,
+        )
+        if ruleset_fd < 0:
+            os._exit(126)
+
+        try:
+            read_flags = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR
+            write_flags = (
+                LANDLOCK_ACCESS_FS_WRITE_FILE
+                | LANDLOCK_ACCESS_FS_MAKE_REG
+                | LANDLOCK_ACCESS_FS_MAKE_DIR
+                | LANDLOCK_ACCESS_FS_REMOVE_FILE
+                | LANDLOCK_ACCESS_FS_REMOVE_DIR
+            )
+
+            self._add_path_rules_child(libc, ruleset_fd, read_paths, read_flags)
+            self._add_path_rules_child(libc, ruleset_fd, write_paths, write_flags)
+            self._add_path_rules_child(libc, ruleset_fd, exec_paths, LANDLOCK_ACCESS_FS_EXECUTE)
+
+            if handled_net and connect_ports:
+                self._add_network_rules_child(libc, ruleset_fd, connect_ports)
+
+            result = libc.syscall(LANDLOCK_RESTRICT_SELF, ruleset_fd, 0)
+            if result < 0:
+                os._exit(126)
+        finally:
+            os.close(ruleset_fd)
+
+    def _add_path_rules_child(
+        self,
+        libc: Any,
+        ruleset_fd: int,
+        paths: list[str],
+        access_flags: int,
+    ) -> None:
+        """Add per-path Landlock rules. Safe for preexec_fn context."""
+        for path_str in paths:
+            try:
+                fd = os.open(path_str, os.O_PATH | os.O_DIRECTORY)  # type: ignore[attr-defined]
+            except OSError:
+                continue
+            try:
+                path_attr = LandlockPathBeneathAttr(
+                    allowed_access=access_flags,
+                    parent_fd=fd,
+                )
+                libc.syscall(
+                    LANDLOCK_ADD_RULE,
+                    ruleset_fd,
+                    LANDLOCK_RULE_PATH_BENEATH,
+                    ctypes.byref(path_attr),
+                    0,
+                )
+            finally:
+                os.close(fd)
+
+    def _add_network_rules_child(
+        self,
+        libc: Any,
+        ruleset_fd: int,
+        ports: list[int],
+    ) -> None:
+        """Add per-port Landlock network rules (ABI 4+). Safe for preexec_fn."""
+        for port in ports:
+            net_attr = LandlockNetPortAttr(
+                allowed_access=LANDLOCK_ACCESS_NET_CONNECT_TCP,
+                port=port,
+            )
+            libc.syscall(
+                LANDLOCK_ADD_RULE,
+                ruleset_fd,
+                LANDLOCK_RULE_NET_PORT,
+                ctypes.byref(net_attr),
+                0,
+            )
+
     def _tool_pattern_to_flags(self, tool_pattern: str) -> int:
         """Convert a tool name pattern to Landlock access flags."""
         # Check for exact matches

@@ -1,9 +1,10 @@
-"""Tests for SandboxBackend protocol and NoopSandboxBackend."""
+"""Tests for SandboxBackend protocol and platform backends."""
 
 from __future__ import annotations
 
-from avakill.core.models import SandboxConfig
+from avakill.core.models import SandboxConfig, SandboxPathRules
 from avakill.launcher.backends.base import SandboxBackend, get_sandbox_backend
+from avakill.launcher.backends.landlock_backend import LandlockBackend
 from avakill.launcher.backends.noop import NoopSandboxBackend
 
 
@@ -50,4 +51,88 @@ class TestNoopSandboxBackend:
         config = SandboxConfig()
         report = backend.describe(config)
         assert report["platform"] == "unsupported"
+        assert report["sandbox_applied"] is False
+
+
+class TestLandlockBackend:
+    def test_available_true_on_linux_with_landlock(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        monkeypatch.setattr(
+            "avakill.launcher.backends.landlock_backend.LandlockEnforcer.available",
+            staticmethod(lambda: True),
+        )
+        backend = LandlockBackend()
+        assert backend.available() is True
+
+    def test_available_false_on_non_linux(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "darwin")
+        backend = LandlockBackend()
+        assert backend.available() is False
+
+    def test_prepare_preexec_returns_callable(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        monkeypatch.setattr(
+            "avakill.launcher.backends.landlock_backend.LandlockEnforcer.available",
+            staticmethod(lambda: True),
+        )
+        backend = LandlockBackend()
+        config = SandboxConfig(
+            allow_paths=SandboxPathRules(
+                read=["/usr", "/bin"],
+                write=["/tmp"],
+                execute=["/usr/bin/python3"],
+            ),
+        )
+        fn = backend.prepare_preexec(config)
+        assert callable(fn)
+
+    def test_prepare_preexec_returns_none_when_unavailable(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        monkeypatch.setattr(
+            "avakill.launcher.backends.landlock_backend.LandlockEnforcer.available",
+            staticmethod(lambda: False),
+        )
+        backend = LandlockBackend()
+        config = SandboxConfig()
+        assert backend.prepare_preexec(config) is None
+
+    def test_prepare_process_args_returns_empty_dict(self):
+        backend = LandlockBackend()
+        config = SandboxConfig()
+        assert backend.prepare_process_args(config) == {}
+
+    def test_post_create_is_noop(self):
+        backend = LandlockBackend()
+        config = SandboxConfig()
+        backend.post_create(12345, config)
+
+    def test_describe_includes_abi_version(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        monkeypatch.setattr(
+            "avakill.launcher.backends.landlock_backend.LandlockEnforcer.available",
+            staticmethod(lambda: True),
+        )
+        monkeypatch.setattr(
+            "avakill.launcher.backends.landlock_backend.LandlockEnforcer.abi_version",
+            staticmethod(lambda: 4),
+        )
+        backend = LandlockBackend()
+        config = SandboxConfig(
+            allow_paths=SandboxPathRules(read=["/usr"]),
+        )
+        report = backend.describe(config)
+        assert report["platform"] == "linux"
+        assert report["sandbox_applied"] is True
+        assert report["abi_version"] == 4
+        assert "/usr" in report["allowed_read_paths"]
+
+    def test_describe_when_unavailable(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        monkeypatch.setattr(
+            "avakill.launcher.backends.landlock_backend.LandlockEnforcer.available",
+            staticmethod(lambda: False),
+        )
+        backend = LandlockBackend()
+        config = SandboxConfig()
+        report = backend.describe(config)
         assert report["sandbox_applied"] is False
