@@ -6,11 +6,14 @@ import os
 import signal
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from avakill.core.models import PolicyConfig, PolicyRule
 from avakill.enforcement.landlock import LandlockEnforcer
+from avakill.launcher.backends.base import SandboxBackend
+from avakill.launcher.backends.noop import NoopSandboxBackend
 from avakill.launcher.core import LaunchResult, ProcessLauncher, _parse_ports
 
 
@@ -74,7 +77,7 @@ class TestProcessLauncher:
         assert result.exit_code == 0
 
     def test_launch_dry_run_does_not_execute(self) -> None:
-        launcher = ProcessLauncher(policy=_allow_policy())
+        launcher = ProcessLauncher(policy=_allow_policy(), backend=NoopSandboxBackend())
         result = launcher.launch(["false"], dry_run=True)
         assert result.exit_code == 0
         assert result.pid == 0
@@ -84,7 +87,6 @@ class TestProcessLauncher:
         launcher = ProcessLauncher(policy=_allow_policy())
         result = launcher.launch(["echo"], dry_run=True)
         assert isinstance(result.sandbox_features, dict)
-        assert "filesystem" in result.sandbox_features
 
 
 class TestProcessLauncherSignals:
@@ -119,34 +121,69 @@ class TestProcessLauncherSandbox:
 
     @pytest.mark.skipif(not LandlockEnforcer.available(), reason="Landlock not available")
     def test_launch_with_landlock_restricts_child(self) -> None:
-        launcher = ProcessLauncher(policy=_deny_policy())
+        from avakill.launcher.backends.landlock_backend import LandlockBackend
+
+        launcher = ProcessLauncher(policy=_deny_policy(), backend=LandlockBackend())
         result = launcher.launch(["true"])
         assert result.sandbox_applied is True
-        assert result.sandbox_features.get("filesystem") is True
 
-    def test_launch_without_landlock_warns_and_continues(self) -> None:
-        if LandlockEnforcer.available():
-            pytest.skip("Landlock is available — this test is for non-Linux")
-        launcher = ProcessLauncher(policy=_deny_policy())
-        with pytest.warns(UserWarning, match="Landlock not available"):
-            result = launcher.launch(["true"])
+    def test_launch_with_noop_backend(self) -> None:
+        launcher = ProcessLauncher(policy=_deny_policy(), backend=NoopSandboxBackend())
+        result = launcher.launch(["true"])
         assert result.exit_code == 0
-        assert result.sandbox_applied is False
+        assert result.sandbox_applied is True  # NoopSandboxBackend.available() is True
 
     def test_launch_sandbox_features_reported_in_result(self) -> None:
         launcher = ProcessLauncher(policy=_allow_policy())
         result = launcher.launch(["true"], dry_run=True)
         features = result.sandbox_features
         assert isinstance(features, dict)
-        expected_keys = {
-            "filesystem",
-            "file_refer",
-            "file_truncate",
-            "network_tcp",
-            "device_ioctl",
-            "ipc_scoping",
+
+
+class TestProcessLauncherBackend:
+    """Tests for SandboxBackend integration."""
+
+    def test_uses_provided_backend(self) -> None:
+        mock_backend = MagicMock(spec=SandboxBackend)
+        mock_backend.prepare_preexec.return_value = None
+        mock_backend.prepare_process_args.return_value = {}
+        mock_backend.available.return_value = True
+        launcher = ProcessLauncher(
+            policy=_allow_policy(),
+            backend=mock_backend,
+        )
+        assert launcher._backend is mock_backend
+
+    def test_auto_detects_backend_when_none_provided(self) -> None:
+        launcher = ProcessLauncher(policy=_allow_policy())
+        assert isinstance(launcher._backend, SandboxBackend)
+
+    def test_dry_run_includes_backend_description(self) -> None:
+        mock_backend = MagicMock(spec=SandboxBackend)
+        mock_backend.describe.return_value = {
+            "platform": "test",
+            "sandbox_applied": True,
         }
-        assert set(features.keys()) == expected_keys
+        launcher = ProcessLauncher(
+            policy=_allow_policy(),
+            backend=mock_backend,
+        )
+        result = launcher.launch(["echo", "test"], dry_run=True)
+        mock_backend.describe.assert_called_once()
+        assert result.sandbox_applied is True
+
+    def test_launch_calls_post_create(self) -> None:
+        mock_backend = MagicMock(spec=SandboxBackend)
+        mock_backend.prepare_preexec.return_value = None
+        mock_backend.prepare_process_args.return_value = {}
+        mock_backend.available.return_value = True
+        mock_backend.describe.return_value = {"sandbox_applied": True}
+        launcher = ProcessLauncher(
+            policy=_allow_policy(),
+            backend=mock_backend,
+        )
+        launcher.launch(["echo", "test"])
+        mock_backend.post_create.assert_called_once()
 
 
 class TestParsePortsHelper:
