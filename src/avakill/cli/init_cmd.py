@@ -87,6 +87,14 @@ def _detect_frameworks() -> list[str]:
     return detected
 
 
+_PROTECTION_MODES = {
+    "hooks": "Hooks only (cooperative - agents report tool calls)",
+    "launch": "Launch mode (OS sandbox - contain any agent)",
+    "mcp": "MCP proxy (intercept MCP tool servers)",
+    "all": "All of the above (maximum protection)",
+}
+
+
 @click.command()
 @click.option(
     "--template",
@@ -99,7 +107,13 @@ def _detect_frameworks() -> list[str]:
     default="avakill.yaml",
     help="Output path for the generated policy file.",
 )
-def init(template: str | None, output: str) -> None:
+@click.option(
+    "--mode",
+    type=click.Choice(list(_PROTECTION_MODES)),
+    default=None,
+    help="Protection mode (hooks, launch, mcp, all).",
+)
+def init(template: str | None, output: str, mode: str | None) -> None:
     """Initialize a new AvaKill policy file."""
     console = Console()
 
@@ -189,6 +203,21 @@ def init(template: str | None, output: str) -> None:
             "Run [bold cyan]avakill hook install --agent all[/bold cyan] to register hooks."
         )
 
+    # Interactive mode selector (only when stdin is a TTY and --mode not given)
+    if mode is None and sys.stdin.isatty() and template is None:
+        console.print()
+        console.print("[bold]How do you want to protect your agents?[/bold]")
+        for i, (_key, desc) in enumerate(_PROTECTION_MODES.items(), 1):
+            console.print(f"  {i}. {desc}")
+        choice = Prompt.ask(
+            "Select mode",
+            choices=["1", "2", "3", "4"],
+            default="1",
+            console=console,
+        )
+        mode = list(_PROTECTION_MODES)[int(choice) - 1]
+
+    # Print mode-specific next steps
     console.print()
     console.print("[bold]Next steps:[/bold]")
     console.print(f"  1. Review and customise [cyan]{output_path}[/cyan]")
@@ -197,14 +226,34 @@ def init(template: str | None, output: str) -> None:
         console.print(f"  {step}. Add AvaKill to your agent code (see snippet above)")
     else:
         console.print(
-            f"  {step}. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started"
+            f"  {step}. Add AvaKill to your agent code"
+            " — see https://avakill.com/docs/getting-started"
         )
     step += 1
-    if agents:
+
+    use_hooks = mode in ("hooks", "all") or (mode is None and agents)
+    use_launch = mode in ("launch", "all")
+    use_mcp = mode in ("mcp", "all")
+
+    if use_hooks:
         console.print(
-            f"  {step}. Run [cyan]avakill hook install --agent all[/cyan] to register agent hooks"
+            f"  {step}. Run [cyan]avakill hook install --agent all[/cyan]"
+            " to register agent hooks"
         )
         step += 1
+    if use_launch:
+        agent_hint = agents[0] if agents else "your-agent"
+        console.print(
+            f"  {step}. Run [cyan]avakill launch --agent {agent_hint}[/cyan]"
+            " to sandbox your agent"
+        )
+        step += 1
+    if use_mcp:
+        console.print(
+            f"  {step}. Run [cyan]avakill mcp-wrap[/cyan]" " to intercept MCP tool servers"
+        )
+        step += 1
+
     console.print(f"  {step}. Enable audit logging (see [cyan]docs/getting-started[/cyan])")
     step += 1
     console.print(f"  {step}. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")

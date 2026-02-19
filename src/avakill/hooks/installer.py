@@ -41,6 +41,16 @@ AGENT_DETECTORS: dict[str, Callable[[], bool]] = {
     ),
     "cursor": _cursor_installed,
     "windsurf": _windsurf_installed,
+    "openclaw": lambda: (
+        Path.home().joinpath(".openclaw").is_dir() or shutil.which("openclaw") is not None
+    ),
+    "aider": lambda: shutil.which("aider") is not None,
+    "cline": lambda: Path.cwd().joinpath(".vscode", "cline_mcp_settings.json").is_file(),
+    "continue": lambda: (
+        Path.cwd().joinpath(".continue", "config.json").is_file()
+        or Path.home().joinpath(".continue").is_dir()
+    ),
+    "swe-agent": lambda: shutil.which("sweagent") is not None,
 }
 
 
