@@ -36,7 +36,24 @@ LANDLOCK_ACCESS_FS_MAKE_FIFO = 1 << 10
 LANDLOCK_ACCESS_FS_MAKE_BLOCK = 1 << 11
 LANDLOCK_ACCESS_FS_MAKE_SYM = 1 << 12
 
+# ABI v2 filesystem flags
+LANDLOCK_ACCESS_FS_REFER = 1 << 13
+
+# ABI v3 filesystem flags
+LANDLOCK_ACCESS_FS_TRUNCATE = 1 << 14
+
+# ABI v5 filesystem flags
+LANDLOCK_ACCESS_FS_IOCTL_DEV = 1 << 15
+
 LANDLOCK_RULE_PATH_BENEATH = 1
+LANDLOCK_RULE_NET_PORT = 2
+
+# Network access flags (ABI v4+)
+LANDLOCK_ACCESS_NET_BIND_TCP = 1 << 0
+LANDLOCK_ACCESS_NET_CONNECT_TCP = 1 << 1
+
+# Flags for landlock_create_ruleset
+LANDLOCK_CREATE_RULESET_VERSION = 1 << 0
 
 # Map canonical tool names to Landlock access flags to restrict
 TOOL_TO_ACCESS_FLAGS: dict[str, int] = {
@@ -83,6 +100,13 @@ class LandlockPathBeneathAttr(ctypes.Structure):
     ]
 
 
+class LandlockNetPortAttr(ctypes.Structure):
+    _fields_ = [
+        ("allowed_access", ctypes.c_uint64),
+        ("port", ctypes.c_uint64),
+    ]
+
+
 class LandlockEnforcer:
     """Landlock-based filesystem restriction (Linux 5.13+, unprivileged).
 
@@ -114,6 +138,55 @@ class LandlockEnforcer:
         except (OSError, AttributeError):
             return False
 
+    @staticmethod
+    def abi_version() -> int:
+        """Detect highest supported Landlock ABI version (1-6+).
+
+        Calls landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION).
+        Returns 0 if Landlock is unavailable.
+        """
+        if sys.platform != "linux":
+            return 0
+        try:
+            libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+            result = libc.syscall(
+                LANDLOCK_CREATE_RULESET,
+                None,
+                0,
+                LANDLOCK_CREATE_RULESET_VERSION,
+            )
+            return result if result >= 0 else 0
+        except (OSError, AttributeError):
+            return 0
+
+    @staticmethod
+    def supported_features(abi: int) -> dict[str, bool]:
+        """Return feature availability for a given ABI version.
+
+        Returns:
+            Dictionary mapping feature names to availability booleans.
+        """
+        return {
+            "filesystem": abi >= 1,
+            "file_refer": abi >= 2,
+            "file_truncate": abi >= 3,
+            "network_tcp": abi >= 4,
+            "device_ioctl": abi >= 5,
+            "ipc_scoping": abi >= 6,
+        }
+
+    @staticmethod
+    def _max_fs_flags(abi: int) -> int:
+        """Return maximum filesystem flags supported by the given ABI version."""
+        flags = ALL_ACCESS_FS  # ABI 1
+        if abi >= 2:
+            flags |= LANDLOCK_ACCESS_FS_REFER
+        if abi >= 3:
+            flags |= LANDLOCK_ACCESS_FS_TRUNCATE
+        if abi >= 5:
+            flags |= LANDLOCK_ACCESS_FS_IOCTL_DEV
+        return flags
+
     def generate_ruleset(self, config: PolicyConfig) -> dict[str, Any]:
         """Generate a ruleset description from deny rules (dry-run output).
 
@@ -122,8 +195,12 @@ class LandlockEnforcer:
 
         Returns:
             A dictionary describing the Landlock ruleset that would be
-            applied, including restricted access flags and their sources.
+            applied, including restricted access flags, ABI version,
+            supported features, and their sources.
         """
+        abi = self.abi_version()
+        features = self.supported_features(abi)
+
         restricted_flags = 0
         sources: list[dict[str, Any]] = []
 
@@ -143,11 +220,16 @@ class LandlockEnforcer:
                         }
                     )
 
+        # Mask to ABI-supported flags when Landlock is available
+        if abi > 0:
+            restricted_flags &= self._max_fs_flags(abi)
+
         return {
-            "landlock_abi": 1,
+            "landlock_abi": abi,
             "handled_access_fs": restricted_flags,
             "restricted_flag_names": self._flag_names(restricted_flags),
             "sources": sources,
+            "supported_features": features,
         }
 
     def apply(self, config: PolicyConfig) -> None:
@@ -156,6 +238,9 @@ class LandlockEnforcer:
         Maps deny rules to filesystem access restrictions and applies
         them using the Landlock syscalls. Once applied, restrictions
         cannot be removed for the lifetime of the process.
+
+        Flags are masked to the detected ABI version for graceful
+        degradation on older kernels.
 
         Args:
             config: The policy configuration to enforce.
@@ -166,8 +251,13 @@ class LandlockEnforcer:
         if not self.available():
             raise RuntimeError("Landlock is not available on this system")
 
+        abi = self.abi_version()
         ruleset = self.generate_ruleset(config)
         restricted_flags = ruleset["handled_access_fs"]
+
+        # Mask to ABI-supported flags for graceful degradation
+        if abi > 0:
+            restricted_flags &= self._max_fs_flags(abi)
 
         if restricted_flags == 0:
             return  # Nothing to restrict
@@ -263,6 +353,9 @@ class LandlockEnforcer:
             LANDLOCK_ACCESS_FS_MAKE_FIFO: "MAKE_FIFO",
             LANDLOCK_ACCESS_FS_MAKE_BLOCK: "MAKE_BLOCK",
             LANDLOCK_ACCESS_FS_MAKE_SYM: "MAKE_SYM",
+            LANDLOCK_ACCESS_FS_REFER: "REFER",
+            LANDLOCK_ACCESS_FS_TRUNCATE: "TRUNCATE",
+            LANDLOCK_ACCESS_FS_IOCTL_DEV: "IOCTL_DEV",
         }
         for bit, name in flag_map.items():
             if flags & bit:

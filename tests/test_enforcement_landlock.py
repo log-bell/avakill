@@ -1,17 +1,21 @@
 """Tests for the Landlock filesystem enforcer."""
 
 import sys
+from unittest.mock import patch
 
 import pytest
 
 from avakill.core.models import PolicyConfig, PolicyRule
 from avakill.enforcement.landlock import (
+    ALL_ACCESS_FS,
     LANDLOCK_ACCESS_FS_EXECUTE,
     LANDLOCK_ACCESS_FS_MAKE_DIR,
     LANDLOCK_ACCESS_FS_MAKE_REG,
     LANDLOCK_ACCESS_FS_MAKE_SYM,
+    LANDLOCK_ACCESS_FS_REFER,
     LANDLOCK_ACCESS_FS_REMOVE_DIR,
     LANDLOCK_ACCESS_FS_REMOVE_FILE,
+    LANDLOCK_ACCESS_FS_TRUNCATE,
     LANDLOCK_ACCESS_FS_WRITE_FILE,
     LandlockEnforcer,
 )
@@ -55,10 +59,12 @@ class TestLandlockEnforcer:
         config = _deny_policy("file_write", "shell_execute")
         ruleset = enforcer.generate_ruleset(config)
 
-        assert ruleset["landlock_abi"] == 1
+        assert isinstance(ruleset["landlock_abi"], int)
+        assert ruleset["landlock_abi"] >= 0
         assert ruleset["handled_access_fs"] != 0
         assert len(ruleset["sources"]) == 2
         assert len(ruleset["restricted_flag_names"]) > 0
+        assert "supported_features" in ruleset
 
     def test_generate_ruleset_empty_policy(self) -> None:
         enforcer = LandlockEnforcer()
@@ -172,3 +178,67 @@ class TestLandlockApply:
         config = _deny_policy("file_write")
         with pytest.raises(RuntimeError, match="not available"):
             enforcer.apply(config)
+
+
+class TestLandlockABIVersion:
+    """Tests for ABI version detection and feature flags."""
+
+    def test_abi_version_returns_int(self) -> None:
+        result = LandlockEnforcer.abi_version()
+        assert isinstance(result, int)
+        assert result >= 0
+
+    def test_abi_version_zero_on_non_linux(self) -> None:
+        if sys.platform != "linux":
+            assert LandlockEnforcer.abi_version() == 0
+
+    def test_supported_features_abi_1(self) -> None:
+        features = LandlockEnforcer.supported_features(1)
+        assert features["filesystem"] is True
+        assert features["file_refer"] is False
+        assert features["file_truncate"] is False
+        assert features["network_tcp"] is False
+        assert features["device_ioctl"] is False
+        assert features["ipc_scoping"] is False
+
+    def test_supported_features_abi_4_includes_network(self) -> None:
+        features = LandlockEnforcer.supported_features(4)
+        assert features["filesystem"] is True
+        assert features["file_refer"] is True
+        assert features["file_truncate"] is True
+        assert features["network_tcp"] is True
+        assert features["device_ioctl"] is False
+        assert features["ipc_scoping"] is False
+
+    def test_supported_features_abi_6_includes_ipc(self) -> None:
+        features = LandlockEnforcer.supported_features(6)
+        assert features["filesystem"] is True
+        assert features["file_refer"] is True
+        assert features["file_truncate"] is True
+        assert features["network_tcp"] is True
+        assert features["device_ioctl"] is True
+        assert features["ipc_scoping"] is True
+
+
+class TestLandlockGracefulDegradation:
+    """Tests for ABI-based flag masking in generate_ruleset."""
+
+    def test_generate_ruleset_masks_to_abi_version(self) -> None:
+        enforcer = LandlockEnforcer()
+        config = _deny_policy("*")
+
+        # With ABI 1, only base FS flags should be present
+        with patch.object(LandlockEnforcer, "abi_version", return_value=1):
+            ruleset = enforcer.generate_ruleset(config)
+
+        masked_flags = ruleset["handled_access_fs"]
+        assert masked_flags & ALL_ACCESS_FS  # ABI 1 flags present
+        assert not (masked_flags & LANDLOCK_ACCESS_FS_REFER)  # ABI 2 flag absent
+        assert not (masked_flags & LANDLOCK_ACCESS_FS_TRUNCATE)  # ABI 3 flag absent
+
+    def test_network_flags_excluded_below_abi_4(self) -> None:
+        features_abi_3 = LandlockEnforcer.supported_features(3)
+        assert features_abi_3["network_tcp"] is False
+
+        features_abi_4 = LandlockEnforcer.supported_features(4)
+        assert features_abi_4["network_tcp"] is True
