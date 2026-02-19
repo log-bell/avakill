@@ -564,9 +564,31 @@ echo '{"tool": "file_read", "args": {"path": "README.md"}}' | avakill evaluate -
 
 Exit codes: `0` = allowed, `2` = denied, `1` = error.
 
+## Next Level: OS Sandboxing and MCP Proxy
+
+Once you have hooks working, you can add additional enforcement layers for defense-in-depth:
+
+- **[Upgrade to Launch Mode](upgrade-to-launch-mode.md)** -- add OS-level sandboxing on top of hooks. Your existing policies continue to work unchanged.
+- **[Defense-in-Depth Guide](defense-in-depth.md)** -- understand how hooks, launch mode, and MCP proxy compose together. Includes a risk matrix and per-agent recommendations.
+- **[Sandbox Backends](sandbox-backends.md)** -- platform-specific details for Landlock (Linux), sandbox_init (macOS), and AppContainer (Windows).
+- **[Agent Profiles](cli-reference.md#profile)** -- built-in containment profiles for OpenClaw, Aider, Cline, Continue.dev, and SWE-Agent. Run `avakill profile list` to see them.
+
+Quick start:
+
+```bash
+# See available agent profiles
+avakill profile list
+
+# Test sandbox restrictions without launching
+avakill launch --agent aider --dry-run
+
+# Launch with OS sandbox
+avakill launch --agent aider --policy avakill.yaml -- aider
+```
+
 ## Next Steps
 
-- **[Policy Reference](policy-reference.md)** — full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
+- **[Policy Reference](policy-reference.md)** -- full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
 - **[Framework Integrations](framework-integrations.md)** — drop-in wrappers for OpenAI, Anthropic, LangChain, CrewAI, and MCP.
 - **[MCP Proxy](mcp-proxy.md)** — deploy AvaKill as a transparent proxy for any MCP server.
 - **[MCP Universal Interception](mcp-proxy-universal.md)** — wrap any agent's MCP config with `avakill mcp-wrap` for zero-code interception.
