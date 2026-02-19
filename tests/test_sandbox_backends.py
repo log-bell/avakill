@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from avakill.core.models import SandboxConfig, SandboxPathRules
 from avakill.launcher.backends.base import SandboxBackend, get_sandbox_backend
+from avakill.launcher.backends.darwin_backend import DarwinSandboxBackend
 from avakill.launcher.backends.landlock_backend import LandlockBackend
 from avakill.launcher.backends.noop import NoopSandboxBackend
 
@@ -13,8 +14,7 @@ class TestSandboxBackendProtocol:
         backend = NoopSandboxBackend()
         assert isinstance(backend, SandboxBackend)
 
-    def test_get_sandbox_backend_returns_backend(self, monkeypatch):
-        monkeypatch.setattr("sys.platform", "freebsd")
+    def test_get_sandbox_backend_returns_backend(self):
         backend = get_sandbox_backend()
         assert isinstance(backend, SandboxBackend)
 
@@ -133,6 +133,57 @@ class TestLandlockBackend:
             staticmethod(lambda: False),
         )
         backend = LandlockBackend()
+        config = SandboxConfig()
+        report = backend.describe(config)
+        assert report["sandbox_applied"] is False
+
+
+class TestDarwinSandboxBackend:
+    def test_available_true_on_darwin(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "darwin")
+        backend = DarwinSandboxBackend()
+        assert backend.available() is True
+
+    def test_available_false_on_non_darwin(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        backend = DarwinSandboxBackend()
+        assert backend.available() is False
+
+    def test_prepare_preexec_returns_callable_on_darwin(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "darwin")
+        backend = DarwinSandboxBackend()
+        config = SandboxConfig(
+            allow_paths=SandboxPathRules(read=["/usr"]),
+        )
+        fn = backend.prepare_preexec(config)
+        assert callable(fn)
+
+    def test_prepare_preexec_returns_none_on_non_darwin(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        backend = DarwinSandboxBackend()
+        config = SandboxConfig()
+        assert backend.prepare_preexec(config) is None
+
+    def test_prepare_process_args_returns_empty_dict(self):
+        backend = DarwinSandboxBackend()
+        config = SandboxConfig()
+        assert backend.prepare_process_args(config) == {}
+
+    def test_describe_includes_sbpl_preview(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "darwin")
+        backend = DarwinSandboxBackend()
+        config = SandboxConfig(
+            allow_paths=SandboxPathRules(read=["/usr"], write=["/tmp"]),
+        )
+        report = backend.describe(config)
+        assert report["platform"] == "darwin"
+        assert report["sandbox_applied"] is True
+        assert report["mechanism"] == "sandbox_init_with_parameters"
+        assert "(deny default)" in report["sbpl_profile"]
+
+    def test_describe_when_unavailable(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        backend = DarwinSandboxBackend()
         config = SandboxConfig()
         report = backend.describe(config)
         assert report["sandbox_applied"] is False
