@@ -450,19 +450,105 @@ Policies use **canonical tool names** so one policy works across all agents:
 | Cursor | `shell_command` | `shell_execute` |
 | Windsurf | `run_command` | `shell_execute` |
 
-Write policies using canonical names:
+Write policies using canonical names. Use `shell_safe` and `command_allowlist` for shell commands:
 
 ```yaml
 policies:
-  - name: "block-dangerous-shells"
+  - name: allow-safe-shell
     tools: ["shell_execute"]
-    action: deny
+    action: allow
     conditions:
-      args_match:
-        command: ["rm -rf", "sudo", "chmod 777"]
+      shell_safe: true
+      command_allowlist: [echo, ls, git, python, pip, cat, head, tail]
+
+  - name: deny-everything-else
+    tools: ["*"]
+    action: deny
 ```
 
-## 9. Evaluate Tool Calls from the CLI
+## 9. Project-Level Hook Setup (Standalone Mode)
+
+Hooks can run in **two modes**:
+
+| Mode | How it works | When to use |
+|------|-------------|-------------|
+| **Daemon mode** (default) | Hook sends request to running daemon via Unix socket | Multi-project setups, shared daemon |
+| **Standalone mode** | Hook evaluates directly using `AVAKILL_POLICY` env var — no daemon needed | Per-project setup, simpler deployment |
+
+### Step-by-step standalone setup
+
+**1. Initialize your project:**
+
+```bash
+cd /path/to/my-project
+avakill init              # creates avakill.yaml
+mkdir -p .claude
+```
+
+**2. Create a wrapper script** (`avakill-hook.sh`) for reliability:
+
+```bash
+#!/bin/bash
+export AVAKILL_POLICY="/path/to/my-project/avakill.yaml"
+exec /path/to/avakill-hook-claude-code
+```
+
+Make it executable:
+
+```bash
+chmod +x avakill-hook.sh
+```
+
+> **Tip:** Use absolute paths for both `AVAKILL_POLICY` and the hook binary. Find the binary path with `which avakill-hook-claude-code`.
+
+**3. Create `.claude/settings.local.json`:**
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/my-project/avakill-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**4. Add the hardened policy pattern** to `avakill.yaml`:
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: allow-safe-shell
+    tools: ["shell_execute"]
+    action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: [echo, ls, git, python, pip, cat, head, tail, wc, file]
+
+  - name: allow-reads
+    tools: ["file_read", "*_read", "*_get", "*_list", "*_search"]
+    action: allow
+
+  - name: deny-everything-else
+    tools: ["*"]
+    action: deny
+```
+
+> **Important:** Hooks are loaded at session start — restart Claude Code after changing `settings.local.json`.
+
+> **Note:** Use canonical tool names in policies (e.g., `shell_execute` not `Bash`). See the [normalization table](#how-it-works) above for agent-to-canonical mappings.
+
+## 10. Evaluate Tool Calls from the CLI
 
 You can evaluate tool calls directly without running an agent:
 
