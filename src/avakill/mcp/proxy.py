@@ -4,6 +4,11 @@ Implements a stdio-based transparent proxy that sits between an MCP client
 (Claude Desktop, Cursor, etc.) and an upstream MCP server.  All messages pass
 through unchanged except ``tools/call``, which is evaluated against the
 AvaKill policy before being forwarded.
+
+Supports three evaluation modes:
+- **Embedded Guard** — policy evaluated in-process (default).
+- **Daemon mode** — evaluation delegated to a running AvaKill daemon.
+- **Standalone** — Guard loaded from a policy file (no daemon needed).
 """
 
 from __future__ import annotations
@@ -14,10 +19,12 @@ import json
 import logging
 import signal
 import sys
+from pathlib import Path
 from typing import Any
 
 from avakill.core.engine import Guard
-from avakill.core.exceptions import RateLimitExceeded
+from avakill.core.exceptions import ConfigError, RateLimitExceeded
+from avakill.core.models import Decision
 
 logger = logging.getLogger("avakill.mcp")
 
@@ -30,6 +37,12 @@ class MCPProxyServer:
     ``tools/call`` requests are intercepted: they are evaluated against
     the :class:`Guard` policy, and denied calls are short-circuited with
     a well-formed MCP error response so the upstream never sees them.
+
+    Supports three evaluation modes:
+
+    1. **Embedded Guard** (``guard=...``) — direct in-process evaluation.
+    2. **Daemon mode** (``daemon_socket=...``) — evaluation via DaemonClient.
+    3. **Standalone** (``policy=...``) — Guard loaded from a policy file.
 
     Deployment — replace the real server command in your MCP client config::
 
@@ -49,15 +62,33 @@ class MCPProxyServer:
         self,
         upstream_cmd: str,
         upstream_args: list[str],
-        guard: Guard,
+        guard: Guard | None = None,
+        *,
+        daemon_socket: str | Path | None = None,
+        policy: str | Path | None = None,
+        agent: str = "mcp",
     ) -> None:
         self.upstream_cmd = upstream_cmd
         self.upstream_args = upstream_args
-        self.guard = guard
+        self._agent = agent
         self.upstream_process: asyncio.subprocess.Process | None = None
         self._running = False
         self._client_write_lock: asyncio.Lock = asyncio.Lock()
         self._relay_tasks: list[asyncio.Task[None]] = []
+
+        # Select evaluation strategy
+        if guard is not None:
+            self.guard = guard
+            self._evaluator = self._evaluate_guard
+        elif daemon_socket is not None:
+            self.guard = None  # type: ignore[assignment]
+            self._daemon_socket = Path(daemon_socket)
+            self._evaluator = self._evaluate_daemon
+        elif policy is not None:
+            self.guard = Guard(policy=policy)
+            self._evaluator = self._evaluate_guard
+        else:
+            raise ConfigError("MCP proxy requires guard, daemon_socket, or policy")
 
     # ------------------------------------------------------------------
     # Public API
@@ -171,6 +202,37 @@ class MCPProxyServer:
     # Message handling
     # ------------------------------------------------------------------
 
+    def _evaluate_guard(self, tool: str, args: dict[str, Any]) -> Decision:
+        """Evaluate using the embedded or standalone Guard instance."""
+        try:
+            return self.guard.evaluate(tool=tool, args=args)
+        except RateLimitExceeded as exc:
+            return exc.decision
+
+    def _evaluate_daemon(self, tool: str, args: dict[str, Any]) -> Decision:
+        """Evaluate via DaemonClient over Unix socket."""
+        from avakill.daemon.client import DaemonClient
+        from avakill.daemon.protocol import EvaluateRequest
+
+        client = DaemonClient(socket_path=self._daemon_socket)
+        request = EvaluateRequest(agent=self._agent, tool=tool, args=args)
+        try:
+            resp = client.evaluate(request)
+        except Exception:  # noqa: BLE001
+            # Fail-closed: deny on any communication error
+            return Decision(
+                allowed=False,
+                action="deny",
+                reason="daemon unavailable",
+            )
+        allowed = resp.decision == "allow"
+        return Decision(
+            allowed=allowed,
+            action=resp.decision,
+            policy_name=resp.policy,
+            reason=resp.reason,
+        )
+
     async def _handle_client_message(self, message: dict[str, Any]) -> dict[str, Any] | None:
         """Process a message from the client before forwarding to upstream.
 
@@ -193,10 +255,7 @@ class MCPProxyServer:
         arguments = params.get("arguments", {})
         request_id = message.get("id")
 
-        try:
-            decision = self.guard.evaluate(tool=tool_name, args=arguments)
-        except RateLimitExceeded as exc:
-            decision = exc.decision
+        decision = self._evaluator(tool_name, arguments)
 
         if decision.allowed:
             return None  # Forward to upstream

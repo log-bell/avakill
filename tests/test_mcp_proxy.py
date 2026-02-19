@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from avakill.core.engine import Guard
+from avakill.core.exceptions import ConfigError
 from avakill.core.models import (
     PolicyConfig,
     PolicyRule,
@@ -775,6 +776,85 @@ class TestShutdown:
         )
         await shutdown_task
         assert proxy._running is False
+
+
+# ---------------------------------------------------------------------------
+# Daemon mode — unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestMCPProxyDaemonMode:
+    """Verify daemon-mode evaluation via DaemonClient."""
+
+    def test_daemon_mode_sends_to_client(self, tmp_path: Any) -> None:
+        """Daemon mode creates a proxy with daemon_socket set."""
+        socket_path = tmp_path / "test.sock"
+        proxy = MCPProxyServer("echo", [], daemon_socket=socket_path)
+        assert proxy._daemon_socket == socket_path
+        assert proxy.guard is None
+
+    async def test_daemon_mode_deny_returns_error_response(self, tmp_path: Any) -> None:
+        """When daemon is unreachable, evaluation fails closed (deny)."""
+        socket_path = tmp_path / "nonexistent.sock"
+        proxy = MCPProxyServer("echo", [], daemon_socket=socket_path)
+
+        msg = _jsonrpc_request(
+            "tools/call",
+            {"name": "delete_file", "arguments": {"path": "/etc/passwd"}},
+            id=42,
+        )
+        result = await proxy._handle_client_message(msg)
+        assert result is not None
+        assert result["id"] == 42
+        assert result["result"]["isError"] is True
+        assert "daemon unavailable" in result["result"]["content"][0]["text"]
+
+    async def test_daemon_mode_fallback_on_connection_error(self, tmp_path: Any) -> None:
+        """Connection errors fail closed — deny the call."""
+        socket_path = tmp_path / "bad.sock"
+        proxy = MCPProxyServer("echo", [], daemon_socket=socket_path)
+
+        decision = proxy._evaluate_daemon("read_file", {"path": "/tmp/x"})
+        assert decision.allowed is False
+        assert "daemon unavailable" in (decision.reason or "")
+
+
+class TestMCPProxyStandaloneMode:
+    """Verify standalone mode (policy file → embedded Guard)."""
+
+    def test_standalone_mode_loads_policy(self, tmp_path: Any) -> None:
+        """Standalone mode creates a Guard from the policy file."""
+        policy_file = tmp_path / "policy.yaml"
+        policy_file.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
+        proxy = MCPProxyServer("echo", [], policy=policy_file)
+        assert proxy.guard is not None
+
+    async def test_standalone_mode_evaluates_correctly(self, tmp_path: Any) -> None:
+        """Standalone mode evaluates tool calls against the loaded policy."""
+        policy_file = tmp_path / "policy.yaml"
+        policy_file.write_text(
+            "version: '1.0'\ndefault_action: deny\npolicies:\n"
+            "  - name: allow-read\n    tools: ['read_*']\n    action: allow\n"
+        )
+        proxy = MCPProxyServer("echo", [], policy=policy_file)
+
+        # Allowed
+        msg = _jsonrpc_request("tools/call", {"name": "read_file", "arguments": {}})
+        assert await proxy._handle_client_message(msg) is None
+
+        # Denied
+        msg = _jsonrpc_request("tools/call", {"name": "delete_file", "arguments": {}}, id=5)
+        result = await proxy._handle_client_message(msg)
+        assert result is not None
+        assert result["result"]["isError"] is True
+
+
+class TestMCPProxyInitValidation:
+    """Verify that MCPProxyServer requires at least one evaluation mode."""
+
+    def test_no_guard_no_daemon_no_policy_raises(self) -> None:
+        with pytest.raises(ConfigError, match="requires guard, daemon_socket, or policy"):
+            MCPProxyServer("echo", [])
 
 
 # ---------------------------------------------------------------------------
