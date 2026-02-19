@@ -295,8 +295,12 @@ class ProcessLauncher:
 
     def _install_signal_forwarding(self, child_pid: int) -> None:
         """Install parent signal handlers that forward to child."""
+
+        def _forward(signum: int, frame: Any, pid: int = child_pid) -> None:
+            os.kill(pid, signum)
+
         for sig in (signal.SIGTERM, signal.SIGINT):
-            old = signal.signal(sig, lambda s, f, pid=child_pid: os.kill(pid, s))
+            old = signal.signal(sig, _forward)
             self._original_handlers[sig] = old
 
     def _restore_signals(self) -> None:
