@@ -83,7 +83,7 @@ Issues = "https://github.com/log-bell/avakill/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-avakill = ["templates/*.yaml", "hardening/*.te", "hardening/*.profile", "hardening/*.json"]
+avakill = ["templates/*.yaml", "profiles/*.yaml", "hardening/*.te", "hardening/*.profile", "hardening/*.json"]
 
 [tool.ruff]
 line-length = 100
