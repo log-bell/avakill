@@ -737,6 +737,64 @@ class TestAuditIntegration:
         unsub()
 
 
+class TestMCPProxyAudit:
+    """Audit event emission for daemon-mode proxy evaluations."""
+
+    async def test_daemon_denied_call_emits_audit_event(self, tmp_path: Any) -> None:
+        """Daemon mode emits audit events from the proxy itself."""
+        from avakill.core.models import AuditEvent
+
+        received: list[AuditEvent] = []
+        bus = EventBus.get()
+        unsub = bus.subscribe(received.append)
+
+        socket_path = tmp_path / "nonexistent.sock"
+        proxy = MCPProxyServer("echo", [], daemon_socket=socket_path)
+
+        msg = _jsonrpc_request("tools/call", {"name": "delete_file", "arguments": {"path": "/"}})
+        await proxy._handle_client_message(msg)
+
+        assert len(received) == 1
+        assert received[0].tool_call.tool_name == "delete_file"
+        assert received[0].decision.allowed is False
+        unsub()
+
+    async def test_audit_event_includes_agent_name(self, tmp_path: Any) -> None:
+        """Audit events include the agent name from proxy config."""
+        from avakill.core.models import AuditEvent
+
+        received: list[AuditEvent] = []
+        bus = EventBus.get()
+        unsub = bus.subscribe(received.append)
+
+        socket_path = tmp_path / "nonexistent.sock"
+        proxy = MCPProxyServer("echo", [], daemon_socket=socket_path, agent="claude-desktop")
+
+        msg = _jsonrpc_request("tools/call", {"name": "read_file", "arguments": {"path": "/tmp"}})
+        await proxy._handle_client_message(msg)
+
+        assert len(received) == 1
+        assert received[0].tool_call.agent_id == "claude-desktop"
+        unsub()
+
+    async def test_guard_mode_does_not_double_emit(self, guard: Guard) -> None:
+        """Guard mode should not emit duplicate events from the proxy."""
+        from avakill.core.models import AuditEvent
+
+        received: list[AuditEvent] = []
+        bus = EventBus.get()
+        unsub = bus.subscribe(received.append)
+
+        proxy = MCPProxyServer("echo", [], guard=guard)
+
+        msg = _jsonrpc_request("tools/call", {"name": "read_file", "arguments": {"path": "/tmp"}})
+        await proxy._handle_client_message(msg)
+
+        # Exactly 1 event (from Guard, not from proxy)
+        assert len(received) == 1
+        unsub()
+
+
 # ---------------------------------------------------------------------------
 # Shutdown
 # ---------------------------------------------------------------------------

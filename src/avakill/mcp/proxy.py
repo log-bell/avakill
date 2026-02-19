@@ -24,8 +24,9 @@ from typing import Any
 
 from avakill.core.engine import Guard
 from avakill.core.exceptions import ConfigError, RateLimitExceeded
-from avakill.core.models import Decision
+from avakill.core.models import AuditEvent, Decision, ToolCall
 from avakill.core.normalization import ToolNormalizer
+from avakill.logging.event_bus import EventBus
 
 logger = logging.getLogger("avakill.mcp")
 
@@ -81,16 +82,21 @@ class MCPProxyServer:
         self._normalizer: ToolNormalizer | None = ToolNormalizer() if agent != "mcp" else None
 
         # Select evaluation strategy
+        # Guard mode: Guard emits audit events internally, so _emit_audit=False.
+        # Daemon mode: proxy must emit audit events itself.
         if guard is not None:
             self.guard = guard
             self._evaluator = self._evaluate_guard
+            self._emit_audit = False
         elif daemon_socket is not None:
             self.guard = None  # type: ignore[assignment]
             self._daemon_socket = Path(daemon_socket)
             self._evaluator = self._evaluate_daemon
+            self._emit_audit = True
         elif policy is not None:
             self.guard = Guard(policy=policy)
             self._evaluator = self._evaluate_guard
+            self._emit_audit = False
         else:
             raise ConfigError("MCP proxy requires guard, daemon_socket, or policy")
 
@@ -265,6 +271,14 @@ class MCPProxyServer:
             eval_tool = self._normalizer.normalize(tool_name, self._agent)
 
         decision = self._evaluator(eval_tool, arguments)
+
+        # Emit audit event for daemon mode (Guard mode emits internally)
+        if self._emit_audit:
+            event = AuditEvent(
+                tool_call=ToolCall(tool_name=eval_tool, arguments=arguments, agent_id=self._agent),
+                decision=decision,
+            )
+            EventBus.get().emit(event)
 
         if decision.allowed:
             return None  # Forward to upstream
