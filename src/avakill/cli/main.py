@@ -24,6 +24,8 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "keygen": ("avakill.cli.keygen_cmd", "keygen"),
     "logs": ("avakill.cli.logs_cmd", "logs"),
     "mcp-proxy": ("avakill.cli.mcp_proxy_cmd", "mcp_proxy"),
+    "mcp-unwrap": ("avakill.cli.mcp_wrap_cmd", "mcp_unwrap"),
+    "mcp-wrap": ("avakill.cli.mcp_wrap_cmd", "mcp_wrap"),
     "metrics": ("avakill.cli.metrics_cmd", "metrics"),
     "review": ("avakill.cli.review_cmd", "review"),
     "schema": ("avakill.cli.schema_cmd", "schema"),
@@ -34,7 +36,10 @@ _COMMANDS: dict[str, tuple[str, str]] = {
 
 _COMMAND_GROUPS: list[tuple[str, list[str]]] = [
     ("Getting Started", ["init", "validate", "dashboard", "logs"]),
-    ("Integrations", ["mcp-proxy", "daemon", "hook", "evaluate", "launch"]),
+    (
+        "Integrations",
+        ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "daemon", "hook", "evaluate", "launch"],
+    ),
     ("Security", ["sign", "verify", "keygen", "harden", "check-hardening", "review", "approve"]),
     ("Advanced", ["enforce", "compliance", "approvals", "schema", "metrics", "fix"]),
 ]
