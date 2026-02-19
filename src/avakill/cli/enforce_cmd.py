@@ -18,7 +18,7 @@ def enforce() -> None:
 
     Generate or apply OS-level security restrictions derived from
     AvaKill policy deny rules. Supports Linux Landlock, macOS
-    sandbox-exec, and Cilium Tetragon.
+    sandbox-exec, Windows Job Objects, and Cilium Tetragon.
     """
 
 
@@ -97,6 +97,54 @@ def sandbox(policy: str, output: str) -> None:
     config = engine.config
     result = enforcer.write_profile(config, Path(output))
     console.print(f"[bold green]Sandbox profile written to:[/] {result}")
+
+
+@enforce.command()
+@click.option("--policy", default="avakill.yaml", help="Path to policy file.")
+@click.option("--dry-run", is_flag=True, help="Show restrictions without applying.")
+def windows(policy: str, dry_run: bool) -> None:
+    """Apply Windows process restrictions.
+
+    Creates a Job Object with child-process limits and removes dangerous
+    token privileges (SeRestorePrivilege, SeBackupPrivilege, etc.).
+    Privilege removal is irreversible for the process lifetime.
+    """
+    from avakill.enforcement.windows import WindowsEnforcer
+
+    enforcer = WindowsEnforcer()
+
+    if not enforcer.available():
+        console.print(
+            "[bold red]Error:[/] Windows enforcement is only available on Windows.",
+        )
+        raise SystemExit(1)
+
+    try:
+        engine = load_policy(policy)
+    except Exception as exc:
+        console.print(f"[bold red]Error:[/] {exc}")
+        raise SystemExit(1) from exc
+
+    config = engine.config
+    report = enforcer.generate_report(config)
+
+    if dry_run:
+        console.print("[bold]Windows Enforcement Report (dry run):[/]")
+        console.print(f"  Job Object: {'yes' if report['job_object'] else 'no'}")
+        console.print(
+            f"  Privileges to remove: {', '.join(report['privileges_removed']) or '(none)'}"
+        )
+        console.print()
+        for source in report["sources"]:
+            console.print(
+                f"  Rule [bold]{source['rule']}[/] "
+                f"(tool: {source['tool_pattern']}): "
+                f"{', '.join(source['actions'])}"
+            )
+        return
+
+    enforcer.apply(config)
+    console.print("[bold green]Windows restrictions applied.[/]")
 
 
 @enforce.command()

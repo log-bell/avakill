@@ -265,6 +265,7 @@ class DaemonServer:
 
         - Linux: applies Landlock restrictions to the current process.
         - macOS: generates a sandbox-exec SBPL profile and logs the path.
+        - Windows: applies Job Object limits + removes dangerous token privileges.
         - Other platforms: logs a warning that OS enforcement is unavailable.
         """
         config = self._guard.engine.config
@@ -304,10 +305,25 @@ class DaemonServer:
             except Exception:
                 logger.warning("OS enforcement: failed to write sandbox profile.", exc_info=True)
 
+        elif sys.platform == "win32":
+            try:
+                from avakill.enforcement.windows import WindowsEnforcer
+
+                enforcer = WindowsEnforcer()
+                enforcer.apply(config)
+                logger.info(
+                    "OS enforcement: Windows restrictions applied "
+                    "(Job Object + privilege removal)."
+                )
+            except Exception:
+                logger.warning(
+                    "OS enforcement: failed to apply Windows restrictions.", exc_info=True
+                )
+
         else:
             logger.warning(
                 "OS enforcement: not supported on %s. "
-                "Supported: Linux (Landlock), macOS (sandbox-exec).",
+                "Supported: Linux (Landlock), macOS (sandbox-exec), Windows (Job Objects).",
                 sys.platform,
             )
 
