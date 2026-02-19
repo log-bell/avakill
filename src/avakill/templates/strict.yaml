@@ -31,7 +31,7 @@ policies:
       window: "1m"
     message: "Write operations require human approval"
 
-  # --- All execution requires approval ---
+  # --- All execution requires approval (with shell safety) ---
   - name: execution-requires-approval
     tools:
       - "*_execute"
@@ -40,10 +40,12 @@ policies:
       - "command_*"
       - "code_*"
     action: require_approval
+    conditions:
+      shell_safe: true
     rate_limit:
       max_calls: 10
       window: "1m"
-    message: "Execution operations require human approval"
+    message: "Execution operations require human approval (no metacharacters)"
 
   # --- Block all destructive operations ---
   - name: block-destructive

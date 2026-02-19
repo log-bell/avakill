@@ -85,11 +85,34 @@ policies:
       - "run_query"
     action: allow
 
-  # --- Allow safe shell (after dangerous commands are blocked above) ---
+  # --- Allow safe shell (shell_safe + command_allowlist) ---
   - name: allow-safe-shell
     tools:
+      - "shell_execute"
       - "shell_*"
       - "bash_*"
       - "command_*"
-      - "run_command"
     action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist:
+        - echo
+        - ls
+        - cat
+        - pwd
+        - git
+        - python
+        - pip
+        - npm
+        - node
+        - make
+        - which
+        - whoami
+        - date
+        - uname
+        - head
+        - tail
+        - wc
+        - file
+        - stat
+    message: "Safe shell commands allowed (no metacharacters)"
