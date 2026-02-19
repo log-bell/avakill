@@ -75,7 +75,7 @@ def grant(request_id: str, db: str, approver: str) -> None:
     """Approve a pending request."""
     db_path = Path(db).expanduser()
     if not db_path.exists():
-        console.print(f"[red]Approval database not found:[/] {db}")
+        console.print("[dim]No approval requests found. No approvals have been recorded yet.[/]")
         raise SystemExit(1)
 
     async def _grant() -> None:
@@ -101,7 +101,7 @@ def reject(request_id: str, db: str, approver: str) -> None:
     """Deny a pending request."""
     db_path = Path(db).expanduser()
     if not db_path.exists():
-        console.print(f"[red]Approval database not found:[/] {db}")
+        console.print("[dim]No approval requests found. No approvals have been recorded yet.[/]")
         raise SystemExit(1)
 
     async def _reject() -> None:

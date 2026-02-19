@@ -26,6 +26,8 @@ ProcessLauncher
     +-- SandboxConfig (from policy.sandbox)
 ```
 
+**Important:** The platform sandbox backend is only activated when a `sandbox:` section is present in the policy YAML or when using `--agent` (which loads a profile with sandbox paths). Without either, the launcher falls back to `NoopSandboxBackend` and no OS-level restrictions are applied.
+
 ### SandboxBackend Protocol
 
 Every backend implements five methods:
@@ -142,11 +144,14 @@ Combines three security mechanisms for defense-in-depth:
 ### CLI
 
 ```bash
-# Launch with sandbox (auto-detects platform backend)
-avakill launch --policy policy.yaml -- python3 agent.py
+# Launch with sandbox using an agent profile (provides sandbox paths)
+avakill launch --agent aider --policy policy.yaml -- aider
+
+# Launch with sandbox (policy must contain a sandbox: section)
+avakill launch --policy policy-with-sandbox.yaml -- python3 agent.py
 
 # Dry-run to preview sandbox restrictions
-avakill launch --dry-run --policy policy.yaml -- python3 agent.py
+avakill launch --dry-run --agent openclaw --policy policy.yaml
 ```
 
 ### Python API

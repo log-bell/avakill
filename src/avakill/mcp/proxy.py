@@ -507,7 +507,7 @@ class MCPHTTPProxy:
         except ImportError:
             raise ImportError(
                 "aiohttp is required for HTTP proxy mode. "
-                "Install it with: pip install avakill[mcp-http]"
+                'Install it with: pip install "avakill[mcp-http]"'
             ) from None
 
         self._app = web.Application()

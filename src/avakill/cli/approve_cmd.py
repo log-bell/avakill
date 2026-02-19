@@ -87,8 +87,11 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
         raise SystemExit(0)
 
     # Copy proposed to target
-    shutil.copy2(str(proposed_path), str(target_path))
-    console.print(f"[bold green]Policy activated:[/bold green] {target_path}")
+    if proposed_path.resolve() == target_path.resolve():
+        console.print(f"[bold green]Policy already in place:[/bold green] {target_path}")
+    else:
+        shutil.copy2(str(proposed_path), str(target_path))
+        console.print(f"[bold green]Policy activated:[/bold green] {target_path}")
 
     # Auto-sign if signing key is available
     key_hex = os.environ.get("AVAKILL_POLICY_KEY")

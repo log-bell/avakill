@@ -106,6 +106,10 @@ def launch(
             click.echo(f"  Allowed write paths: {config.sandbox.allow_paths.write}")
             click.echo(f"  Allowed executables: {config.sandbox.allow_paths.execute}")
             click.echo(f"  Allowed network: {config.sandbox.allow_network.connect}")
+        elif not fs_avail:
+            click.echo("  Note: No sandbox section in policy and no --agent specified.")
+            click.echo("  Use --agent <name> to load a profile with sandbox paths,")
+            click.echo("  or add a 'sandbox:' section to your policy file.")
         click.echo(f"  Command: {cmd_list}")
         return
 

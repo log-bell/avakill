@@ -210,10 +210,9 @@ def logs(
         console = Console()
         console.print(f"[yellow]Database not found:[/yellow] {db_path}")
         console.print(
-            "[dim]Enable audit logging by passing a SQLiteLogger to Guard:\n"
-            "  logger = SQLiteLogger('avakill_audit.db')\n"
-            "  guard = Guard(policy='avakill.yaml', logger=logger)\n"
-            "See: https://avakill.com/docs/getting-started[/dim]"
+            "[dim]Enable audit logging:\n"
+            "  Daemon:  avakill daemon start --log-db avakill_audit.db\n"
+            "  Python:  Guard(policy='avakill.yaml', logger=SQLiteLogger('avakill_audit.db'))[/dim]"
         )
         raise SystemExit(1)
 

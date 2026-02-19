@@ -4,7 +4,7 @@ from avakill.core.engine import Guard
 from avakill.core.exceptions import ConfigError, PolicyViolation, RateLimitExceeded
 from avakill.interceptors.decorator import protect
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def __getattr__(name: str):  # noqa: ANN001

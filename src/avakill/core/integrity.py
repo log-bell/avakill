@@ -116,7 +116,7 @@ class PolicyIntegrity:
             logger.warning(
                 "Ed25519 verify key provided but PyNaCl is not installed. "
                 "Falling back to HMAC verification. "
-                "Install with: pip install avakill[signed-policies]"
+                'Install with: pip install "avakill[signed-policies]"'
             )
             self._verify_key = None
 
@@ -282,7 +282,7 @@ class PolicyIntegrity:
         if not HAS_NACL:
             raise RuntimeError(
                 "PyNaCl is required for Ed25519 signing. "
-                "Install with: pip install avakill[signed-policies]"
+                'Install with: pip install "avakill[signed-policies]"'
             )
         path = Path(path)
         content = path.read_bytes()

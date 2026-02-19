@@ -134,6 +134,7 @@ def _daemonize(
 ) -> None:
     """Launch daemon as a detached background process."""
     import subprocess
+    import time
 
     cmd = [sys.executable, "-m", "avakill", "daemon", "start", "--foreground", "--policy", policy]
     if socket and sys.platform != "win32":
@@ -145,23 +146,35 @@ def _daemonize(
     if enforce:
         cmd.append("--enforce")
 
+    popen_kwargs: dict = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.PIPE,
+    }
     if sys.platform == "win32":
         # DETACHED_PROCESS | CREATE_NO_WINDOW
-        creationflags = 0x00000008 | 0x08000000
-        proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=creationflags,
-        )
+        popen_kwargs["creationflags"] = 0x00000008 | 0x08000000
     else:
-        proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        popen_kwargs["start_new_session"] = True
 
+    proc = subprocess.Popen(cmd, **popen_kwargs)
+
+    # Give child time to initialize (socket bind, policy load, etc.)
+    time.sleep(1.0)
+
+    exit_code = proc.poll()
+    if exit_code is not None:
+        # Child died during startup — show the error
+        stderr_output = ""
+        if proc.stderr:
+            stderr_output = proc.stderr.read().decode(errors="replace").strip()
+            proc.stderr.close()
+        click.echo(f"Error: daemon exited immediately (code {exit_code}).", err=True)
+        if stderr_output:
+            click.echo(stderr_output, err=True)
+        raise SystemExit(1)
+
+    # Child is alive — close our end of the pipe and report success
+    if proc.stderr:
+        proc.stderr.close()
     click.echo(f"Daemon started (PID {proc.pid}).")

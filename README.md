@@ -44,7 +44,7 @@ avakill init
 ```python
 from avakill import Guard, protect
 
-guard = Guard()  # Loads avakill.yaml from current directory
+guard = Guard()  # Auto-discovers avakill.yaml created by `avakill init`
 
 @protect(guard=guard)
 def search_users(query: str) -> str:
