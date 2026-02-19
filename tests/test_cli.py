@@ -206,6 +206,51 @@ class TestInitCommand:
         assert result.exit_code == 0
         assert output.read_text() == "existing content"
 
+    def test_init_next_steps_uses_output_filename(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Step 1 should reflect the --output filename, not hardcode avakill.yaml."""
+        output = tmp_path / "custom.yaml"
+        result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        assert result.exit_code == 0
+        assert "custom.yaml" in result.output
+        # Should NOT reference the default name when a custom one is given
+        assert "avakill.yaml" not in result.output.split("Next steps")[1]
+
+    def test_init_no_snippet_reference_without_frameworks(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """When no frameworks are detected, 'see snippet above' must not appear."""
+        output = tmp_path / "avakill.yaml"
+        with patch("avakill.cli.init_cmd.Path.cwd", return_value=tmp_path):
+            result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        assert result.exit_code == 0
+        assert "see snippet above" not in result.output
+
+    def test_init_snippet_reference_with_frameworks(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """When frameworks are detected, 'see snippet above' should appear."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\ndependencies = ["openai>=1.0"]\n')
+        output = tmp_path / "avakill.yaml"
+        with patch("avakill.cli.init_cmd.Path.cwd", return_value=tmp_path):
+            result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        assert result.exit_code == 0
+        assert "see snippet above" in result.output
+
+    def test_init_mentions_audit_logging_before_dashboard(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Audit logging step should appear before dashboard step."""
+        output = tmp_path / "avakill.yaml"
+        result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        assert result.exit_code == 0
+        out = result.output.lower()
+        audit_pos = out.find("audit logging")
+        dashboard_pos = out.find("dashboard")
+        assert audit_pos != -1, "audit logging not mentioned in output"
+        assert dashboard_pos != -1, "dashboard not mentioned in output"
+        assert audit_pos < dashboard_pos, "audit logging should appear before dashboard"
+
 
 # ---------------------------------------------------------------
 # Validate command

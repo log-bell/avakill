@@ -46,11 +46,11 @@ guard = Guard()  # Loads avakill.yaml from current directory
 
 @protect(guard=guard)
 def search_users(query: str) -> str:
-    return db.execute(f"SELECT * FROM users WHERE name LIKE '%{query}%'")
+    return db.execute("SELECT * FROM users WHERE name LIKE ?", (f"%{query}%",))
 
 @protect(guard=guard)
 def delete_user(user_id: str):
-    db.execute(f"DELETE FROM users WHERE id = {user_id}")
+    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 search_users(query="active")   # ✅ Allowed — read operations pass through
 delete_user(user_id="123")     # ❌ Blocked — PolicyViolation raised

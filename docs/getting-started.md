@@ -47,9 +47,10 @@ Which policy template? [default/strict/permissive] (default): default
 
 Next steps:
   1. Review and customise avakill.yaml
-  2. Add AvaKill to your agent code (see snippet above)
-  3. Run avakill dashboard to monitor in real-time
-  4. Run avakill validate to check your policy
+  2. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started
+  3. Enable audit logging (see docs/getting-started)
+  4. Run avakill dashboard to monitor in real-time
+  5. Run avakill validate to check your policy
 ```
 
 Three templates are available:

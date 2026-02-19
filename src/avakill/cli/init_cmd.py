@@ -181,15 +181,21 @@ def init(template: str | None, output: str) -> None:
 
     console.print()
     console.print("[bold]Next steps:[/bold]")
-    console.print("  1. Review and customise [cyan]avakill.yaml[/cyan]")
-    console.print("  2. Add AvaKill to your agent code (see snippet above)")
+    console.print(f"  1. Review and customise [cyan]{output_path}[/cyan]")
+    step = 2
+    if detected:
+        console.print(f"  {step}. Add AvaKill to your agent code (see snippet above)")
+    else:
+        console.print(f"  {step}. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started")
+    step += 1
     if agents:
         console.print(
-            "  3. Run [cyan]avakill hook install --agent all[/cyan] to register agent hooks"
+            f"  {step}. Run [cyan]avakill hook install --agent all[/cyan] to register agent hooks"
         )
-        console.print("  4. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")
-        console.print("  5. Run [cyan]avakill validate[/cyan] to check your policy")
-    else:
-        console.print("  3. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")
-        console.print("  4. Run [cyan]avakill validate[/cyan] to check your policy")
+        step += 1
+    console.print(f"  {step}. Enable audit logging (see [cyan]docs/getting-started[/cyan])")
+    step += 1
+    console.print(f"  {step}. Run [cyan]avakill dashboard[/cyan] to monitor in real-time")
+    step += 1
+    console.print(f"  {step}. Run [cyan]avakill validate[/cyan] to check your policy")
     console.print()
