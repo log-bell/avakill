@@ -184,6 +184,40 @@ class PolicyRule(BaseModel):
         return v
 
 
+class SandboxPathRules(BaseModel):
+    """Filesystem path allowlists for OS-level sandboxing."""
+
+    read: list[str] = Field(default_factory=list)
+    write: list[str] = Field(default_factory=list)
+    execute: list[str] = Field(default_factory=list)
+
+
+class SandboxNetworkRules(BaseModel):
+    """Network allowlists for OS-level sandboxing (Landlock ABI 4+)."""
+
+    connect: list[str] = Field(default_factory=list)
+    bind: list[str] = Field(default_factory=list)
+
+
+class SandboxResourceLimits(BaseModel):
+    """Resource limits for sandboxed processes."""
+
+    max_memory_mb: int | None = None
+    max_open_files: int | None = None
+    max_processes: int | None = None
+    timeout_seconds: int | None = None
+
+
+class SandboxConfig(BaseModel):
+    """OS-level sandbox configuration. Optional section in policy YAML."""
+
+    allow_paths: SandboxPathRules = Field(default_factory=SandboxPathRules)
+    allow_network: SandboxNetworkRules = Field(default_factory=SandboxNetworkRules)
+    resource_limits: SandboxResourceLimits = Field(default_factory=SandboxResourceLimits)
+    inherit_env: bool = True
+    inject_hooks: bool = True
+
+
 class PolicyConfig(BaseModel):
     """Top-level parsed YAML policy configuration.
 
@@ -192,6 +226,7 @@ class PolicyConfig(BaseModel):
         default_action: Action to take when no rule matches.
         policies: Ordered list of policy rules evaluated top-to-bottom.
         notifications: Optional notification configuration.
+        sandbox: Optional OS-level sandbox configuration.
     """
 
     model_config = ConfigDict(
@@ -235,6 +270,7 @@ class PolicyConfig(BaseModel):
         description="Ordered list of policy rules evaluated top-to-bottom. First match wins."
     )
     notifications: dict[str, Any] = Field(default_factory=dict)
+    sandbox: SandboxConfig | None = None
 
     @field_validator("version")
     @classmethod
