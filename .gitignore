@@ -41,6 +41,9 @@ htmlcov/
 
 # Databases
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 
 # Environment files
 .env
