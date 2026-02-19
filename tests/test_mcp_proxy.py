@@ -858,12 +858,12 @@ class TestMCPProxyInitValidation:
 
 
 # ---------------------------------------------------------------------------
-# MCPHTTPProxy — stub tests
+# MCPHTTPProxy — basic tests (full tests in test_mcp_http_proxy.py)
 # ---------------------------------------------------------------------------
 
 
 class TestMCPHTTPProxy:
-    """The HTTP proxy is a placeholder for v1.1."""
+    """Basic MCPHTTPProxy tests — see test_mcp_http_proxy.py for full coverage."""
 
     def test_instantiation(self, guard: Guard) -> None:
         proxy = MCPHTTPProxy("http://localhost:8080", guard)
@@ -871,12 +871,12 @@ class TestMCPHTTPProxy:
         assert proxy.host == "127.0.0.1"
         assert proxy.port == 5100
 
-    async def test_start_raises(self, guard: Guard) -> None:
+    def test_evaluator_allows(self, guard: Guard) -> None:
         proxy = MCPHTTPProxy("http://localhost:8080", guard)
-        with pytest.raises(NotImplementedError, match="v1.1"):
-            await proxy.start()
+        decision = proxy._evaluator("read_file", {"path": "/tmp/x"})
+        assert decision.allowed is True
 
-    async def test_stop_raises(self, guard: Guard) -> None:
+    def test_evaluator_denies(self, guard: Guard) -> None:
         proxy = MCPHTTPProxy("http://localhost:8080", guard)
-        with pytest.raises(NotImplementedError, match="v1.1"):
-            await proxy.stop()
+        decision = proxy._evaluator("delete_file", {"path": "/"})
+        assert decision.allowed is False

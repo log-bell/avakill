@@ -415,27 +415,185 @@ class MCPHTTPProxy:
 
     Listens on a local port and forwards requests to an upstream HTTP MCP
     server, intercepting ``tools/call`` requests and evaluating them against
-    the :class:`Guard` policy.
+    the policy engine.
 
-    Planned for v1.1.
+    Requires the ``mcp-http`` extra (``pip install avakill[mcp-http]``).
     """
 
     def __init__(
         self,
         upstream_url: str,
-        guard: Guard,
+        guard: Guard | None = None,
+        *,
+        daemon_socket: str | Path | None = None,
+        policy: str | Path | None = None,
         host: str = "127.0.0.1",
         port: int = 5100,
     ) -> None:
         self.upstream_url = upstream_url
-        self.guard = guard
         self.host = host
         self.port = port
+        self._app: Any = None
+        self._runner: Any = None
+        self._site: Any = None
+
+        # Reuse the same evaluator strategy as MCPProxyServer
+        if guard is not None:
+            self.guard = guard
+            self._evaluator = self._evaluate_guard
+        elif daemon_socket is not None:
+            self.guard = None  # type: ignore[assignment]
+            self._daemon_socket = Path(daemon_socket)
+            self._evaluator = self._evaluate_daemon
+        elif policy is not None:
+            self.guard = Guard(policy=policy)
+            self._evaluator = self._evaluate_guard
+        else:
+            raise ConfigError("MCPHTTPProxy requires guard, daemon_socket, or policy")
+
+    def _evaluate_guard(self, tool: str, args: dict[str, Any]) -> Decision:
+        """Evaluate using the embedded or standalone Guard instance."""
+        try:
+            return self.guard.evaluate(tool=tool, args=args)
+        except RateLimitExceeded as exc:
+            return exc.decision
+
+    def _evaluate_daemon(self, tool: str, args: dict[str, Any]) -> Decision:
+        """Evaluate via DaemonClient over Unix socket."""
+        from avakill.daemon.client import DaemonClient
+        from avakill.daemon.protocol import EvaluateRequest
+
+        client = DaemonClient(socket_path=self._daemon_socket)
+        request = EvaluateRequest(agent="mcp-http", tool=tool, args=args)
+        try:
+            resp = client.evaluate(request)
+        except Exception:  # noqa: BLE001
+            return Decision(allowed=False, action="deny", reason="daemon unavailable")
+        allowed = resp.decision == "allow"
+        return Decision(
+            allowed=allowed,
+            action=resp.decision,
+            policy_name=resp.policy,
+            reason=resp.reason,
+        )
 
     async def start(self) -> None:
         """Start the HTTP proxy server."""
-        raise NotImplementedError("HTTP transport proxy is planned for v1.1")
+        try:
+            from aiohttp import web
+        except ImportError:
+            raise ImportError(
+                "aiohttp is required for HTTP proxy mode. "
+                "Install it with: pip install avakill[mcp-http]"
+            ) from None
+
+        self._app = web.Application()
+        self._app.router.add_route("*", "/{path_info:.*}", self._handle_request)
+
+        self._runner = web.AppRunner(self._app)
+        await self._runner.setup()
+        self._site = web.TCPSite(self._runner, self.host, self.port)
+        await self._site.start()
+        logger.info("MCPHTTPProxy listening on %s:%s", self.host, self.port)
 
     async def stop(self) -> None:
         """Stop the HTTP proxy server."""
-        raise NotImplementedError("HTTP transport proxy is planned for v1.1")
+        if self._runner is not None:
+            await self._runner.cleanup()
+            self._runner = None
+            self._site = None
+            self._app = None
+            logger.info("MCPHTTPProxy stopped.")
+
+    async def _handle_request(self, request: Any) -> Any:
+        """Handle incoming HTTP request.
+
+        POST requests with JSON-RPC body:
+          - If method == "tools/call": evaluate against policy
+          - If denied: return synthetic error response
+          - If allowed: forward to upstream and relay response
+        Non-POST requests: forward directly.
+        """
+        from aiohttp import ClientSession, web
+
+        if request.method != "POST":
+            # Forward non-POST requests (GET for SSE, etc.) directly
+            async with (
+                ClientSession() as session,
+                session.request(
+                    request.method,
+                    self.upstream_url + request.path_qs,
+                    headers=dict(request.headers),
+                ) as resp,
+            ):
+                body = await resp.read()
+                return web.Response(body=body, status=resp.status, headers=dict(resp.headers))
+
+        # Parse JSON-RPC body
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, Exception):
+            # Not valid JSON — forward as-is
+            raw = await request.read()
+            async with (
+                ClientSession() as session,
+                session.post(
+                    self.upstream_url,
+                    data=raw,
+                    headers=dict(request.headers),
+                ) as resp,
+            ):
+                resp_body = await resp.read()
+                return web.Response(body=resp_body, status=resp.status, headers=dict(resp.headers))
+
+        # Check if this is a tools/call request
+        method = body.get("method") if isinstance(body, dict) else None
+
+        if method == "tools/call":
+            params = body.get("params", {})
+            tool_name = params.get("name", "")
+            arguments = params.get("arguments", {})
+            request_id = body.get("id")
+
+            decision = self._evaluator(tool_name, arguments)
+
+            if not decision.allowed:
+                reason = decision.reason or "Denied by policy"
+                policy_name = decision.policy_name or "unknown"
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": (
+                                    f"\u26d4 AvaKill blocked this tool call: "
+                                    f"{reason}. Policy: {policy_name}"
+                                ),
+                            }
+                        ],
+                        "isError": True,
+                    },
+                }
+                return web.json_response(error_response)
+
+        # Allowed or non-tools/call: forward to upstream
+        async with (
+            ClientSession() as session,
+            session.post(
+                self.upstream_url,
+                json=body,
+                headers={
+                    k: v
+                    for k, v in request.headers.items()
+                    if k.lower() not in ("host", "content-length")
+                },
+            ) as resp,
+        ):
+            resp_body = await resp.read()
+            return web.Response(
+                body=resp_body,
+                status=resp.status,
+                content_type=resp.content_type,
+            )
