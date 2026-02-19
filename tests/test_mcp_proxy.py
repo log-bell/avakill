@@ -858,6 +858,59 @@ class TestMCPProxyInitValidation:
 
 
 # ---------------------------------------------------------------------------
+# Tool normalization
+# ---------------------------------------------------------------------------
+
+
+class TestMCPProxyNormalization:
+    """Verify tool name normalization before evaluation."""
+
+    async def test_tool_name_normalized_before_evaluation(self) -> None:
+        """When agent is 'claude-code', tool name 'Bash' → 'shell_execute'."""
+        # Policy that denies shell_execute (canonical name)
+        policy = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[
+                PolicyRule(name="deny-shell", tools=["shell_execute"], action="deny"),
+            ],
+        )
+        guard = Guard(policy=policy)
+        proxy = MCPProxyServer("echo", [], guard=guard, agent="claude-code")
+
+        # Send a tools/call with agent-native name "Bash"
+        msg = _jsonrpc_request("tools/call", {"name": "Bash", "arguments": {"command": "ls"}})
+        result = await proxy._handle_client_message(msg)
+        # Should be denied because "Bash" normalizes to "shell_execute"
+        assert result is not None
+        assert result["result"]["isError"] is True
+
+    async def test_no_normalization_when_agent_not_set(self, guard: Guard) -> None:
+        """Default agent='mcp' means no normalization."""
+        proxy = MCPProxyServer("echo", [], guard=guard)
+        assert proxy._normalizer is None
+
+        # "Bash" won't match any deny rule because it's not normalized
+        msg = _jsonrpc_request("tools/call", {"name": "Bash", "arguments": {}})
+        result = await proxy._handle_client_message(msg)
+        assert result is None  # Passes through
+
+    async def test_unknown_tool_passes_through(self) -> None:
+        """Unknown tools pass through normalization unchanged."""
+        policy = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[],
+        )
+        guard = Guard(policy=policy)
+        proxy = MCPProxyServer("echo", [], guard=guard, agent="claude-code")
+
+        msg = _jsonrpc_request("tools/call", {"name": "CustomTool", "arguments": {}})
+        result = await proxy._handle_client_message(msg)
+        assert result is None  # Passes through (allowed by default)
+
+
+# ---------------------------------------------------------------------------
 # MCPHTTPProxy — basic tests (full tests in test_mcp_http_proxy.py)
 # ---------------------------------------------------------------------------
 

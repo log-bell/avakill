@@ -25,6 +25,7 @@ from typing import Any
 from avakill.core.engine import Guard
 from avakill.core.exceptions import ConfigError, RateLimitExceeded
 from avakill.core.models import Decision
+from avakill.core.normalization import ToolNormalizer
 
 logger = logging.getLogger("avakill.mcp")
 
@@ -75,6 +76,9 @@ class MCPProxyServer:
         self._running = False
         self._client_write_lock: asyncio.Lock = asyncio.Lock()
         self._relay_tasks: list[asyncio.Task[None]] = []
+
+        # Tool normalization: normalize MCP tool names when agent is specified
+        self._normalizer: ToolNormalizer | None = ToolNormalizer() if agent != "mcp" else None
 
         # Select evaluation strategy
         if guard is not None:
@@ -255,7 +259,12 @@ class MCPProxyServer:
         arguments = params.get("arguments", {})
         request_id = message.get("id")
 
-        decision = self._evaluator(tool_name, arguments)
+        # Normalize tool names when agent is specified
+        eval_tool = tool_name
+        if self._normalizer:
+            eval_tool = self._normalizer.normalize(tool_name, self._agent)
+
+        decision = self._evaluator(eval_tool, arguments)
 
         if decision.allowed:
             return None  # Forward to upstream
