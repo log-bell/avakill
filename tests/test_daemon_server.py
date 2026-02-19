@@ -170,9 +170,7 @@ class TestDaemonServerEvaluation:
         server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
         await server.start()
         try:
-            resp = await _send_request(
-                socket_path, EvaluateRequest(agent="test", tool="file_read")
-            )
+            resp = await _send_request(socket_path, EvaluateRequest(agent="test", tool="file_read"))
             assert resp.decision == "allow"
         finally:
             await server.stop()
@@ -235,21 +233,15 @@ class TestDaemonServerEvaluation:
         server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
         await server.start()
         try:
-            resp = await _send_request(
-                socket_path, EvaluateRequest(agent="test", tool="file_read")
-            )
+            resp = await _send_request(socket_path, EvaluateRequest(agent="test", tool="file_read"))
             assert resp.latency_ms >= 0.0
         finally:
             await server.stop()
 
-    async def test_agent_id_forwarded_to_guard(
-        self, socket_path: Path, pid_path: Path
-    ) -> None:
+    async def test_agent_id_forwarded_to_guard(self, socket_path: Path, pid_path: Path) -> None:
         """Verify the agent field reaches Guard.evaluate as agent_id."""
         captured: list[str | None] = []
-        policy = PolicyConfig(
-            policies=[PolicyRule(name="allow-all", tools=["*"], action="allow")]
-        )
+        policy = PolicyConfig(policies=[PolicyRule(name="allow-all", tools=["*"], action="allow")])
         guard = Guard(policy=policy, self_protection=False)
 
         # Monkey-patch to capture agent_id
@@ -348,9 +340,7 @@ class TestDaemonServerConnectionLimit:
         self, guard: Guard, socket_path: Path, pid_path: Path
     ) -> None:
         # max_connections=2, then fire 5 concurrent slow clients
-        server = DaemonServer(
-            guard, socket_path=socket_path, pid_file=pid_path, max_connections=2
-        )
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path, max_connections=2)
         await server.start()
         try:
             # Create clients that hold connections open
@@ -378,9 +368,7 @@ class TestDaemonServerConnectionLimit:
                 await w.wait_closed()
 
             # Normal requests should work fine within the limit
-            resp = await _send_request(
-                socket_path, EvaluateRequest(agent="test", tool="file_read")
-            )
+            resp = await _send_request(socket_path, EvaluateRequest(agent="test", tool="file_read"))
             assert resp.decision == "allow"
         finally:
             await server.stop()
@@ -416,9 +404,7 @@ class TestDaemonServerEvents:
         server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
         await server.start()
         try:
-            await _send_request(
-                socket_path, EvaluateRequest(agent="test", tool="file_delete")
-            )
+            await _send_request(socket_path, EvaluateRequest(agent="test", tool="file_delete"))
             assert len(events) >= 1
         finally:
             await server.stop()

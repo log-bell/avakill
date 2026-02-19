@@ -33,7 +33,7 @@ class TestMetricsCommand:
             patch("avakill.cli.metrics_cmd.threading.Event", return_value=mock_event),
             patch("prometheus_client.start_http_server") as mock_start,
         ):
-            result = runner.invoke(cli, ["metrics", "--port", "9100"])
+            runner.invoke(cli, ["metrics", "--port", "9100"])
             assert mock_start.called
             assert mock_start.call_args[0][0] == 9100
 
@@ -47,7 +47,7 @@ class TestMetricsCommand:
             patch("avakill.cli.metrics_cmd.threading.Event", return_value=mock_event),
             patch("prometheus_client.start_http_server") as mock_start,
         ):
-            result = runner.invoke(cli, ["metrics", "--port", "9200", "--host", "127.0.0.1"])
+            runner.invoke(cli, ["metrics", "--port", "9200", "--host", "127.0.0.1"])
             assert mock_start.called
             assert mock_start.call_args[0][0] == 9200
             assert mock_start.call_args[1]["addr"] == "127.0.0.1"

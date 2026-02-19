@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -126,7 +127,7 @@ class TestLazyGroup:
             # Already loaded from prior tests — skip this check
             return
 
-        from avakill.cli.main import LazyGroup, _COMMANDS
+        from avakill.cli.main import _COMMANDS, LazyGroup
 
         ctx = click.Context(click.Command("dummy"))
         group = LazyGroup()

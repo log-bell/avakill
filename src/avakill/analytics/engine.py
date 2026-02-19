@@ -20,9 +20,7 @@ class AuditAnalytics:
     def __init__(self, logger: SQLiteLogger) -> None:
         self._logger = logger
 
-    async def denial_trend(
-        self, hours: int = 24, bucket_minutes: int = 60
-    ) -> list[dict]:
+    async def denial_trend(self, hours: int = 24, bucket_minutes: int = 60) -> list[dict]:
         """Return denial counts bucketed by time interval.
 
         Args:
@@ -34,9 +32,7 @@ class AuditAnalytics:
         """
         await self._logger.flush()
         db = await self._logger._ensure_db()
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(hours=hours)
-        ).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         cursor = await db.execute(
             "SELECT "

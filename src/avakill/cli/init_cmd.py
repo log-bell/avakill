@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import shutil
+import sys
 from pathlib import Path
 
 import click
@@ -104,6 +105,12 @@ def init(template: str | None, output: str) -> None:
 
     output_path = Path(output)
     if output_path.exists():
+        if not sys.stdin.isatty():
+            console.print(
+                f"[yellow]{output_path}[/yellow] already exists. "
+                "Use [bold]--output[/bold] to specify a different path.",
+            )
+            return
         overwrite = Prompt.ask(
             f"[yellow]{output_path}[/yellow] already exists. Overwrite?",
             choices=["y", "n"],
@@ -119,12 +126,15 @@ def init(template: str | None, output: str) -> None:
 
     # Choose template
     if template is None:
-        template = Prompt.ask(
-            "Which policy template?",
-            choices=["default", "strict", "permissive"],
-            default="default",
-            console=console,
-        )
+        if not sys.stdin.isatty():
+            template = "default"
+        else:
+            template = Prompt.ask(
+                "Which policy template?",
+                choices=["default", "strict", "permissive"],
+                default="default",
+                console=console,
+            )
 
     # Copy template
     src = _TEMPLATES_DIR / f"{template}.yaml"
@@ -186,7 +196,9 @@ def init(template: str | None, output: str) -> None:
     if detected:
         console.print(f"  {step}. Add AvaKill to your agent code (see snippet above)")
     else:
-        console.print(f"  {step}. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started")
+        console.print(
+            f"  {step}. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started"
+        )
     step += 1
     if agents:
         console.print(

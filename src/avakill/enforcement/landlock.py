@@ -195,7 +195,7 @@ class LandlockEnforcer:
             # to grant back specific access.
             allowed_access = ALL_ACCESS_FS & ~restricted_flags
             if allowed_access:
-                root_fd = os.open("/", os.O_PATH | os.O_DIRECTORY)
+                root_fd = os.open("/", os.O_PATH | os.O_DIRECTORY)  # type: ignore[attr-defined]
                 try:
                     path_attr = LandlockPathBeneathAttr(
                         allowed_access=allowed_access,

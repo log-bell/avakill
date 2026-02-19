@@ -47,9 +47,9 @@ def _make_wordmark():
             line = line.replace("\u2551", "\u2588")  # ║ -> █
             line = line.replace("\u2554", "\u2588")  # ╔ -> █
             line = line.replace("\u2557", "\u2588")  # ╗ -> █
-            line = line.replace("\u255a", " ")       # ╚ -> space
-            line = line.replace("\u255d", " ")       # ╝ -> space
-            line = line.replace("\u2550", " ")       # ═ -> space
+            line = line.replace("\u255a", " ")  # ╚ -> space
+            line = line.replace("\u255d", " ")  # ╝ -> space
+            line = line.replace("\u2550", " ")  # ═ -> space
             sanitized.append(line)
         joined = sanitized
 

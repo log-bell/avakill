@@ -13,9 +13,7 @@ from avakill import Guard
 def guard(tmp_path):
     """Create a Guard with a simple allow-all policy."""
     policy_file = tmp_path / "avakill.yaml"
-    policy_file.write_text(
-        "version: '1.0'\ndefault_action: allow\npolicies: []\n"
-    )
+    policy_file.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
     return Guard(policy=str(policy_file), self_protection=False)
 
 
@@ -23,9 +21,7 @@ def guard(tmp_path):
 def deny_guard(tmp_path):
     """Create a Guard with a deny-all policy."""
     policy_file = tmp_path / "avakill.yaml"
-    policy_file.write_text(
-        "version: '1.0'\ndefault_action: deny\npolicies: []\n"
-    )
+    policy_file.write_text("version: '1.0'\ndefault_action: deny\npolicies: []\n")
     return Guard(policy=str(policy_file), self_protection=False)
 
 

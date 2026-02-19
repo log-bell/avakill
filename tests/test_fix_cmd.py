@@ -30,59 +30,67 @@ def db_with_denials(tmp_path: Path) -> Path:
             await logger._ensure_db()
 
             # Denied by policy rule
-            await logger.log(AuditEvent(
-                tool_call=ToolCall(
-                    tool_name="file_delete",
-                    arguments={"path": "/etc/passwd"},
-                    agent_id="claude",
-                ),
-                decision=Decision(
-                    allowed=False,
-                    action="deny",
-                    policy_name="block-deletes",
-                    reason="Matched rule 'block-deletes'",
-                ),
-            ))
+            await logger.log(
+                AuditEvent(
+                    tool_call=ToolCall(
+                        tool_name="file_delete",
+                        arguments={"path": "/etc/passwd"},
+                        agent_id="claude",
+                    ),
+                    decision=Decision(
+                        allowed=False,
+                        action="deny",
+                        policy_name="block-deletes",
+                        reason="Matched rule 'block-deletes'",
+                    ),
+                )
+            )
             # Denied by rate limit
-            await logger.log(AuditEvent(
-                tool_call=ToolCall(
-                    tool_name="web_search",
-                    arguments={"q": "test"},
-                    agent_id="claude",
-                ),
-                decision=Decision(
-                    allowed=False,
-                    action="deny",
-                    policy_name="rate-limited-search",
-                    reason="Rate limit exceeded: 10 calls per 60s",
-                ),
-            ))
+            await logger.log(
+                AuditEvent(
+                    tool_call=ToolCall(
+                        tool_name="web_search",
+                        arguments={"q": "test"},
+                        agent_id="claude",
+                    ),
+                    decision=Decision(
+                        allowed=False,
+                        action="deny",
+                        policy_name="rate-limited-search",
+                        reason="Rate limit exceeded: 10 calls per 60s",
+                    ),
+                )
+            )
             # Denied by default deny
-            await logger.log(AuditEvent(
-                tool_call=ToolCall(
-                    tool_name="unknown_tool",
-                    arguments={},
-                    agent_id="claude",
-                ),
-                decision=Decision(
-                    allowed=False,
-                    action="deny",
-                    reason="No matching rule; default action is 'deny'",
-                ),
-            ))
+            await logger.log(
+                AuditEvent(
+                    tool_call=ToolCall(
+                        tool_name="unknown_tool",
+                        arguments={},
+                        agent_id="claude",
+                    ),
+                    decision=Decision(
+                        allowed=False,
+                        action="deny",
+                        reason="No matching rule; default action is 'deny'",
+                    ),
+                )
+            )
             # An allowed event (should NOT appear in fix output)
-            await logger.log(AuditEvent(
-                tool_call=ToolCall(
-                    tool_name="file_read",
-                    arguments={"path": "/tmp/ok"},
-                    agent_id="claude",
-                ),
-                decision=Decision(
-                    allowed=True,
-                    action="allow",
-                    policy_name="allow-read",
-                ),
-            ))
+            await logger.log(
+                AuditEvent(
+                    tool_call=ToolCall(
+                        tool_name="file_read",
+                        arguments={"path": "/tmp/ok"},
+                        agent_id="claude",
+                    ),
+                    decision=Decision(
+                        allowed=True,
+                        action="allow",
+                        policy_name="allow-read",
+                    ),
+                )
+            )
             await logger.flush()
         finally:
             await logger.close()
@@ -107,9 +115,7 @@ class TestFixCommand:
         # Most recent denial is the default-deny for unknown_tool
         assert "unknown_tool" in result.output
 
-    def test_fix_all_shows_all_denials(
-        self, runner: CliRunner, db_with_denials: Path
-    ) -> None:
+    def test_fix_all_shows_all_denials(self, runner: CliRunner, db_with_denials: Path) -> None:
         result = runner.invoke(cli, ["fix", "--all", "--db", str(db_with_denials)])
         assert result.exit_code == 0
         assert "file_delete" in result.output
@@ -128,9 +134,7 @@ class TestFixCommand:
         # Bug 1 fix: should contain actual tool name, not <tool>
         assert "file_delete" in result.output
 
-    def test_fix_json_output(
-        self, runner: CliRunner, db_with_denials: Path
-    ) -> None:
+    def test_fix_json_output(self, runner: CliRunner, db_with_denials: Path) -> None:
         result = runner.invoke(cli, ["fix", "--last", "--json", "--db", str(db_with_denials)])
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -140,6 +144,7 @@ class TestFixCommand:
 
     def test_fix_no_events(self, runner: CliRunner, tmp_path: Path) -> None:
         empty_db = tmp_path / "empty.db"
+
         # Create an empty DB
         async def _create():
             logger = SQLiteLogger(str(empty_db))
@@ -147,6 +152,7 @@ class TestFixCommand:
                 await logger._ensure_db()
             finally:
                 await logger.close()
+
         asyncio.run(_create())
 
         result = runner.invoke(cli, ["fix", "--db", str(empty_db)])
@@ -157,9 +163,7 @@ class TestFixCommand:
         result = runner.invoke(cli, ["fix", "--db", "/nonexistent/path.db"])
         assert result.exit_code != 0
 
-    def test_fix_default_is_last(
-        self, runner: CliRunner, db_with_denials: Path
-    ) -> None:
+    def test_fix_default_is_last(self, runner: CliRunner, db_with_denials: Path) -> None:
         """Running 'avakill fix' with no flags is same as --last."""
         result = runner.invoke(cli, ["fix", "--db", str(db_with_denials)])
         assert result.exit_code == 0

@@ -438,6 +438,10 @@ AvaKill protects your agents at multiple levels: **native hooks** intercept tool
 
 ## Roadmap
 
+### Stable
+
+Core features with extensive test coverage, ready for production use.
+
 - [x] Core policy engine with glob patterns, argument matching, rate limiting
 - [x] OpenAI, Anthropic, LangChain/LangGraph interceptors
 - [x] `@protect` decorator for any Python function
@@ -445,21 +449,29 @@ AvaKill protects your agents at multiple levels: **native hooks** intercept tool
 - [x] SQLite audit logging with async batched writes
 - [x] Rich terminal dashboard with live event stream
 - [x] CLI: `init`, `validate`, `logs`, `dashboard`, `mcp-proxy`, `schema`
-- [x] Policy signing (HMAC-SHA256 + Ed25519)
-- [x] Self-protection (hardcoded anti-tampering rules)
-- [x] OS-level hardening (chattr/schg, SELinux, AppArmor, seccomp)
-- [x] C-level audit hooks (optional hardened extension)
 - [x] Hot-reload with file watcher
-- [x] OpenTelemetry + Prometheus observability
 - [x] Persistent daemon with Unix socket (<5ms evaluation)
 - [x] Agent hook adapters (Claude Code, Gemini CLI, Cursor, Windsurf)
 - [x] Tool name normalization across agents
 - [x] Multi-level policy cascade (system/global/project/local)
+
+### Shipped (beta)
+
+Implemented and tested. Maturing toward stable in upcoming releases.
+
+- [x] Policy signing (HMAC-SHA256 + Ed25519)
+- [x] Self-protection (hardcoded anti-tampering rules)
+- [x] OS-level hardening (chattr/schg, SELinux, AppArmor, seccomp)
+- [x] C-level audit hooks (optional hardened extension)
+- [x] OpenTelemetry + Prometheus observability
 - [x] Enforcement levels (hard/soft/advisory)
 - [x] OS-level enforcement (Landlock, macOS sandbox-exec, Tetragon)
 - [x] Compliance reports (SOC 2, NIST AI RMF, EU AI Act, ISO 42001)
 - [x] Human-in-the-loop approval workflows
 - [x] Audit analytics engine
+
+### Planned
+
 - [ ] Web dashboard (Next.js)
 - [ ] Slack / webhook / PagerDuty notifications
 - [ ] MCP HTTP transport proxy (Streamable HTTP)

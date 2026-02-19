@@ -20,11 +20,10 @@ def metrics(port: int, host: str) -> None:
     """
     try:
         from prometheus_client import start_http_server
-    except ImportError:
+    except ImportError as err:
         raise click.ClickException(
-            "prometheus-client is not installed. "
-            "Install it with: pip install avakill[metrics]"
-        )
+            "prometheus-client is not installed. Install it with: pip install avakill[metrics]"
+        ) from err
 
     from avakill.metrics import get_registry
 

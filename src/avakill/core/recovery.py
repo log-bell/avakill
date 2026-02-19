@@ -10,7 +10,7 @@ from typing import Literal
 
 _re_search = _re_mod.search
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict  # noqa: E402
 
 RecoverySource = Literal[
     "self-protection-policy-write",
@@ -85,7 +85,10 @@ def recovery_hint_for(
 
     # --- Self-protection variants ---
     if policy_name == "self-protection":
-        if "targeting policy file" in reason_lower or "shell command targeting policy" in reason_lower:
+        if (
+            "targeting policy file" in reason_lower
+            or "shell command targeting policy" in reason_lower
+        ):
             return RecoveryHint(
                 source="self-protection-policy-write",
                 summary="Blocked policy file modification",

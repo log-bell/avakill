@@ -37,9 +37,7 @@ class TestDetectAgents:
         detected = detect_agents()
         assert detected == []
 
-    def test_detect_multiple_agents(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detect_multiple_agents(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         (tmp_path / ".claude").mkdir()
         (tmp_path / ".gemini").mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)

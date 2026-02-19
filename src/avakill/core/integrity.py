@@ -94,8 +94,7 @@ class FileSnapshot:
             sha = hashlib.sha256(f.read()).hexdigest()
         if sha != self.sha256:
             return False, (
-                f"content hash mismatch: expected {self.sha256[:16]}...,"
-                f" got {sha[:16]}..."
+                f"content hash mismatch: expected {self.sha256[:16]}..., got {sha[:16]}..."
             )
         return True, "ok (hash verified)"
 
@@ -172,9 +171,7 @@ class PolicyIntegrity:
             if actual_sig.startswith(_ED25519_PREFIX):
                 # Ed25519 verification
                 if self._verify_key is None:
-                    return self._fallback(
-                        "Ed25519 signature found but no verify key configured"
-                    )
+                    return self._fallback("Ed25519 signature found but no verify key configured")
                 sig_hex = actual_sig[len(_ED25519_PREFIX) :]
                 try:
                     vk = VerifyKey(self._verify_key)
@@ -184,12 +181,8 @@ class PolicyIntegrity:
             else:
                 # HMAC verification
                 if self._signing_key is None:
-                    return self._fallback(
-                        "HMAC signature found but no HMAC key configured"
-                    )
-                expected_sig = hmac.new(
-                    self._signing_key, raw, hashlib.sha256
-                ).hexdigest()
+                    return self._fallback("HMAC signature found but no HMAC key configured")
+                expected_sig = hmac.new(self._signing_key, raw, hashlib.sha256).hexdigest()
                 if not hmac.compare_digest(expected_sig, actual_sig):
                     return self._fallback("HMAC signature mismatch")
 
@@ -213,6 +206,7 @@ class PolicyIntegrity:
 
         # Step 6: Set baseline for ongoing integrity checks
         import contextlib
+
         with contextlib.suppress(OSError):
             self._baseline = FileSnapshot.from_path(str(path))
 
@@ -323,9 +317,7 @@ class PolicyIntegrity:
 
         if actual.startswith(_ED25519_PREFIX):
             if not HAS_NACL:
-                logger.warning(
-                    "Ed25519 signature found but PyNaCl is not installed"
-                )
+                logger.warning("Ed25519 signature found but PyNaCl is not installed")
                 return False
             sig_hex = actual[len(_ED25519_PREFIX) :]
             try:

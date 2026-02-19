@@ -30,8 +30,7 @@ _POLICY_FILES = ("avakill.yaml", "avakill.yml")
 
 # Patterns for dangerous commands in argument content
 _UNINSTALL_PATTERN = re.compile(
-    r"(?:pip3?|python3?\s+-m\s+pip|uv|poetry)\s+"
-    r"(?:uninstall|remove)\s+avakill",
+    r"(?:pip3?|python3?\s+-m\s+pip|uv|poetry)\s+" r"(?:uninstall|remove)\s+avakill",
     re.IGNORECASE,
 )
 
@@ -68,8 +67,7 @@ _SOURCE_WRITE_PATTERN = re.compile(
 )
 
 _SOURCE_ACTION_PATTERN = re.compile(
-    r"(?:write|delete|remove|overwrite|modify|patch|rm|unlink|mv|sed|>"
-    r"|create|truncate)",
+    r"(?:write|delete|remove|overwrite|modify|patch|rm|unlink|mv|sed|>" r"|create|truncate)",
     re.IGNORECASE,
 )
 
@@ -103,9 +101,7 @@ class SelfProtection:
     def _check_tool_name_and_path(self, tool_call: ToolCall) -> str | None:
         """Check if a write/delete tool targets a policy file."""
         tool_lower = tool_call.tool_name.lower()
-        is_write_tool = any(
-            fnmatch(tool_lower, pat) for pat in _WRITE_TOOL_PATTERNS
-        )
+        is_write_tool = any(fnmatch(tool_lower, pat) for pat in _WRITE_TOOL_PATTERNS)
         if not is_write_tool:
             return None
 
@@ -130,10 +126,7 @@ class SelfProtection:
 
         # Check for approve command (only humans should run this)
         if _APPROVE_PATTERN.search(scan_text):
-            return (
-                "Self-protection: blocked 'avakill approve' — "
-                "only humans may activate policies."
-            )
+            return "Self-protection: blocked 'avakill approve' — only humans may activate policies."
 
         # Check for shell commands targeting policy file
         if _SHELL_POLICY_PATTERN.search(scan_text):
@@ -143,9 +136,7 @@ class SelfProtection:
             )
 
         # Check for writes to avakill source
-        if _SOURCE_WRITE_PATTERN.search(scan_text) and _SOURCE_ACTION_PATTERN.search(
-            scan_text
-        ):
+        if _SOURCE_WRITE_PATTERN.search(scan_text) and _SOURCE_ACTION_PATTERN.search(scan_text):
             return "Self-protection: blocked modification of avakill source files."
 
         return None

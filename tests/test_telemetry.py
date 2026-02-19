@@ -121,9 +121,8 @@ class TestSpanContextManager:
             assert span is not None
 
     def test_evaluation_span_propagates_exception(self) -> None:
-        with pytest.raises(ValueError, match="boom"):
-            with evaluation_span(tool="test"):
-                raise ValueError("boom")
+        with pytest.raises(ValueError, match="boom"), evaluation_span(tool="test"):
+            raise ValueError("boom")
 
     @pytest.mark.skipif(not HAS_OTEL, reason="opentelemetry-api not installed")
     def test_evaluation_span_records_exception(self) -> None:
@@ -133,9 +132,7 @@ class TestSpanContextManager:
             mock_tracer.start_as_current_span.return_value.__enter__ = MagicMock(
                 return_value=mock_span
             )
-            mock_tracer.start_as_current_span.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
+            mock_tracer.start_as_current_span.return_value.__exit__ = MagicMock(return_value=False)
             # Need to re-init instruments to pick up the mock
             reset()
             # This test verifies the concept; with real OTel the span is set

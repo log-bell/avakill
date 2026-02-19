@@ -24,9 +24,7 @@ class ComplianceReport(BaseModel):
     """Full compliance assessment report for a framework."""
 
     framework: str
-    generated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     overall_status: Literal["compliant", "non_compliant", "partial"]
     controls: list[ComplianceControl]
     summary: str

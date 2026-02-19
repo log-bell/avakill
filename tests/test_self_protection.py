@@ -373,25 +373,17 @@ class TestGuardIntegration:
         self, permissive_policy: PolicyConfig
     ) -> None:
         guard = Guard(policy=permissive_policy)
-        decision = guard.evaluate(
-            tool="shell_exec", args={"cmd": "rm avakill.yaml"}
-        )
+        decision = guard.evaluate(tool="shell_exec", args={"cmd": "rm avakill.yaml"})
         assert decision.allowed is False
         assert decision.policy_name == "self-protection"
 
-    def test_self_protection_disabled(
-        self, permissive_policy: PolicyConfig
-    ) -> None:
+    def test_self_protection_disabled(self, permissive_policy: PolicyConfig) -> None:
         guard = Guard(policy=permissive_policy, self_protection=False)
-        decision = guard.evaluate(
-            tool="shell_exec", args={"cmd": "rm avakill.yaml"}
-        )
+        decision = guard.evaluate(tool="shell_exec", args={"cmd": "rm avakill.yaml"})
         # With self-protection disabled, permissive policy allows it
         assert decision.allowed is True
 
-    def test_self_protection_emits_audit_event(
-        self, permissive_policy: PolicyConfig
-    ) -> None:
+    def test_self_protection_emits_audit_event(self, permissive_policy: PolicyConfig) -> None:
         received: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(received.append)
@@ -404,13 +396,9 @@ class TestGuardIntegration:
         assert received[0].decision.policy_name == "self-protection"
         assert received[0].tool_call.tool_name == "shell_exec"
 
-    def test_self_protection_has_latency(
-        self, permissive_policy: PolicyConfig
-    ) -> None:
+    def test_self_protection_has_latency(self, permissive_policy: PolicyConfig) -> None:
         guard = Guard(policy=permissive_policy)
-        decision = guard.evaluate(
-            tool="file_write", args={"path": "avakill.yaml", "content": "x"}
-        )
+        decision = guard.evaluate(tool="file_write", args={"path": "avakill.yaml", "content": "x"})
         assert decision.latency_ms >= 0
 
     def test_normal_evaluation_still_works_with_self_protection(

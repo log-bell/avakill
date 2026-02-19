@@ -86,11 +86,7 @@ class PolicyEngine:
         expired beyond the max window.
         """
         max_window = max(
-            (
-                r.rate_limit.window_seconds()
-                for r in self._config.policies
-                if r.rate_limit
-            ),
+            (r.rate_limit.window_seconds() for r in self._config.policies if r.rate_limit),
             default=0,
         )
         if max_window == 0:
@@ -201,9 +197,7 @@ class PolicyEngine:
                 continue
 
             # Rule matches — check rate limit before returning decision
-            if rule.rate_limit and not self._check_rate_limit(
-                tool_call, rule.rate_limit
-            ):
+            if rule.rate_limit and not self._check_rate_limit(tool_call, rule.rate_limit):
                 elapsed = (time.monotonic() - start) * 1000
                 decision = Decision(
                     allowed=False,
@@ -278,9 +272,7 @@ class PolicyEngine:
                 return True
         return False
 
-    def _check_conditions(
-        self, tool_call: ToolCall, conditions: RuleConditions
-    ) -> bool:
+    def _check_conditions(self, tool_call: ToolCall, conditions: RuleConditions) -> bool:
         """Evaluate rule conditions against a tool call's arguments.
 
         - ``args_match``: ALL keys must match (AND). For each key the
@@ -381,6 +373,4 @@ def load_policy(path: str | Path | None = None) -> PolicyEngine:
         if candidate.exists():
             return PolicyEngine.from_yaml(candidate)
 
-    raise ConfigError(
-        "No policy file found. Create an avakill.yaml or pass an explicit path."
-    )
+    raise ConfigError("No policy file found. Create an avakill.yaml or pass an explicit path.")

@@ -286,9 +286,7 @@ class TestSystemdUnit:
 
     @pytest.fixture()
     def unit_path(self) -> Path:
-        return (
-            Path(__file__).parent.parent / "examples" / "systemd" / "avakill.service"
-        )
+        return Path(__file__).parent.parent / "examples" / "systemd" / "avakill.service"
 
     def test_contains_hardening_directives(self, unit_path: Path) -> None:
         content = unit_path.read_text()

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-from typing import Any
 
 import click
 
@@ -51,12 +50,17 @@ class LazyGroup(click.Group):
     def list_commands(self, ctx: click.Context) -> list[str]:
         return sorted(_COMMANDS)
 
-    def get_command(self, ctx: click.Context, cmd_name: str) -> click.BaseCommand | None:
+    def get_command(  # type: ignore[override]
+        self,
+        ctx: click.Context,
+        cmd_name: str,
+    ) -> click.Command | None:
         if cmd_name not in _COMMANDS:
             return None
         module_path, attr_name = _COMMANDS[cmd_name]
         mod = importlib.import_module(module_path)
-        return getattr(mod, attr_name)
+        cmd: click.Command = getattr(mod, attr_name)
+        return cmd
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         for group_name, cmd_names in _COMMAND_GROUPS:

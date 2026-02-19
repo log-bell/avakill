@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from avakill.compliance.frameworks import (
     FRAMEWORKS,
@@ -46,10 +46,7 @@ class ComplianceAssessor:
             KeyError: If the framework is not recognized.
         """
         if framework not in FRAMEWORKS:
-            raise KeyError(
-                f"Unknown framework '{framework}'. "
-                f"Available: {', '.join(FRAMEWORKS)}"
-            )
+            raise KeyError(f"Unknown framework '{framework}'. Available: {', '.join(FRAMEWORKS)}")
 
         controls = self._assess_framework(framework)
         overall = self._compute_overall(controls)
@@ -222,9 +219,7 @@ class ComplianceAssessor:
             description="Default action is allow (permissive).",
             status="fail",
             evidence=["default_action=allow in policy configuration"],
-            recommendations=[
-                "Set default_action to 'deny' for a secure allowlist approach."
-            ],
+            recommendations=["Set default_action to 'deny' for a secure allowlist approach."],
         )
 
     def _check_audit_logging(
@@ -294,8 +289,7 @@ class ComplianceAssessor:
                 description="Self-protection rules are active.",
                 status="pass",
                 evidence=[
-                    "SelfProtection instance prevents agents from "
-                    "weakening their own guardrails"
+                    "SelfProtection instance prevents agents from weakening their own guardrails"
                 ],
             )
         return ComplianceControl(
@@ -316,24 +310,16 @@ class ComplianceAssessor:
     ) -> ComplianceControl:
         """Check that at least one policy rule has rate limiting."""
         config = self._guard.engine.config
-        has_rate_limit = any(
-            rule.rate_limit is not None for rule in config.policies
-        )
+        has_rate_limit = any(rule.rate_limit is not None for rule in config.policies)
         if has_rate_limit:
-            rate_limited = [
-                rule.name
-                for rule in config.policies
-                if rule.rate_limit is not None
-            ]
+            rate_limited = [rule.name for rule in config.policies if rule.rate_limit is not None]
             return ComplianceControl(
                 control_id=control_id,
                 framework=framework,
                 title=title,
                 description="Rate limiting is configured.",
                 status="pass",
-                evidence=[
-                    f"Rate-limited rules: {', '.join(rate_limited)}"
-                ],
+                evidence=[f"Rate-limited rules: {', '.join(rate_limited)}"],
             )
         return ComplianceControl(
             control_id=control_id,
@@ -343,8 +329,7 @@ class ComplianceAssessor:
             status="partial",
             evidence=["No policy rules have rate_limit set"],
             recommendations=[
-                "Add rate_limit to high-volume tool rules to prevent "
-                "abuse and resource exhaustion."
+                "Add rate_limit to high-volume tool rules to prevent abuse and resource exhaustion."
             ],
         )
 
@@ -353,14 +338,10 @@ class ComplianceAssessor:
     ) -> ComplianceControl:
         """Check that at least one rule uses require_approval action."""
         config = self._guard.engine.config
-        has_approval = any(
-            rule.action == "require_approval" for rule in config.policies
-        )
+        has_approval = any(rule.action == "require_approval" for rule in config.policies)
         if has_approval:
             approval_rules = [
-                rule.name
-                for rule in config.policies
-                if rule.action == "require_approval"
+                rule.name for rule in config.policies if rule.action == "require_approval"
             ]
             return ComplianceControl(
                 control_id=control_id,
@@ -368,9 +349,7 @@ class ComplianceAssessor:
                 title=title,
                 description="Human-in-the-loop approval workflow configured.",
                 status="pass",
-                evidence=[
-                    f"Rules requiring approval: {', '.join(approval_rules)}"
-                ],
+                evidence=[f"Rules requiring approval: {', '.join(approval_rules)}"],
             )
         return ComplianceControl(
             control_id=control_id,
@@ -392,7 +371,7 @@ class ComplianceAssessor:
     @staticmethod
     def _compute_overall(
         controls: list[ComplianceControl],
-    ) -> str:
+    ) -> Literal["compliant", "non_compliant", "partial"]:
         """Compute overall compliance status from individual controls."""
         statuses = {c.status for c in controls}
         if statuses <= {"pass", "not_applicable"}:
@@ -402,9 +381,7 @@ class ComplianceAssessor:
         return "partial"
 
     @staticmethod
-    def _build_summary(
-        framework: str, controls: list[ComplianceControl]
-    ) -> str:
+    def _build_summary(framework: str, controls: list[ComplianceControl]) -> str:
         """Build a human-readable summary line."""
         total = len(controls)
         passed = sum(1 for c in controls if c.status == "pass")

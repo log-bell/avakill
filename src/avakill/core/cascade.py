@@ -87,8 +87,7 @@ class PolicyCascade:
         discovered = self.discover(cwd)
         if not discovered:
             raise ConfigError(
-                "No policy files found in cascade "
-                "(checked system, global, project, local levels)."
+                "No policy files found in cascade (checked system, global, project, local levels)."
             )
 
         configs: list[PolicyConfig] = []
@@ -99,17 +98,13 @@ class PolicyCascade:
                 if data is None:
                     data = {}
                 if not isinstance(data, dict):
-                    raise ConfigError(
-                        f"Policy file {path} must be a YAML mapping at the top level"
-                    )
+                    raise ConfigError(f"Policy file {path} must be a YAML mapping at the top level")
                 config = PolicyConfig.model_validate(data)
                 configs.append(config)
             except yaml.YAMLError as exc:
                 raise ConfigError(f"Invalid YAML in {path}: {exc}") from exc
             except ValidationError as exc:
-                raise ConfigError(
-                    f"Invalid policy in {path}: {exc}"
-                ) from exc
+                raise ConfigError(f"Invalid policy in {path}: {exc}") from exc
 
         return self.merge(configs)
 
@@ -131,9 +126,7 @@ class PolicyCascade:
             A new merged :class:`PolicyConfig`.
         """
         if not configs:
-            return PolicyConfig(
-                version="1.0", default_action="deny", policies=[]
-            )
+            return PolicyConfig(version="1.0", default_action="deny", policies=[])
 
         if len(configs) == 1:
             return configs[0].model_copy(deep=True)
@@ -225,7 +218,10 @@ def _merge_rate_limits(rules: list[PolicyRule]) -> list[PolicyRule]:
         key = frozenset(rule.tools)
         if rule.rate_limit is not None and key in best_rate:
             existing = best_rate[key]
-            if rule.rate_limit.max_calls < existing.rate_limit.max_calls:
+            if (
+                existing.rate_limit is not None
+                and rule.rate_limit.max_calls < existing.rate_limit.max_calls
+            ):
                 # Replace the existing entry in result with the more restrictive one
                 idx = result.index(existing)
                 result[idx] = rule.model_copy(deep=True)

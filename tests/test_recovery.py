@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 from rich.panel import Panel
 
 from avakill.cli.recovery_panel import render_recovery_panel
@@ -14,9 +15,8 @@ from avakill.core.models import (
     PolicyConfig,
     PolicyRule,
     RateLimit,
-    ToolCall,
 )
-from avakill.core.recovery import HintType, RecoveryHint, recovery_hint_for
+from avakill.core.recovery import RecoveryHint, recovery_hint_for
 from avakill.logging.event_bus import EventBus
 
 
@@ -44,7 +44,10 @@ class TestRecoveryHintFor:
             allowed=False,
             action="deny",
             policy_name="self-protection",
-            reason="Self-protection: blocked file_write targeting policy file 'avakill.yaml'. Use .proposed.yaml for staging.",
+            reason=(
+                "Self-protection: blocked file_write targeting policy"
+                " file 'avakill.yaml'. Use .proposed.yaml for staging."
+            ),
         )
         hint = recovery_hint_for(d)
         assert hint is not None
@@ -56,7 +59,10 @@ class TestRecoveryHintFor:
             allowed=False,
             action="deny",
             policy_name="self-protection",
-            reason="Self-protection: blocked shell command targeting policy file. Use .proposed.yaml for staging.",
+            reason=(
+                "Self-protection: blocked shell command targeting"
+                " policy file. Use .proposed.yaml for staging."
+            ),
         )
         hint = recovery_hint_for(d)
         assert hint is not None
@@ -79,7 +85,9 @@ class TestRecoveryHintFor:
             allowed=False,
             action="deny",
             policy_name="self-protection",
-            reason="Self-protection: blocked 'avakill approve' — only humans may activate policies.",
+            reason=(
+                "Self-protection: blocked 'avakill approve' — only humans may activate policies."
+            ),
         )
         hint = recovery_hint_for(d)
         assert hint is not None
@@ -163,7 +171,7 @@ class TestRecoveryHintFor:
         )
         hint = recovery_hint_for(d)
         assert hint is not None
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             hint.source = "something-else"  # type: ignore[misc]
 
     def test_policy_rule_deny_has_structured_fields(self) -> None:
@@ -209,7 +217,10 @@ class TestRecoveryHintFor:
             allowed=False,
             action="deny",
             policy_name="self-protection",
-            reason="Self-protection: blocked file_write targeting policy file 'avakill.yaml'. Use .proposed.yaml for staging.",
+            reason=(
+                "Self-protection: blocked file_write targeting policy"
+                " file 'avakill.yaml'. Use .proposed.yaml for staging."
+            ),
         )
         hint = recovery_hint_for(d)
         assert hint is not None

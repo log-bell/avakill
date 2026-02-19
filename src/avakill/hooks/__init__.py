@@ -39,7 +39,7 @@ def get_adapter(agent: str) -> type[HookAdapter]:
 
 def _import_all() -> None:
     """Import all adapter modules to trigger registration."""
-    import avakill.hooks.claude_code as _  # noqa: F811, F401
-    import avakill.hooks.cursor as _  # noqa: F811, F401
-    import avakill.hooks.gemini_cli as _  # noqa: F811, F401
-    import avakill.hooks.windsurf as _  # noqa: F811, F401
+    import avakill.hooks.claude_code as _cc  # noqa: F811, F401
+    import avakill.hooks.cursor as _cu  # noqa: F811, F401
+    import avakill.hooks.gemini_cli as _gc  # noqa: F811, F401
+    import avakill.hooks.windsurf as _ws  # noqa: F811, F401

@@ -55,9 +55,7 @@ class TestDaemonClient:
     to avoid blocking the event loop that the async server needs.
     """
 
-    async def test_evaluate_allowed(
-        self, guard: Guard, socket_path: Path, pid_path: Path
-    ) -> None:
+    async def test_evaluate_allowed(self, guard: Guard, socket_path: Path, pid_path: Path) -> None:
         server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
         await server.start()
         try:
@@ -69,9 +67,7 @@ class TestDaemonClient:
         finally:
             await server.stop()
 
-    async def test_evaluate_denied(
-        self, guard: Guard, socket_path: Path, pid_path: Path
-    ) -> None:
+    async def test_evaluate_denied(self, guard: Guard, socket_path: Path, pid_path: Path) -> None:
         server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
         await server.start()
         try:

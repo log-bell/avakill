@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from avakill.daemon.protocol import (
     EvaluateRequest,
@@ -49,11 +50,11 @@ class TestEvaluateRequest:
         assert req.event == "pre_tool_use"
 
     def test_missing_agent_raises_validation_error(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EvaluateRequest(tool="t")  # type: ignore[call-arg]
 
     def test_missing_tool_raises_validation_error(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EvaluateRequest(agent="cli")  # type: ignore[call-arg]
 
     def test_default_args_empty_dict(self) -> None:

@@ -52,10 +52,7 @@ def verify(policy_file: str, key: str | None, verbose: bool) -> None:
     else:
         key_hex = key or os.environ.get("AVAKILL_POLICY_KEY")
         if not key_hex:
-            console.print(
-                "[red]Error:[/red] No signing key. "
-                "Set AVAKILL_POLICY_KEY or pass --key."
-            )
+            console.print("[red]Error:[/red] No signing key. Set AVAKILL_POLICY_KEY or pass --key.")
             raise SystemExit(1)
         sig_type = "HMAC-SHA256"
 
@@ -68,13 +65,9 @@ def verify(policy_file: str, key: str | None, verbose: bool) -> None:
     valid = PolicyIntegrity.verify_file(policy_path, key_bytes)
 
     if valid:
-        console.print(
-            f"[bold green]Valid {sig_type} signature:[/bold green] {policy_path}"
-        )
+        console.print(f"[bold green]Valid {sig_type} signature:[/bold green] {policy_path}")
     else:
-        console.print(
-            f"[bold red]Invalid {sig_type} signature:[/bold red] {policy_path}"
-        )
+        console.print(f"[bold red]Invalid {sig_type} signature:[/bold red] {policy_path}")
         console.print("[red]The policy file or signature has been tampered with.[/red]")
 
     if verbose:

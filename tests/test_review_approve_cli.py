@@ -100,12 +100,8 @@ class TestReviewCommand:
 
 
 class TestApproveCommand:
-    def test_approve_with_confirmation(
-        self, runner: CliRunner, valid_proposed: Path
-    ) -> None:
-        result = runner.invoke(
-            cli, ["approve", str(valid_proposed)], input="y\n"
-        )
+    def test_approve_with_confirmation(self, runner: CliRunner, valid_proposed: Path) -> None:
+        result = runner.invoke(cli, ["approve", str(valid_proposed)], input="y\n")
         assert result.exit_code == 0
         assert "activated" in result.output.lower()
         # Check target file was created
@@ -113,31 +109,21 @@ class TestApproveCommand:
         assert target.exists()
         assert target.read_text() == valid_proposed.read_text()
 
-    def test_approve_aborted(
-        self, runner: CliRunner, valid_proposed: Path
-    ) -> None:
-        result = runner.invoke(
-            cli, ["approve", str(valid_proposed)], input="n\n"
-        )
+    def test_approve_aborted(self, runner: CliRunner, valid_proposed: Path) -> None:
+        result = runner.invoke(cli, ["approve", str(valid_proposed)], input="n\n")
         assert result.exit_code == 0
         assert "aborted" in result.output.lower()
         target = valid_proposed.parent / "avakill.yaml"
         assert not target.exists()
 
-    def test_approve_yes_flag(
-        self, runner: CliRunner, valid_proposed: Path
-    ) -> None:
-        result = runner.invoke(
-            cli, ["approve", str(valid_proposed), "--yes"]
-        )
+    def test_approve_yes_flag(self, runner: CliRunner, valid_proposed: Path) -> None:
+        result = runner.invoke(cli, ["approve", str(valid_proposed), "--yes"])
         assert result.exit_code == 0
         assert "activated" in result.output.lower()
         target = valid_proposed.parent / "avakill.yaml"
         assert target.exists()
 
-    def test_approve_custom_target(
-        self, runner: CliRunner, valid_proposed: Path
-    ) -> None:
+    def test_approve_custom_target(self, runner: CliRunner, valid_proposed: Path) -> None:
         custom_target = valid_proposed.parent / "production.yaml"
         result = runner.invoke(
             cli,
@@ -150,9 +136,7 @@ class TestApproveCommand:
     def test_approve_invalid_policy_rejected(
         self, runner: CliRunner, invalid_proposed: Path
     ) -> None:
-        result = runner.invoke(
-            cli, ["approve", str(invalid_proposed), "--yes"]
-        )
+        result = runner.invoke(cli, ["approve", str(invalid_proposed), "--yes"])
         assert result.exit_code == 1
 
     def test_approve_missing_file(self, runner: CliRunner) -> None:

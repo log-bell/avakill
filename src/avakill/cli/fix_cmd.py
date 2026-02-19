@@ -100,8 +100,20 @@ async def _query_denied(db: str, limit: int) -> list[AuditEvent]:
 
 
 @click.command()
-@click.option("--last", "show_last", is_flag=True, default=False, help="Show only the most recent denial (default behavior).")
-@click.option("--all", "show_all", is_flag=True, default=False, help="Show all recent denials (up to 20).")
+@click.option(
+    "--last",
+    "show_last",
+    is_flag=True,
+    default=False,
+    help="Show only the most recent denial (default behavior).",
+)
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    default=False,
+    help="Show all recent denials (up to 20).",
+)
 @click.option("--db", default=_DEFAULT_DB, help="Path to the audit database.")
 @click.option("--json", "output_json", is_flag=True, default=False, help="Output as JSON.")
 def fix(show_last: bool, show_all: bool, db: str, output_json: bool) -> None:

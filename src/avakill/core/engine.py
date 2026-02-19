@@ -19,9 +19,9 @@ from avakill._telemetry import (
 )
 from avakill._telemetry import record_violation as otel_record_violation
 from avakill.core.exceptions import PolicyViolation, RateLimitExceeded
-from avakill.core.normalization import normalize_tool_name
 from avakill.core.integrity import PolicyIntegrity
 from avakill.core.models import AuditEvent, Decision, PolicyConfig, ToolCall
+from avakill.core.normalization import normalize_tool_name
 from avakill.core.policy import PolicyEngine, load_policy
 from avakill.core.rate_limit_store import RateLimitBackend
 from avakill.core.recovery import recovery_hint_for
@@ -106,23 +106,17 @@ class Guard:
         self._policy_path: Path | None = None
         self._rate_limit_backend = rate_limit_backend
 
-        if isinstance(policy, (str, Path)):
+        if isinstance(policy, str | Path):
             self._policy_path = Path(policy)
 
         # Use PolicyIntegrity for file-based policies when signing is available
         has_signing = signing_key is not None or verify_key is not None
-        if has_signing and isinstance(policy, (str, Path)):
-            self._integrity = PolicyIntegrity(
-                signing_key=signing_key, verify_key=verify_key
-            )
+        if has_signing and isinstance(policy, str | Path):
+            self._integrity = PolicyIntegrity(signing_key=signing_key, verify_key=verify_key)
             config = self._integrity.load_verified(policy)
-            self._engine = PolicyEngine(
-                config, rate_limit_backend=rate_limit_backend
-            )
+            self._engine = PolicyEngine(config, rate_limit_backend=rate_limit_backend)
             self._policy_status = (
-                "verified"
-                if self._integrity.get_last_known_good() is not None
-                else "deny-all"
+                "verified" if self._integrity.get_last_known_good() is not None else "deny-all"
             )
         else:
             self._engine = self._build_engine(policy, rate_limit_backend)
@@ -132,9 +126,7 @@ class Guard:
         self._verify_key = verify_key
         self._logger = logger
         self._agent_id = agent_id
-        self._self_protection: SelfProtection | None = (
-            SelfProtection() if self_protection else None
-        )
+        self._self_protection: SelfProtection | None = SelfProtection() if self_protection else None
         self._normalize_tools = normalize_tools
         self._approval_store = approval_store
         self._event_bus = EventBus.get()
@@ -148,9 +140,7 @@ class Guard:
     ) -> PolicyEngine:
         """Construct a PolicyEngine from the various supported input types."""
         if isinstance(policy, PolicyConfig):
-            return PolicyEngine(
-                policy, rate_limit_backend=rate_limit_backend
-            )
+            return PolicyEngine(policy, rate_limit_backend=rate_limit_backend)
         if isinstance(policy, dict):
             engine = PolicyEngine.from_dict(policy)
             if rate_limit_backend is not None:
@@ -158,7 +148,7 @@ class Guard:
                 engine._persistent = True
                 engine._hydrate()
             return engine
-        if isinstance(policy, (str, Path)):
+        if isinstance(policy, str | Path):
             engine = PolicyEngine.from_yaml(policy)
             if rate_limit_backend is not None:
                 engine._backend = rate_limit_backend
@@ -279,7 +269,8 @@ class Guard:
         except RateLimitExceeded as exc:
             if exc.recovery_hint is None:
                 exc.recovery_hint = recovery_hint_for(
-                    exc.decision, policy_status=self._policy_status,
+                    exc.decision,
+                    policy_status=self._policy_status,
                     tool_name=tool_call.tool_name,
                 )
             decision = exc.decision
@@ -335,7 +326,9 @@ class Guard:
         decision = self.evaluate(tool, args, **kwargs)
         if not decision.allowed:
             hint = recovery_hint_for(
-                decision, policy_status=self._policy_status, tool_name=tool,
+                decision,
+                policy_status=self._policy_status,
+                tool_name=tool,
             )
             raise PolicyViolation(tool, decision, recovery_hint=hint)
         return decision
@@ -376,20 +369,14 @@ class Guard:
 
         if self._integrity is not None and reload_path is not None:
             config = self._integrity.load_verified(reload_path)
-            self._engine = PolicyEngine(
-                config, rate_limit_backend=self._rate_limit_backend
-            )
+            self._engine = PolicyEngine(config, rate_limit_backend=self._rate_limit_backend)
             self._policy_status = (
-                "verified"
-                if self._integrity.get_last_known_good() is not None
-                else "deny-all"
+                "verified" if self._integrity.get_last_known_good() is not None else "deny-all"
             )
         else:
-            self._engine = self._build_engine(
-                reload_path, self._rate_limit_backend
-            )
+            self._engine = self._build_engine(reload_path, self._rate_limit_backend)
 
-        if isinstance(reload_path, (str, Path)):
+        if isinstance(reload_path, str | Path):
             self._policy_path = Path(reload_path)
 
     def watch(self, **kwargs: Any) -> PolicyWatcher:
@@ -409,9 +396,7 @@ class Guard:
             ValueError: If the guard has no file-based policy.
         """
         if self._watcher is not None:
-            raise RuntimeError(
-                "A PolicyWatcher is already active; call unwatch() first"
-            )
+            raise RuntimeError("A PolicyWatcher is already active; call unwatch() first")
         from avakill.core.watcher import PolicyWatcher as _PW
 
         self._watcher = _PW(self, **kwargs)
@@ -437,12 +422,11 @@ class Guard:
         hint = None
         if not decision.allowed:
             hint = recovery_hint_for(
-                decision, policy_status=self._policy_status,
+                decision,
+                policy_status=self._policy_status,
                 tool_name=tool_call.tool_name,
             )
-        event = AuditEvent(
-            tool_call=tool_call, decision=decision, recovery_hint=hint
-        )
+        event = AuditEvent(tool_call=tool_call, decision=decision, recovery_hint=hint)
 
         # Fire-and-forget async logging
         if self._logger is not None:
@@ -460,9 +444,7 @@ class Guard:
                 action=decision.action,
                 agent_id=tool_call.agent_id,
             )
-            otel_record_duration(
-                tool=tool_call.tool_name, duration_ms=elapsed_ms
-            )
+            otel_record_duration(tool=tool_call.tool_name, duration_ms=elapsed_ms)
             if not decision.allowed:
                 otel_record_violation(
                     tool=tool_call.tool_name,
@@ -508,9 +490,7 @@ class Guard:
             future: concurrent.futures.Future[Decision] = concurrent.futures.Future()
 
             async def _do() -> None:
-                result = await self._check_approval_async(
-                    tool_call, decision, elapsed_ms
-                )
+                result = await self._check_approval_async(tool_call, decision, elapsed_ms)
                 future.set_result(result)
 
             loop.create_task(_do())
@@ -532,7 +512,11 @@ class Guard:
         pending = await store.get_pending()
         agent = tool_call.agent_id or ""
         for req in pending:
-            if req.status == "approved" and req.tool_call.tool_name == tool_call.tool_name and req.agent == agent:
+            if (
+                req.status == "approved"
+                and req.tool_call.tool_name == tool_call.tool_name
+                and req.agent == agent
+            ):
                 return Decision(
                     allowed=True,
                     action="allow",
@@ -549,9 +533,7 @@ class Guard:
         self, tool_call: ToolCall, decision: Decision, elapsed_ms: float
     ) -> Decision:
         """Synchronous approval check (new event loop in current thread)."""
-        return asyncio.run(
-            self._check_approval_async(tool_call, decision, elapsed_ms)
-        )
+        return asyncio.run(self._check_approval_async(tool_call, decision, elapsed_ms))
 
     def _log_async(self, event: AuditEvent) -> None:
         """Log an event without blocking the caller."""

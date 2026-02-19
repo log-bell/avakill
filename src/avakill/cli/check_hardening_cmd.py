@@ -56,18 +56,14 @@ def check_hardening(policy_file: str) -> None:
     if immutable:
         table.add_row("Immutable Flag", "[green]Set[/green]", "File is protected")
     else:
-        table.add_row(
-            "Immutable Flag", "[red]Not Set[/red]", "Run: avakill harden"
-        )
+        table.add_row("Immutable Flag", "[red]Not Set[/red]", "Run: avakill harden")
 
     # File permissions
     table.add_row("Permissions", perms["mode"], f"uid={perms['uid']} gid={perms['gid']}")
 
     # World-writable check
     if perms["writable_by_others"]:
-        table.add_row(
-            "World Writable", "[red]Yes[/red]", "File is writable by others!"
-        )
+        table.add_row("World Writable", "[red]Yes[/red]", "File is writable by others!")
     else:
         table.add_row("World Writable", "[green]No[/green]", "")
 

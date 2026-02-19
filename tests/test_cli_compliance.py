@@ -69,10 +69,14 @@ class TestComplianceCLI:
         result = runner.invoke(
             cli,
             [
-                "compliance", "report",
-                "--framework", "soc2",
-                "--policy", str(policy),
-                "--format", "json",
+                "compliance",
+                "report",
+                "--framework",
+                "soc2",
+                "--policy",
+                str(policy),
+                "--format",
+                "json",
             ],
         )
         assert result.exit_code == 0
@@ -86,10 +90,14 @@ class TestComplianceCLI:
         result = runner.invoke(
             cli,
             [
-                "compliance", "report",
-                "--framework", "soc2",
-                "--policy", str(policy),
-                "--format", "markdown",
+                "compliance",
+                "report",
+                "--framework",
+                "soc2",
+                "--policy",
+                str(policy),
+                "--format",
+                "markdown",
             ],
         )
         assert result.exit_code == 0
@@ -103,11 +111,16 @@ class TestComplianceCLI:
         result = runner.invoke(
             cli,
             [
-                "compliance", "report",
-                "--framework", "soc2",
-                "--policy", str(policy),
-                "--format", "markdown",
-                "-o", str(output_file),
+                "compliance",
+                "report",
+                "--framework",
+                "soc2",
+                "--policy",
+                str(policy),
+                "--format",
+                "markdown",
+                "-o",
+                str(output_file),
             ],
         )
         assert result.exit_code == 0

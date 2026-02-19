@@ -30,7 +30,8 @@ class TestAuditHookManager:
 
         result = subprocess.run(
             [
-                sys.executable, "-c",
+                sys.executable,
+                "-c",
                 f"""
 import sys
 from avakill.core.audit_hooks import AuditHookManager
@@ -61,7 +62,8 @@ except PermissionError as e:
 
         result = subprocess.run(
             [
-                sys.executable, "-c",
+                sys.executable,
+                "-c",
                 f"""
 from avakill.core.audit_hooks import AuditHookManager
 
@@ -91,7 +93,8 @@ else:
 
         result = subprocess.run(
             [
-                sys.executable, "-c",
+                sys.executable,
+                "-c",
                 f"""
 from avakill.core.audit_hooks import AuditHookManager
 
@@ -121,7 +124,8 @@ else:
 
         result = subprocess.run(
             [
-                sys.executable, "-c",
+                sys.executable,
+                "-c",
                 f"""
 import sys
 

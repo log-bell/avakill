@@ -1,11 +1,11 @@
 """Tests for enforcement levels (hard, soft, advisory)."""
 
+import pytest
+
 from avakill.core.engine import Guard
 from avakill.core.models import PolicyConfig, PolicyRule, ToolCall
 from avakill.core.policy import PolicyEngine
 from avakill.logging.event_bus import EventBus
-
-import pytest
 
 
 def _make_engine(enforcement: str, action: str = "deny") -> PolicyEngine:

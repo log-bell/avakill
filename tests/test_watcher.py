@@ -149,15 +149,11 @@ class TestPolicyWatcherPolling:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         assert len(reload_events) >= 1
         assert reload_events[0].decision.allowed is True
 
-    async def test_no_reload_when_content_unchanged(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_no_reload_when_content_unchanged(self, guard: Guard, policy_file: Path) -> None:
         events: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(lambda e: events.append(e))
@@ -176,14 +172,10 @@ class TestPolicyWatcherPolling:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         assert len(reload_events) == 0
 
-    async def test_cooldown_prevents_rapid_reloads(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_cooldown_prevents_rapid_reloads(self, guard: Guard, policy_file: Path) -> None:
         events: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(lambda e: events.append(e))
@@ -204,15 +196,11 @@ class TestPolicyWatcherPolling:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         # Only one reload should have happened due to cooldown
         assert len(reload_events) == 1
 
-    async def test_emits_failure_event_on_bad_policy(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_emits_failure_event_on_bad_policy(self, guard: Guard, policy_file: Path) -> None:
         events: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(lambda e: events.append(e))
@@ -231,9 +219,7 @@ class TestPolicyWatcherPolling:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         assert len(reload_events) >= 1
         assert reload_events[0].decision.allowed is False
 
@@ -243,9 +229,7 @@ class TestPolicyWatcherPolling:
 # ------------------------------------------------------------------
 class TestPolicyWatcherNative:
     @pytest.mark.skipif(not HAS_WATCHFILES, reason="watchfiles not installed")
-    async def test_detects_change_via_native(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_detects_change_via_native(self, guard: Guard, policy_file: Path) -> None:
         events: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(lambda e: events.append(e))
@@ -265,16 +249,12 @@ class TestPolicyWatcherNative:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         assert len(reload_events) >= 1
         assert reload_events[0].decision.allowed is True
 
     @pytest.mark.skipif(not HAS_WATCHFILES, reason="watchfiles not installed")
-    async def test_debounce_coalesces_rapid_changes(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_debounce_coalesces_rapid_changes(self, guard: Guard, policy_file: Path) -> None:
         events: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(lambda e: events.append(e))
@@ -296,9 +276,7 @@ class TestPolicyWatcherNative:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         # Debounce should coalesce — expect far fewer reloads than the 5 writes
         assert 1 <= len(reload_events) < 5
 
@@ -307,12 +285,8 @@ class TestPolicyWatcherNative:
 # SIGHUP handler tests
 # ------------------------------------------------------------------
 class TestSighupHandler:
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="SIGHUP not available on Windows"
-    )
-    async def test_sighup_triggers_reload(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    @pytest.mark.skipif(sys.platform == "win32", reason="SIGHUP not available on Windows")
+    async def test_sighup_triggers_reload(self, guard: Guard, policy_file: Path) -> None:
         events: list[AuditEvent] = []
         bus = EventBus.get()
         bus.subscribe(lambda e: events.append(e))
@@ -335,17 +309,11 @@ class TestSighupHandler:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         assert len(reload_events) >= 1
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="SIGHUP not available on Windows"
-    )
-    async def test_sighup_false_skips_handler(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    @pytest.mark.skipif(sys.platform == "win32", reason="SIGHUP not available on Windows")
+    async def test_sighup_false_skips_handler(self, guard: Guard, policy_file: Path) -> None:
         policy_file.write_text(_POLICY_V2)
 
         w = PolicyWatcher(
@@ -430,9 +398,7 @@ class TestDashboardReload:
 # ------------------------------------------------------------------
 class TestWatcherMetrics:
     @pytest.mark.skipif(not HAS_PROMETHEUS, reason="prometheus-client not installed")
-    async def test_counters_increment_on_reload(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_counters_increment_on_reload(self, guard: Guard, policy_file: Path) -> None:
         from prometheus_client import generate_latest
 
         w = PolicyWatcher(
@@ -453,9 +419,7 @@ class TestWatcherMetrics:
         assert "avakill_policy_reload_last_success_timestamp" in output
 
     @pytest.mark.skipif(not HAS_PROMETHEUS, reason="prometheus-client not installed")
-    async def test_failure_counter_increments(
-        self, guard: Guard, policy_file: Path
-    ) -> None:
+    async def test_failure_counter_increments(self, guard: Guard, policy_file: Path) -> None:
         from prometheus_client import generate_latest
 
         w = PolicyWatcher(
@@ -493,9 +457,7 @@ class TestWatcherSignedPolicies:
         g = Guard(policy=policy_path, self_protection=False, signing_key=key)
         return g, policy_path, key
 
-    async def test_signed_yaml_reload(
-        self, signed_guard: tuple[Guard, Path, bytes]
-    ) -> None:
+    async def test_signed_yaml_reload(self, signed_guard: tuple[Guard, Path, bytes]) -> None:
         from avakill.core.integrity import PolicyIntegrity
 
         guard, policy_path, key = signed_guard
@@ -518,9 +480,7 @@ class TestWatcherSignedPolicies:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         assert len(reload_events) >= 1
 
     async def test_tampered_yaml_triggers_fallback(
@@ -545,9 +505,7 @@ class TestWatcherSignedPolicies:
         finally:
             await w.stop()
 
-        reload_events = [
-            e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"
-        ]
+        reload_events = [e for e in events if e.tool_call.tool_name == "__avakill_policy_reload__"]
         # reload_policy should still succeed (falls back to last-known-good)
         assert len(reload_events) >= 1
 

@@ -27,9 +27,7 @@ def _run(code: str) -> subprocess.CompletedProcess[str]:
 class TestCHookInstallation:
     def test_is_active_returns_true(self) -> None:
         r = _run(
-            "from avakill._avakill_hooks import is_active; "
-            "assert is_active() is True; "
-            "print('ok')"
+            "from avakill._avakill_hooks import is_active; assert is_active() is True; print('ok')"
         )
         assert r.returncode == 0
         assert "ok" in r.stdout
@@ -46,9 +44,7 @@ class TestCHookInstallation:
 
     def test_not_armed_by_default(self) -> None:
         r = _run(
-            "from avakill._avakill_hooks import is_armed; "
-            "assert is_armed() is False; "
-            "print('ok')"
+            "from avakill._avakill_hooks import is_armed; assert is_armed() is False; print('ok')"
         )
         assert r.returncode == 0
         assert "ok" in r.stdout
@@ -154,10 +150,7 @@ class TestCHookBlocking:
 class TestCHookAllowsNormal:
     def test_allows_normal_imports_after_arm(self) -> None:
         r = _run(
-            "from avakill._avakill_hooks import arm\n"
-            "arm()\n"
-            "import json, os, hashlib\n"
-            "print('ok')\n"
+            "from avakill._avakill_hooks import arm\narm()\nimport json, os, hashlib\nprint('ok')\n"
         )
         assert r.returncode == 0
         assert "ok" in r.stdout
@@ -249,7 +242,7 @@ class TestGuardHardenedStatus:
             "pf = os.path.join(td, 'avakill.yaml')\n"
             "with open(pf, 'w') as f:\n"
             "    f.write(\"version: '1.0'\\ndefault_action: deny\\n\"\n"
-            "            \"policies:\\n  - name: t\\n    tools: [x]\\n    action: allow\\n\")\n"
+            '            "policies:\\n  - name: t\\n    tools: [x]\\n    action: allow\\n")\n'
             "PolicyIntegrity.sign_file(pf, key)\n"
             "from avakill.core.engine import Guard\n"
             "g = Guard(policy=pf, signing_key=key, self_protection=False)\n"
@@ -270,7 +263,7 @@ class TestCheckHardeningCLI:
             "pf = os.path.join(td, 'avakill.yaml')\n"
             "with open(pf, 'w') as f:\n"
             "    f.write(\"version: '1.0'\\ndefault_action: deny\\n\"\n"
-            "            \"policies:\\n  - name: t\\n    tools: [x]\\n    action: allow\\n\")\n"
+            '            "policies:\\n  - name: t\\n    tools: [x]\\n    action: allow\\n")\n'
             "runner = CliRunner()\n"
             "result = runner.invoke(cli, ['check-hardening', pf])\n"
             "assert result.exit_code == 0\n"

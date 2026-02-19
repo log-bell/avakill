@@ -118,9 +118,7 @@ class DaemonServer:
         self._stop_event = asyncio.Event()
         self._conn_semaphore = asyncio.Semaphore(self._max_connections)
 
-        self._server = await self._transport.start(
-            self._handle_connection, limit=_MAX_REQUEST_SIZE
-        )
+        self._server = await self._transport.start(self._handle_connection, limit=_MAX_REQUEST_SIZE)
 
         # PID file
         self._pid_path.parent.mkdir(parents=True, exist_ok=True)
@@ -176,9 +174,7 @@ class DaemonServer:
         assert self._conn_semaphore is not None
         try:
             try:
-                await asyncio.wait_for(
-                    self._conn_semaphore.acquire(), timeout=_CONNECTION_TIMEOUT
-                )
+                await asyncio.wait_for(self._conn_semaphore.acquire(), timeout=_CONNECTION_TIMEOUT)
             except asyncio.TimeoutError:
                 logger.warning(
                     "Connection rejected: server at capacity (%d).",

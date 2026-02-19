@@ -288,9 +288,7 @@ class TestPolicyCascadeMerge:
         )
         merged = PolicyCascade.merge([c1, c2])
         allow_rules = [r for r in merged.policies if r.action == "allow"]
-        assert len(allow_rules) == 0, (
-            "Allow 'file_write' should be blocked by hard deny 'file_*'"
-        )
+        assert len(allow_rules) == 0, "Allow 'file_write' should be blocked by hard deny 'file_*'"
 
 
 class TestPolicyCascadeLoad:

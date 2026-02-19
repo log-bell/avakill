@@ -24,16 +24,19 @@ def _windsurf_installed() -> bool:
     """Check if Windsurf is installed."""
     if platform.system() == "Darwin":
         return Path("/Applications/Windsurf.app").exists()
-    return shutil.which("windsurf") is not None or Path.home().joinpath(
-        ".codeium", "windsurf"
-    ).is_dir()
+    return (
+        shutil.which("windsurf") is not None
+        or Path.home().joinpath(".codeium", "windsurf").is_dir()
+    )
 
 
 AGENT_DETECTORS: dict[str, Callable[[], bool]] = {
-    "claude-code": lambda: Path.home().joinpath(".claude").is_dir()
-    or shutil.which("claude") is not None,
-    "gemini-cli": lambda: Path.home().joinpath(".gemini").is_dir()
-    or shutil.which("gemini") is not None,
+    "claude-code": lambda: (
+        Path.home().joinpath(".claude").is_dir() or shutil.which("claude") is not None
+    ),
+    "gemini-cli": lambda: (
+        Path.home().joinpath(".gemini").is_dir() or shutil.which("gemini") is not None
+    ),
     "cursor": _cursor_installed,
     "windsurf": _windsurf_installed,
 }
@@ -85,7 +88,7 @@ def _resolve_config_path(cfg: dict[str, object]) -> Path:
     """Return the config path, calling it if it's a callable (lazy eval)."""
     raw = cfg["config_path"]
     if callable(raw):
-        return raw()
+        return Path(raw())
     assert isinstance(raw, Path)
     return raw
 

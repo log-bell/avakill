@@ -19,16 +19,15 @@ logger = logging.getLogger(__name__)
 # Try to import C-level audit hooks (compiled C extension)
 _c_hooks_active = False
 try:
-    from avakill._avakill_hooks import arm as _c_arm
-    from avakill._avakill_hooks import is_active as _c_is_active
+    from avakill._avakill_hooks import arm as _c_arm  # type: ignore[import-not-found]
+    from avakill._avakill_hooks import is_active as _c_is_active  # type: ignore[import-not-found]
 
     _c_hooks_active = _c_is_active()
     logger.info("C-level audit hooks available")
 except ImportError:
     _c_arm = None
     logger.info(
-        "C-level audit hooks not available -- "
-        "install avakill[hardened] for maximum protection"
+        "C-level audit hooks not available -- install avakill[hardened] for maximum protection"
     )
 
 
@@ -93,9 +92,7 @@ class AuditHookManager:
             logger.info("C-level audit hooks armed -- ctypes and gc introspection blocked")
 
         self._installed = True
-        logger.info(
-            "Audit hooks installed, protecting %d paths", len(self._protected_paths)
-        )
+        logger.info("Audit hooks installed, protecting %d paths", len(self._protected_paths))
 
     def add_protected_path(self, path: str) -> None:
         """Add a path to the protected set (takes effect immediately)."""

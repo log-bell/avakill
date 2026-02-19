@@ -181,13 +181,9 @@ class TestTCPClientTransport:
 class TestDaemonServerTCP:
     """DaemonServer using TCP transport — runs on all platforms."""
 
-    async def test_start_and_stop(
-        self, guard: Guard, pid_path: Path, tcp_port_file: Path
-    ) -> None:
+    async def test_start_and_stop(self, guard: Guard, pid_path: Path, tcp_port_file: Path) -> None:
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             assert pid_path.exists()
@@ -197,50 +193,34 @@ class TestDaemonServerTCP:
         assert not pid_path.exists()
         assert not tcp_port_file.exists()
 
-    async def test_allowed_tool(
-        self, guard: Guard, pid_path: Path, tcp_port_file: Path
-    ) -> None:
+    async def test_allowed_tool(self, guard: Guard, pid_path: Path, tcp_port_file: Path) -> None:
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             port = transport.port
             assert port is not None
-            resp = await _send_tcp_request(
-                port, EvaluateRequest(agent="test", tool="file_read")
-            )
+            resp = await _send_tcp_request(port, EvaluateRequest(agent="test", tool="file_read"))
             assert resp.decision == "allow"
         finally:
             await server.stop()
 
-    async def test_denied_tool(
-        self, guard: Guard, pid_path: Path, tcp_port_file: Path
-    ) -> None:
+    async def test_denied_tool(self, guard: Guard, pid_path: Path, tcp_port_file: Path) -> None:
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             port = transport.port
             assert port is not None
-            resp = await _send_tcp_request(
-                port, EvaluateRequest(agent="test", tool="file_delete")
-            )
+            resp = await _send_tcp_request(port, EvaluateRequest(agent="test", tool="file_delete"))
             assert resp.decision == "deny"
             assert resp.policy == "deny-delete"
         finally:
             await server.stop()
 
-    async def test_malformed_json(
-        self, guard: Guard, pid_path: Path, tcp_port_file: Path
-    ) -> None:
+    async def test_malformed_json(self, guard: Guard, pid_path: Path, tcp_port_file: Path) -> None:
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             port = transport.port
@@ -256,17 +236,13 @@ class TestDaemonServerTCP:
         self, guard: Guard, pid_path: Path, tcp_port_file: Path
     ) -> None:
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             port = transport.port
             assert port is not None
             tasks = [
-                _send_tcp_request(
-                    port, EvaluateRequest(agent="test", tool="file_read")
-                )
+                _send_tcp_request(port, EvaluateRequest(agent="test", tool="file_read"))
                 for _ in range(10)
             ]
             results = await asyncio.gather(*tasks)
@@ -289,9 +265,7 @@ class TestDaemonClientTCP:
         from avakill.daemon.client import DaemonClient
 
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             port = transport.port
@@ -304,15 +278,11 @@ class TestDaemonClientTCP:
         finally:
             await server.stop()
 
-    async def test_ping_via_tcp(
-        self, guard: Guard, pid_path: Path, tcp_port_file: Path
-    ) -> None:
+    async def test_ping_via_tcp(self, guard: Guard, pid_path: Path, tcp_port_file: Path) -> None:
         from avakill.daemon.client import DaemonClient
 
         transport = TCPServerTransport(port=0, port_file=tcp_port_file)
-        server = DaemonServer(
-            guard, pid_file=pid_path, transport=transport
-        )
+        server = DaemonServer(guard, pid_file=pid_path, transport=transport)
         await server.start()
         try:
             port = transport.port

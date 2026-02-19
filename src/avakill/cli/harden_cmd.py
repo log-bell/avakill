@@ -137,9 +137,7 @@ def harden(
         raise SystemExit(1) from exc
 
 
-def _output_template(
-    template_name: str, output_path: str | None, console: Console
-) -> None:
+def _output_template(template_name: str, output_path: str | None, console: Console) -> None:
     """Output a hardening template to stdout or a file."""
     from avakill.hardening import get_template_content
 

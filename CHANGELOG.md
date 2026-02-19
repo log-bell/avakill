@@ -6,48 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
-### Added
+### Fixed
+- Fix all ruff lint errors (31) — import sorting, unused imports, line length, `raise from`, broad `pytest.raises`.
+- Fix all mypy type errors (13) — missing stubs, `no-any-return`, `no-redef`, `union-attr`, literal types.
+- Remove unused testimonial CSS/JS from landing page.
+- Auto-select default template in non-TTY for `avakill init` (no interactive prompt in CI/pipes).
+- Fix `avakill logs` table rendering (column alignment, empty-state message).
+- Fix documentation mismatches in `avakill init` output and README examples.
+- Resolve UX paper cuts: install guidance, nav labels, coming-soon badges.
 
-#### Phase 1: Persistent Daemon
-- **`DaemonServer`** — Unix domain socket (Linux/macOS) and TCP localhost (Windows) server with async connection handling, SIGHUP policy reload, and PID file management.
-- **`DaemonClient`** — synchronous client for hook scripts with fail-closed behavior (denies on any error).
-- **Transport abstraction** — `ServerTransport`/`ClientTransport` with Unix and TCP implementations; auto-selects per platform.
-- **Wire protocol** — `EvaluateRequest`/`EvaluateResponse` models with newline-delimited JSON serialization.
-- **`avakill daemon start/stop/status`** — CLI commands for daemon lifecycle management with `--tcp-port` option.
-- **`avakill evaluate`** — evaluate tool calls via stdin JSON with exit codes (0=allow, 2=deny, 1=error).
-- **Cross-platform daemonization** — `subprocess.Popen` with `DETACHED_PROCESS` (Windows) or `start_new_session` (Unix).
-
-#### Phase 2: Agent Hook Adapters
-- **`ClaudeCodeAdapter`** — PreToolUse hook for Claude Code with `permissionDecision` response format.
-- **`GeminiCliAdapter`** — BeforeTool hook for Gemini CLI.
-- **`CursorAdapter`** — `beforeShellExecution`/`beforeMCPExecution`/`beforeReadFile` hooks for Cursor.
-- **`WindsurfAdapter`** — Cascade Hooks (`pre_run_command`, `pre_write_code`, `pre_read_code`, `pre_mcp_tool_use`) with exit code 2 for deny.
-- **`HookAdapter` base class** — abstract adapter with `parse_stdin()`/`format_response()` contract and standalone fallback mode.
-- **Hook installer** — `avakill hook install/uninstall/list` CLI commands with auto-detection of installed agents.
-- **Console scripts** — `avakill-hook-claude-code`, `avakill-hook-gemini-cli`, `avakill-hook-cursor`, `avakill-hook-windsurf`.
-
-#### Phase 3: Tool Normalization, Policy Cascade & Enforcement Levels
-- **`ToolNormalizer`** — translates agent-native tool names (e.g., Claude Code's `Bash` → `shell_execute`) to canonical names for universal policies.
-- **`AGENT_TOOL_MAP`** — mapping table for Claude Code, Gemini CLI, Cursor, and Windsurf tool names.
-- **`PolicyCascade`** — discovers and merges policies from system (`/etc/avakill/`), global (`~/.config/avakill/`), project (`.avakill/` or `avakill.yaml`), and local (`.avakill/policy.local.yaml`) levels.
-- **Deny-wins merge semantics** — higher-level deny rules cannot be relaxed by lower levels.
-- **Enforcement levels** — `hard`/`soft`/`advisory` per-rule enforcement via the `enforcement` field on `PolicyRule`.
-- **`recovery_hint`** field on `AuditEvent` for actionable recovery suggestions.
-- **Persistent rate limits** — `SQLiteBackend` for rate-limit timestamp persistence across restarts.
-
-#### Phase 4: OS-Level Enforcement
-- **`LandlockEnforcer`** — Linux 5.13+ filesystem access restrictions translated from deny policy rules. Irreversible once applied.
-- **`SandboxExecEnforcer`** — macOS SBPL profile generation from policy rules.
-- **`TetragonPolicyGenerator`** — Cilium `TracingPolicy` Kubernetes resource generation with kprobes and Sigkill actions.
-- **`avakill enforce landlock/sandbox/tetragon`** — CLI commands with `--dry-run` and `--output` options.
-
-#### Phase 5: Enterprise Compliance & Approvals
-- **`ComplianceAssessor`** — automated compliance assessment against SOC 2 Type II, NIST AI RMF, EU AI Act, and ISO 42001 frameworks.
-- **`ComplianceReporter`** — output compliance reports as Rich tables, JSON, or Markdown.
-- **`avakill compliance report/gaps`** — CLI commands for generating assessments with `--framework` and `--format` options.
-- **`ApprovalStore`** — SQLite-backed approval workflow with create, approve, deny, and expiry management.
-- **`avakill approvals list/grant/reject`** — CLI commands for human-in-the-loop approval workflows.
-- **`AuditAnalytics`** — denial trends, tool usage summaries, agent risk scores, and policy effectiveness analysis.
+### Changed
+- Restructure README roadmap into maturity tiers (Foundation / Growth / Enterprise).
+- Add integration row labels to landing page feature matrix.
 
 ## [0.1.0] - 2026-02-16
 

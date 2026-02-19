@@ -17,16 +17,18 @@ class TestWindsurfParseStdin:
         self.adapter = WindsurfAdapter()
 
     def test_parse_pre_run_command(self) -> None:
-        raw = json.dumps({
-            "agent_action_name": "pre_run_command",
-            "trajectory_id": "traj-1",
-            "execution_id": "exec-1",
-            "timestamp": "2026-02-18T14:00:00Z",
-            "tool_info": {
-                "command_line": "rm -rf /important-data",
-                "cwd": "/home/user/project",
-            },
-        })
+        raw = json.dumps(
+            {
+                "agent_action_name": "pre_run_command",
+                "trajectory_id": "traj-1",
+                "execution_id": "exec-1",
+                "timestamp": "2026-02-18T14:00:00Z",
+                "tool_info": {
+                    "command_line": "rm -rf /important-data",
+                    "cwd": "/home/user/project",
+                },
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "run_command"
         assert req.args["command"] == "rm -rf /important-data"
@@ -34,58 +36,66 @@ class TestWindsurfParseStdin:
         assert req.agent == "windsurf"
 
     def test_parse_pre_write_code(self) -> None:
-        raw = json.dumps({
-            "agent_action_name": "pre_write_code",
-            "trajectory_id": "traj-2",
-            "execution_id": "exec-2",
-            "timestamp": "2026-02-18T14:00:00Z",
-            "tool_info": {
-                "file_path": "/Users/user/project/config.py",
-                "edits": [{"old_string": "DEBUG = False", "new_string": "DEBUG = True"}],
-            },
-        })
+        raw = json.dumps(
+            {
+                "agent_action_name": "pre_write_code",
+                "trajectory_id": "traj-2",
+                "execution_id": "exec-2",
+                "timestamp": "2026-02-18T14:00:00Z",
+                "tool_info": {
+                    "file_path": "/Users/user/project/config.py",
+                    "edits": [{"old_string": "DEBUG = False", "new_string": "DEBUG = True"}],
+                },
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "write_code"
         assert req.args["file_path"] == "/Users/user/project/config.py"
         assert len(req.args["edits"]) == 1
 
     def test_parse_pre_read_code(self) -> None:
-        raw = json.dumps({
-            "agent_action_name": "pre_read_code",
-            "trajectory_id": "traj-3",
-            "execution_id": "exec-3",
-            "timestamp": "2026-02-18T14:00:00Z",
-            "tool_info": {"file_path": "/etc/passwd"},
-        })
+        raw = json.dumps(
+            {
+                "agent_action_name": "pre_read_code",
+                "trajectory_id": "traj-3",
+                "execution_id": "exec-3",
+                "timestamp": "2026-02-18T14:00:00Z",
+                "tool_info": {"file_path": "/etc/passwd"},
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "read_code"
         assert req.args["file_path"] == "/etc/passwd"
 
     def test_parse_pre_mcp_tool_use(self) -> None:
-        raw = json.dumps({
-            "agent_action_name": "pre_mcp_tool_use",
-            "trajectory_id": "traj-4",
-            "execution_id": "exec-4",
-            "timestamp": "2026-02-18T14:00:00Z",
-            "tool_info": {
-                "mcp_server_name": "github",
-                "mcp_tool_name": "create_issue",
-                "mcp_tool_arguments": {"title": "Bug", "body": "desc"},
-            },
-        })
+        raw = json.dumps(
+            {
+                "agent_action_name": "pre_mcp_tool_use",
+                "trajectory_id": "traj-4",
+                "execution_id": "exec-4",
+                "timestamp": "2026-02-18T14:00:00Z",
+                "tool_info": {
+                    "mcp_server_name": "github",
+                    "mcp_tool_name": "create_issue",
+                    "mcp_tool_arguments": {"title": "Bug", "body": "desc"},
+                },
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "mcp_tool"
         assert req.args["mcp_server_name"] == "github"
         assert req.args["mcp_tool_name"] == "create_issue"
 
     def test_parse_preserves_trajectory_id(self) -> None:
-        raw = json.dumps({
-            "agent_action_name": "pre_run_command",
-            "trajectory_id": "my-traj",
-            "execution_id": "my-exec",
-            "timestamp": "2026-02-18T14:00:00Z",
-            "tool_info": {"command_line": "echo hi"},
-        })
+        raw = json.dumps(
+            {
+                "agent_action_name": "pre_run_command",
+                "trajectory_id": "my-traj",
+                "execution_id": "my-exec",
+                "timestamp": "2026-02-18T14:00:00Z",
+                "tool_info": {"command_line": "echo hi"},
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.context["trajectory_id"] == "my-traj"
         assert req.context["execution_id"] == "my-exec"
@@ -133,9 +143,7 @@ class TestWindsurfOutputResponse:
         self.adapter = WindsurfAdapter()
 
     def test_deny_reason_written_to_stderr(self, capsys) -> None:
-        resp = EvaluateResponse(
-            decision="deny", reason="dangerous command", policy="safety"
-        )
+        resp = EvaluateResponse(decision="deny", reason="dangerous command", policy="safety")
         exit_code = self.adapter.output_response(resp)
         assert exit_code == 2
         captured = capsys.readouterr()

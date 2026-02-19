@@ -135,11 +135,11 @@ class SandboxExecEnforcer:
         from fnmatch import fnmatch
 
         ops = []
-        seen: set[str] = set()
+        seen_glob: set[str] = set()
         for tool_name, tool_ops in TOOL_TO_SBPL_OPS.items():
             if fnmatch(tool_name, tool_pattern):
                 for op in tool_ops:
-                    if op not in seen:
-                        seen.add(op)
+                    if op not in seen_glob:
+                        seen_glob.add(op)
                         ops.append(op)
         return ops

@@ -90,9 +90,7 @@ class HookAdapter(ABC):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _evaluate_standalone(
-        request: EvaluateRequest, policy_path: str
-    ) -> EvaluateResponse:
+    def _evaluate_standalone(request: EvaluateRequest, policy_path: str) -> EvaluateResponse:
         """Evaluate directly without the daemon (standalone mode).
 
         Applies tool normalization before evaluation so that policies

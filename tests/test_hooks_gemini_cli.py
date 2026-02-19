@@ -17,60 +17,70 @@ class TestGeminiCLIParseStdin:
         self.adapter = GeminiCLIAdapter()
 
     def test_parse_run_shell_command(self) -> None:
-        raw = json.dumps({
-            "session_id": "s1",
-            "hook_event_name": "BeforeTool",
-            "tool_name": "run_shell_command",
-            "tool_input": {"command": "ls -la"},
-            "tool_use_id": "tu1",
-        })
+        raw = json.dumps(
+            {
+                "session_id": "s1",
+                "hook_event_name": "BeforeTool",
+                "tool_name": "run_shell_command",
+                "tool_input": {"command": "ls -la"},
+                "tool_use_id": "tu1",
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "run_shell_command"
         assert req.args == {"command": "ls -la"}
         assert req.agent == "gemini-cli"
 
     def test_parse_read_file(self) -> None:
-        raw = json.dumps({
-            "session_id": "s1",
-            "hook_event_name": "BeforeTool",
-            "tool_name": "read_file",
-            "tool_input": {"file_path": "/etc/passwd"},
-            "tool_use_id": "tu2",
-        })
+        raw = json.dumps(
+            {
+                "session_id": "s1",
+                "hook_event_name": "BeforeTool",
+                "tool_name": "read_file",
+                "tool_input": {"file_path": "/etc/passwd"},
+                "tool_use_id": "tu2",
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "read_file"
 
     def test_parse_write_file(self) -> None:
-        raw = json.dumps({
-            "session_id": "s1",
-            "hook_event_name": "BeforeTool",
-            "tool_name": "write_file",
-            "tool_input": {"file_path": "/tmp/out.txt", "content": "hello"},
-            "tool_use_id": "tu3",
-        })
+        raw = json.dumps(
+            {
+                "session_id": "s1",
+                "hook_event_name": "BeforeTool",
+                "tool_name": "write_file",
+                "tool_input": {"file_path": "/tmp/out.txt", "content": "hello"},
+                "tool_use_id": "tu3",
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "write_file"
         assert req.args["file_path"] == "/tmp/out.txt"
 
     def test_parse_edit_file(self) -> None:
-        raw = json.dumps({
-            "session_id": "s1",
-            "hook_event_name": "BeforeTool",
-            "tool_name": "edit_file",
-            "tool_input": {"file_path": "/tmp/f.py", "old": "a", "new": "b"},
-            "tool_use_id": "tu4",
-        })
+        raw = json.dumps(
+            {
+                "session_id": "s1",
+                "hook_event_name": "BeforeTool",
+                "tool_name": "edit_file",
+                "tool_input": {"file_path": "/tmp/f.py", "old": "a", "new": "b"},
+                "tool_use_id": "tu4",
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "edit_file"
 
     def test_parse_preserves_session_id(self) -> None:
-        raw = json.dumps({
-            "session_id": "gemini-sess-42",
-            "hook_event_name": "BeforeTool",
-            "tool_name": "read_file",
-            "tool_input": {},
-            "tool_use_id": "tu5",
-        })
+        raw = json.dumps(
+            {
+                "session_id": "gemini-sess-42",
+                "hook_event_name": "BeforeTool",
+                "tool_name": "read_file",
+                "tool_input": {},
+                "tool_use_id": "tu5",
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.context["session_id"] == "gemini-sess-42"
 

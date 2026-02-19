@@ -169,9 +169,7 @@ class TestPolicyEngineSQLiteIntegration:
                         name="limited",
                         tools=["api_call"],
                         action="allow",
-                        rate_limit=RateLimit(
-                            max_calls=max_calls, window=window
-                        ),
+                        rate_limit=RateLimit(max_calls=max_calls, window=window),
                     ),
                 ],
             ),
@@ -207,9 +205,7 @@ class TestPolicyEngineSQLiteIntegration:
                             name="limited",
                             tools=["api_call"],
                             action="allow",
-                            rate_limit=RateLimit(
-                                max_calls=3, window="60s"
-                            ),
+                            rate_limit=RateLimit(max_calls=3, window="60s"),
                         ),
                     ],
                 ),
@@ -231,9 +227,7 @@ class TestPolicyEngineSQLiteIntegration:
             engine2.evaluate(tc)  # 4th call - should be denied
         engine2._backend.close()
 
-    def test_persists_across_restart_with_glob_tools(
-        self, tmp_path: Path
-    ) -> None:
+    def test_persists_across_restart_with_glob_tools(self, tmp_path: Path) -> None:
         """Rate limits survive restart even when rules use glob patterns."""
         db = tmp_path / "rl.db"
 
@@ -246,9 +240,7 @@ class TestPolicyEngineSQLiteIntegration:
                             name="limited",
                             tools=["*"],
                             action="allow",
-                            rate_limit=RateLimit(
-                                max_calls=2, window="60s"
-                            ),
+                            rate_limit=RateLimit(max_calls=2, window="60s"),
                         ),
                     ],
                 ),
@@ -264,9 +256,7 @@ class TestPolicyEngineSQLiteIntegration:
         engine2 = make_engine()
         engine2.evaluate(ToolCall(tool_name="tool_a", arguments={}))  # 2nd
         with pytest.raises(RateLimitExceeded):
-            engine2.evaluate(
-                ToolCall(tool_name="tool_a", arguments={})
-            )  # 3rd - denied
+            engine2.evaluate(ToolCall(tool_name="tool_a", arguments={}))  # 3rd - denied
         # tool_b should still work (separate counter)
         engine2.evaluate(ToolCall(tool_name="tool_b", arguments={}))
         engine2._backend.close()

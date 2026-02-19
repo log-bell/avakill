@@ -41,9 +41,7 @@ class ApprovalRequest(BaseModel):
     tool_call: ToolCall
     decision: Decision
     agent: str
-    timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: Literal["pending", "approved", "denied", "expired"] = "pending"
     expires_at: datetime | None = None
     approved_by: str | None = None
@@ -216,9 +214,7 @@ class ApprovalStore:
     async def get(self, request_id: str) -> ApprovalRequest | None:
         """Get a specific approval request by ID."""
         db = await self._ensure_db()
-        cursor = await db.execute(
-            "SELECT * FROM approvals WHERE id = ?", (request_id,)
-        )
+        cursor = await db.execute("SELECT * FROM approvals WHERE id = ?", (request_id,))
         row = await cursor.fetchone()
         if row is None:
             return None

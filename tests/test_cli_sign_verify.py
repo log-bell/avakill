@@ -38,9 +38,7 @@ class TestSignCommand:
     def test_sign_creates_sidecar(
         self, runner: CliRunner, valid_policy: Path, key_hex: str
     ) -> None:
-        result = runner.invoke(
-            cli, ["sign", str(valid_policy), "--key", key_hex]
-        )
+        result = runner.invoke(cli, ["sign", str(valid_policy), "--key", key_hex])
         assert result.exit_code == 0
         sig_path = Path(str(valid_policy) + ".sig")
         assert sig_path.exists()
@@ -48,28 +46,24 @@ class TestSignCommand:
     def test_sign_output_shows_path(
         self, runner: CliRunner, valid_policy: Path, key_hex: str
     ) -> None:
-        result = runner.invoke(
-            cli, ["sign", str(valid_policy), "--key", key_hex]
-        )
+        result = runner.invoke(cli, ["sign", str(valid_policy), "--key", key_hex])
         assert result.exit_code == 0
         assert "signed" in result.output.lower() or "sig" in result.output.lower()
 
-    def test_sign_from_env_var(
-        self, runner: CliRunner, valid_policy: Path, key_hex: str
-    ) -> None:
+    def test_sign_from_env_var(self, runner: CliRunner, valid_policy: Path, key_hex: str) -> None:
         result = runner.invoke(
-            cli, ["sign", str(valid_policy)],
+            cli,
+            ["sign", str(valid_policy)],
             env={"AVAKILL_POLICY_KEY": key_hex},
         )
         assert result.exit_code == 0
         sig_path = Path(str(valid_policy) + ".sig")
         assert sig_path.exists()
 
-    def test_sign_no_key_errors(
-        self, runner: CliRunner, valid_policy: Path
-    ) -> None:
+    def test_sign_no_key_errors(self, runner: CliRunner, valid_policy: Path) -> None:
         result = runner.invoke(
-            cli, ["sign", str(valid_policy)],
+            cli,
+            ["sign", str(valid_policy)],
             env={"AVAKILL_POLICY_KEY": ""},
         )
         assert result.exit_code == 1
@@ -80,17 +74,11 @@ class TestSignCommand:
     ) -> None:
         bad = tmp_path / "bad.yaml"
         bad.write_text("{{not valid yaml")
-        result = runner.invoke(
-            cli, ["sign", str(bad), "--key", key_hex]
-        )
+        result = runner.invoke(cli, ["sign", str(bad), "--key", key_hex])
         assert result.exit_code == 1
 
-    def test_sign_missing_file_errors(
-        self, runner: CliRunner, key_hex: str
-    ) -> None:
-        result = runner.invoke(
-            cli, ["sign", "/nonexistent/policy.yaml", "--key", key_hex]
-        )
+    def test_sign_missing_file_errors(self, runner: CliRunner, key_hex: str) -> None:
+        result = runner.invoke(cli, ["sign", "/nonexistent/policy.yaml", "--key", key_hex])
         assert result.exit_code == 1
 
     def test_generate_key(self, runner: CliRunner) -> None:
@@ -112,9 +100,7 @@ class TestVerifyCommand:
     ) -> None:
         # Sign first
         runner.invoke(cli, ["sign", str(valid_policy), "--key", key_hex])
-        result = runner.invoke(
-            cli, ["verify", str(valid_policy), "--key", key_hex]
-        )
+        result = runner.invoke(cli, ["verify", str(valid_policy), "--key", key_hex])
         assert result.exit_code == 0
         assert "valid" in result.output.lower()
 
@@ -123,55 +109,41 @@ class TestVerifyCommand:
     ) -> None:
         runner.invoke(cli, ["sign", str(valid_policy), "--key", key_hex])
         valid_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
-        result = runner.invoke(
-            cli, ["verify", str(valid_policy), "--key", key_hex]
-        )
+        result = runner.invoke(cli, ["verify", str(valid_policy), "--key", key_hex])
         assert result.exit_code == 1
         assert "invalid" in result.output.lower() or "mismatch" in result.output.lower()
 
     def test_verify_missing_sidecar(
         self, runner: CliRunner, valid_policy: Path, key_hex: str
     ) -> None:
-        result = runner.invoke(
-            cli, ["verify", str(valid_policy), "--key", key_hex]
-        )
+        result = runner.invoke(cli, ["verify", str(valid_policy), "--key", key_hex])
         assert result.exit_code == 1
         assert "not found" in result.output.lower() or "missing" in result.output.lower()
 
-    def test_verify_missing_file(
-        self, runner: CliRunner, key_hex: str
-    ) -> None:
-        result = runner.invoke(
-            cli, ["verify", "/nonexistent/policy.yaml", "--key", key_hex]
-        )
+    def test_verify_missing_file(self, runner: CliRunner, key_hex: str) -> None:
+        result = runner.invoke(cli, ["verify", "/nonexistent/policy.yaml", "--key", key_hex])
         assert result.exit_code == 1
 
-    def test_verify_no_key_errors(
-        self, runner: CliRunner, valid_policy: Path
-    ) -> None:
+    def test_verify_no_key_errors(self, runner: CliRunner, valid_policy: Path) -> None:
         result = runner.invoke(
-            cli, ["verify", str(valid_policy)],
+            cli,
+            ["verify", str(valid_policy)],
             env={"AVAKILL_POLICY_KEY": ""},
         )
         assert result.exit_code == 1
 
-    def test_verify_from_env_var(
-        self, runner: CliRunner, valid_policy: Path, key_hex: str
-    ) -> None:
+    def test_verify_from_env_var(self, runner: CliRunner, valid_policy: Path, key_hex: str) -> None:
         runner.invoke(cli, ["sign", str(valid_policy), "--key", key_hex])
         result = runner.invoke(
-            cli, ["verify", str(valid_policy)],
+            cli,
+            ["verify", str(valid_policy)],
             env={"AVAKILL_POLICY_KEY": key_hex},
         )
         assert result.exit_code == 0
 
-    def test_verify_verbose(
-        self, runner: CliRunner, valid_policy: Path, key_hex: str
-    ) -> None:
+    def test_verify_verbose(self, runner: CliRunner, valid_policy: Path, key_hex: str) -> None:
         runner.invoke(cli, ["sign", str(valid_policy), "--key", key_hex])
-        result = runner.invoke(
-            cli, ["verify", str(valid_policy), "--key", key_hex, "--verbose"]
-        )
+        result = runner.invoke(cli, ["verify", str(valid_policy), "--key", key_hex, "--verbose"])
         assert result.exit_code == 0
         assert "sha-256" in result.output.lower() or "sha256" in result.output.lower()
 
@@ -218,9 +190,7 @@ class TestSignEd25519Command:
         self, runner: CliRunner, valid_policy: Path, ed25519_keys: tuple[str, str]
     ) -> None:
         private_hex, _ = ed25519_keys
-        result = runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex]
-        )
+        result = runner.invoke(cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex])
         assert result.exit_code == 0
         sig_path = Path(str(valid_policy) + ".sig")
         assert sig_path.exists()
@@ -230,9 +200,7 @@ class TestSignEd25519Command:
         self, runner: CliRunner, valid_policy: Path, ed25519_keys: tuple[str, str]
     ) -> None:
         private_hex, _ = ed25519_keys
-        result = runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex]
-        )
+        result = runner.invoke(cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex])
         assert result.exit_code == 0
         assert "ed25519" in result.output.lower()
 
@@ -241,18 +209,18 @@ class TestSignEd25519Command:
     ) -> None:
         private_hex, _ = ed25519_keys
         result = runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy)],
+            cli,
+            ["sign", "--ed25519", str(valid_policy)],
             env={"AVAKILL_SIGNING_KEY": private_hex},
         )
         assert result.exit_code == 0
         sig_path = Path(str(valid_policy) + ".sig")
         assert sig_path.exists()
 
-    def test_sign_ed25519_no_key_errors(
-        self, runner: CliRunner, valid_policy: Path
-    ) -> None:
+    def test_sign_ed25519_no_key_errors(self, runner: CliRunner, valid_policy: Path) -> None:
         result = runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy)],
+            cli,
+            ["sign", "--ed25519", str(valid_policy)],
             env={"AVAKILL_SIGNING_KEY": ""},
         )
         assert result.exit_code == 1
@@ -264,12 +232,8 @@ class TestVerifyEd25519Command:
         self, runner: CliRunner, valid_policy: Path, ed25519_keys: tuple[str, str]
     ) -> None:
         private_hex, public_hex = ed25519_keys
-        runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex]
-        )
-        result = runner.invoke(
-            cli, ["verify", str(valid_policy), "--key", public_hex]
-        )
+        runner.invoke(cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex])
+        result = runner.invoke(cli, ["verify", str(valid_policy), "--key", public_hex])
         assert result.exit_code == 0
         assert "valid" in result.output.lower()
         assert "ed25519" in result.output.lower()
@@ -278,13 +242,9 @@ class TestVerifyEd25519Command:
         self, runner: CliRunner, valid_policy: Path, ed25519_keys: tuple[str, str]
     ) -> None:
         private_hex, public_hex = ed25519_keys
-        runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex]
-        )
+        runner.invoke(cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex])
         valid_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
-        result = runner.invoke(
-            cli, ["verify", str(valid_policy), "--key", public_hex]
-        )
+        result = runner.invoke(cli, ["verify", str(valid_policy), "--key", public_hex])
         assert result.exit_code == 1
         assert "invalid" in result.output.lower()
 
@@ -292,11 +252,10 @@ class TestVerifyEd25519Command:
         self, runner: CliRunner, valid_policy: Path, ed25519_keys: tuple[str, str]
     ) -> None:
         private_hex, public_hex = ed25519_keys
-        runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex]
-        )
+        runner.invoke(cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex])
         result = runner.invoke(
-            cli, ["verify", str(valid_policy)],
+            cli,
+            ["verify", str(valid_policy)],
             env={"AVAKILL_VERIFY_KEY": public_hex},
         )
         assert result.exit_code == 0
@@ -305,11 +264,10 @@ class TestVerifyEd25519Command:
         self, runner: CliRunner, valid_policy: Path, ed25519_keys: tuple[str, str]
     ) -> None:
         private_hex, _ = ed25519_keys
-        runner.invoke(
-            cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex]
-        )
+        runner.invoke(cli, ["sign", "--ed25519", str(valid_policy), "--key", private_hex])
         result = runner.invoke(
-            cli, ["verify", str(valid_policy)],
+            cli,
+            ["verify", str(valid_policy)],
             env={"AVAKILL_VERIFY_KEY": "", "AVAKILL_POLICY_KEY": ""},
         )
         assert result.exit_code == 1

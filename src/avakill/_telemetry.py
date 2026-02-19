@@ -12,8 +12,9 @@ Install the optional extra::
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Optional import — mirrors the HAS_NACL pattern in core/integrity.py

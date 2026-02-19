@@ -33,9 +33,7 @@ class ComplianceReporter:
         table.add_column("Recommendations")
 
         for ctrl in report.controls:
-            style_prefix, status_text = _STATUS_STYLES.get(
-                ctrl.status, ("", ctrl.status.upper())
-            )
+            style_prefix, status_text = _STATUS_STYLES.get(ctrl.status, ("", ctrl.status.upper()))
             styled_status = f"{style_prefix}{status_text}[/]" if style_prefix else status_text
             table.add_row(
                 ctrl.control_id,

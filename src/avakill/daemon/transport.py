@@ -58,9 +58,7 @@ class UnixServerTransport(ServerTransport):
         self._socket_path.parent.mkdir(parents=True, exist_ok=True)
         if self._socket_path.exists():
             self._socket_path.unlink()
-        return await asyncio.start_unix_server(
-            handler, path=str(self._socket_path), limit=limit
-        )
+        return await asyncio.start_unix_server(handler, path=str(self._socket_path), limit=limit)
 
     async def cleanup(self) -> None:
         if self._socket_path.exists():
@@ -156,8 +154,7 @@ class TCPClientTransport(ClientTransport):
     def _read_port_file(self) -> int:
         if not self._port_file.exists():
             raise ConnectionError(
-                f"Daemon port file not found: {self._port_file}. "
-                "Is the daemon running?"
+                f"Daemon port file not found: {self._port_file}. Is the daemon running?"
             )
         try:
             return int(self._port_file.read_text().strip())

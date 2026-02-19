@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -30,9 +29,7 @@ class TestApprovalStore:
     async def test_create_request(self, tmp_path: Path) -> None:
         db = tmp_path / "approvals.db"
         async with ApprovalStore(db) as store:
-            req = await store.create(
-                _make_tool_call(), _make_decision(), agent="claude-code"
-            )
+            req = await store.create(_make_tool_call(), _make_decision(), agent="claude-code")
             assert req.id is not None
             assert req.status == "pending"
             assert req.agent == "claude-code"
@@ -42,9 +39,7 @@ class TestApprovalStore:
     async def test_approve_request(self, tmp_path: Path) -> None:
         db = tmp_path / "approvals.db"
         async with ApprovalStore(db) as store:
-            req = await store.create(
-                _make_tool_call(), _make_decision(), agent="claude-code"
-            )
+            req = await store.create(_make_tool_call(), _make_decision(), agent="claude-code")
             updated = await store.approve(req.id, approver="admin")
             assert updated.status == "approved"
             assert updated.approved_by == "admin"
@@ -52,9 +47,7 @@ class TestApprovalStore:
     async def test_deny_request(self, tmp_path: Path) -> None:
         db = tmp_path / "approvals.db"
         async with ApprovalStore(db) as store:
-            req = await store.create(
-                _make_tool_call(), _make_decision(), agent="gemini-cli"
-            )
+            req = await store.create(_make_tool_call(), _make_decision(), agent="gemini-cli")
             updated = await store.deny(req.id, approver="security-team")
             assert updated.status == "denied"
             assert updated.approved_by == "security-team"
@@ -62,12 +55,8 @@ class TestApprovalStore:
     async def test_get_pending_excludes_resolved(self, tmp_path: Path) -> None:
         db = tmp_path / "approvals.db"
         async with ApprovalStore(db) as store:
-            req1 = await store.create(
-                _make_tool_call("file_write"), _make_decision(), agent="a"
-            )
-            await store.create(
-                _make_tool_call("file_delete"), _make_decision(), agent="b"
-            )
+            req1 = await store.create(_make_tool_call("file_write"), _make_decision(), agent="a")
+            await store.create(_make_tool_call("file_delete"), _make_decision(), agent="b")
             await store.approve(req1.id, approver="admin")
 
             pending = await store.get_pending()
@@ -78,9 +67,7 @@ class TestApprovalStore:
         db = tmp_path / "approvals.db"
         async with ApprovalStore(db) as store:
             # Create a request with 0 TTL (already expired)
-            req = await store.create(
-                _make_tool_call(), _make_decision(), agent="a", ttl_seconds=0
-            )
+            req = await store.create(_make_tool_call(), _make_decision(), agent="a", ttl_seconds=0)
             cleaned = await store.cleanup_expired()
             assert cleaned == 1
 

@@ -20,7 +20,7 @@ import os
 import signal
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from avakill.core.models import AuditEvent, Decision, ToolCall
 from avakill.logging.event_bus import EventBus
@@ -60,7 +60,7 @@ def _file_hash(path: Path) -> str:
 
 def _make_reload_event(*, success: bool, trigger: str, error: str | None = None) -> AuditEvent:
     """Create a synthetic AuditEvent for a policy reload."""
-    action = "allow" if success else "deny"
+    action: Literal["allow", "deny"] = "allow" if success else "deny"
     reason = f"policy reload via {trigger}"
     if error:
         reason = f"{reason}: {error}"
@@ -110,8 +110,7 @@ class PolicyWatcher:
     ) -> None:
         if guard._policy_path is None:
             raise ValueError(
-                "PolicyWatcher requires a file-based policy. "
-                "Pass a file path to Guard(policy=...)"
+                "PolicyWatcher requires a file-based policy. Pass a file path to Guard(policy=...)"
             )
 
         self._guard = guard

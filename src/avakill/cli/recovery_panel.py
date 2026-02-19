@@ -27,9 +27,9 @@ def render_recovery_panel(
 
     body = Text()
     if tool_name:
-        body.append(f"Tool: ", style="bold")
+        body.append("Tool: ", style="bold")
         body.append(f"{tool_name}\n")
-    body.append(f"Issue: ", style="bold")
+    body.append("Issue: ", style="bold")
     body.append(f"{summary}\n\n")
 
     body.append("Recovery steps:\n", style="bold")
@@ -37,7 +37,7 @@ def render_recovery_panel(
         body.append(f"  {i}. {step}\n")
 
     if doc_url:
-        body.append(f"\nDocs: ", style="bold")
+        body.append("\nDocs: ", style="bold")
         body.append(doc_url, style="underline")
 
     return Panel(

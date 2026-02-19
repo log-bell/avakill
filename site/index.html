@@ -373,173 +373,6 @@
     }
 
     /* =========================================================
-       Testimonials Section
-       ========================================================= */
-    .testimonials {
-      position: relative;
-      z-index: 1;
-      padding-top: 100px;
-      padding-bottom: 80px;
-    }
-
-    .testimonials-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      max-width: 864px;
-      margin: 0 auto 32px;
-      padding: 0 24px;
-    }
-
-    .testimonials-title {
-      font-size: clamp(1.5rem, 3vw, 2rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .testimonials-title .chevron {
-      color: var(--neon-blue);
-      margin-right: 8px;
-    }
-
-    .testimonials-view-all {
-      color: var(--neon-blue);
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: gap 0.3s ease;
-      white-space: nowrap;
-    }
-
-    .testimonials-view-all:hover {
-      gap: 8px;
-    }
-
-    /* Carousel wrapper with fade edges */
-    .carousel-wrapper {
-      position: relative;
-    }
-
-    .carousel-wrapper::before,
-    .carousel-wrapper::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 20px;
-      z-index: 2;
-      pointer-events: none;
-    }
-
-    .carousel-wrapper::before {
-      left: 0;
-      background: linear-gradient(to right, var(--base-dark), transparent);
-    }
-
-    .carousel-wrapper::after {
-      right: 0;
-      background: linear-gradient(to left, var(--base-dark), transparent);
-    }
-
-    /* Scrolling track */
-    .carousel-track {
-      display: flex;
-      gap: 16px;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding: 8px 24px 16px;
-    }
-
-    .carousel-track::-webkit-scrollbar {
-      display: none;
-    }
-
-    /* Add breathing room so first/last cards aren't flush */
-    .carousel-track::before,
-    .carousel-track::after {
-      content: '';
-      flex-shrink: 0;
-      width: calc((100vw - 864px) / 2);
-      min-width: 0;
-    }
-
-    /* Individual card */
-    .testimonial-card {
-      flex-shrink: 0;
-      min-width: 320px;
-      max-width: 350px;
-      background: var(--surface);
-      border: 1px solid rgba(0, 212, 255, 0.1);
-      border-radius: 16px;
-      padding: 24px;
-      scroll-snap-align: start;
-      transition: border-color 0.3s ease, transform 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-
-      /* Animate in via IntersectionObserver */
-      opacity: 0;
-      transform: translateY(16px);
-    }
-
-    .testimonial-card.visible {
-      opacity: 1;
-      transform: translateY(0);
-      transition: opacity 0.5s ease, transform 0.5s ease, border-color 0.3s ease;
-    }
-
-    .testimonial-card:hover {
-      border-color: rgba(0, 212, 255, 0.3);
-      transform: translateY(-2px);
-    }
-
-    .testimonial-card.visible:hover {
-      transform: translateY(-2px);
-    }
-
-    .testimonial-quote {
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      line-height: 1.6;
-      margin-bottom: 20px;
-      display: -webkit-box;
-      -webkit-line-clamp: 4;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .testimonial-author {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .testimonial-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: var(--base-dark);
-      flex-shrink: 0;
-    }
-
-    .testimonial-handle {
-      color: var(--neon-blue);
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
-
-    /* =========================================================
        Shared Section Header
        ========================================================= */
     .section-header {
@@ -864,6 +697,20 @@
 
     .integrations-row + .integrations-row {
       margin-top: 16px;
+    }
+
+    .integrations-row-label {
+      text-align: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .integrations-row + .integrations-row-label {
+      margin-top: 24px;
     }
 
     .integration-pill {
@@ -1257,7 +1104,6 @@
        Scroll Margin for Anchor Links
        ========================================================= */
     .hero,
-    .testimonials,
     .quickstart,
     .features,
     .integrations,
@@ -1498,7 +1344,6 @@
       word-break: break-word;
     }
 
-    .testimonial-card,
     .feature-card,
     .integration-pill,
     .press-card,
@@ -1642,7 +1487,6 @@
         transform: none !important;
       }
 
-      .testimonial-card,
       .feature-card,
       .integration-pill,
       .press-card,
@@ -1717,20 +1561,6 @@
         padding: 6px 16px;
         font-size: 0.8rem;
         gap: 8px;
-      }
-
-      .testimonials {
-        padding-top: 72px;
-      }
-
-      .testimonial-card {
-        min-width: 85vw;
-        max-width: 85vw;
-      }
-
-      .carousel-track::before,
-      .carousel-track::after {
-        width: 0;
       }
 
       .quickstart {
@@ -2007,6 +1837,7 @@
 
     <div class="integrations-content">
       <!-- Row 1: AI Frameworks -->
+      <div class="integrations-row-label">Integrates with</div>
       <div class="integrations-row">
         <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>OpenAI</span>
         <span class="integration-pill"><span class="integration-dot" style="background: #D97757;"></span>Anthropic</span>
@@ -2015,6 +1846,7 @@
       </div>
 
       <!-- Row 2: What It Protects -->
+      <div class="integrations-row-label">Protects access to</div>
       <div class="integrations-row">
         <span class="integration-pill"><span class="integration-dot" style="background: #336791;"></span>PostgreSQL</span>
         <span class="integration-pill"><span class="integration-dot" style="background: #4479A1;"></span>MySQL</span>
@@ -2240,11 +2072,6 @@
         }
       });
     }, { threshold: 0.2 });
-
-    document.querySelectorAll('.testimonial-card').forEach((card, i) => {
-      card.dataset.delay = `${i * 100}ms`;
-      revealObserver.observe(card);
-    });
 
     document.querySelectorAll('.feature-card').forEach((card, i) => {
       card.dataset.delay = `${i * 80}ms`;

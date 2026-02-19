@@ -118,8 +118,7 @@ def gaps(policy: str) -> None:
         for ctrl in failing:
             status_color = "red" if ctrl.status == "fail" else "yellow"
             console.print(
-                f"  [{status_color}]{ctrl.status.upper()}[/] "
-                f"{ctrl.control_id}: {ctrl.title}"
+                f"  [{status_color}]{ctrl.status.upper()}[/] {ctrl.control_id}: {ctrl.title}"
             )
             for rec in ctrl.recommendations:
                 console.print(f"    → {rec}")

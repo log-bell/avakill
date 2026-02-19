@@ -62,10 +62,7 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     timestamp REAL NOT NULL
 )"""
 
-_CREATE_INDEX = (
-    "CREATE INDEX IF NOT EXISTS idx_rl_tool_ts "
-    "ON rate_limits(tool_name, timestamp)"
-)
+_CREATE_INDEX = "CREATE INDEX IF NOT EXISTS idx_rl_tool_ts ON rate_limits(tool_name, timestamp)"
 
 
 class SQLiteBackend:
@@ -147,9 +144,7 @@ class SQLiteBackend:
         cutoff = time.time() - max_window_seconds
         with self._lock:
             self._flush()
-            self._conn.execute(
-                "DELETE FROM rate_limits WHERE timestamp <= ?", (cutoff,)
-            )
+            self._conn.execute("DELETE FROM rate_limits WHERE timestamp <= ?", (cutoff,))
             self._conn.commit()
 
     def close(self) -> None:

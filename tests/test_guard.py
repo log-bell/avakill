@@ -479,9 +479,7 @@ class TestGuardLogFailures:
 class TestGuardApprovalWorkflow:
     """Tests for approval store wiring in Guard."""
 
-    async def test_approval_store_creates_pending_request(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_approval_store_creates_pending_request(self, tmp_path: Path) -> None:
         from avakill.core.approval import ApprovalStore
 
         db_path = tmp_path / "approvals.db"
@@ -499,9 +497,7 @@ class TestGuardApprovalWorkflow:
                 ),
             ],
         )
-        guard = Guard(
-            policy=config, self_protection=False, approval_store=store
-        )
+        guard = Guard(policy=config, self_protection=False, approval_store=store)
 
         decision = guard.evaluate(tool="file_write", agent_id="test-agent")
         assert decision.action == "require_approval"
@@ -531,9 +527,7 @@ class TestGuardApprovalWorkflow:
                     ),
                 ],
             )
-            guard = Guard(
-                policy=config, self_protection=False, approval_store=store
-            )
+            guard = Guard(policy=config, self_protection=False, approval_store=store)
 
             # First call: creates pending request
             decision = guard.evaluate(tool="deploy", agent_id="bot")
@@ -588,17 +582,13 @@ class TestGuardIntegrity:
         assert guard.policy_status in ("verified", "hardened")
 
         # Tamper with the file
-        policy_file.write_text(
-            "version: '1.0'\ndefault_action: allow\npolicies: []\n"
-        )
+        policy_file.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
         # Next evaluate should detect tampering and use last-known-good
         decision = guard.evaluate(tool="file_read")
         assert decision.allowed is True  # last-known-good still allows
         assert guard.policy_status == "last-known-good"
 
-    def test_signing_key_from_env(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_signing_key_from_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         key_hex = "ee" * 32
         key = bytes.fromhex(key_hex)
         monkeypatch.setenv("AVAKILL_POLICY_KEY", key_hex)

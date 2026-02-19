@@ -308,9 +308,7 @@ class _Dashboard:
             try:
                 self._guard.reload_policy()
             except Exception:
-                logging.getLogger(__name__).warning(
-                    "Manual policy reload failed", exc_info=True
-                )
+                logging.getLogger(__name__).warning("Manual policy reload failed", exc_info=True)
 
 
 @click.command()

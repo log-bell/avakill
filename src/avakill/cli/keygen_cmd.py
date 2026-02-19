@@ -33,16 +33,8 @@ def keygen() -> None:
 
     console.print()
     console.print("[bold green]Ed25519 keypair generated.[/bold green]")
-    console.print(
-        "  [bold]AVAKILL_SIGNING_KEY[/bold] — keep private, use for signing"
-    )
-    console.print(
-        "  [bold]AVAKILL_VERIFY_KEY[/bold]  — deploy with agent, use for verification"
-    )
+    console.print("  [bold]AVAKILL_SIGNING_KEY[/bold] — keep private, use for signing")
+    console.print("  [bold]AVAKILL_VERIFY_KEY[/bold]  — deploy with agent, use for verification")
     console.print()
-    console.print(
-        "Sign a policy: [bold]avakill sign --ed25519 policy.yaml[/bold]"
-    )
-    console.print(
-        "Verify:        [bold]avakill verify policy.yaml[/bold]"
-    )
+    console.print("Sign a policy: [bold]avakill sign --ed25519 policy.yaml[/bold]")
+    console.print("Verify:        [bold]avakill verify policy.yaml[/bold]")

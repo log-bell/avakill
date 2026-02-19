@@ -156,17 +156,13 @@ class TestSchemaCLI:
         assert "JSON Schema" in result.output
 
     def test_prompt_with_tools(self, runner: CliRunner):
-        result = runner.invoke(
-            cli, ["schema", "--format=prompt", "--tools=file_read,shell_exec"]
-        )
+        result = runner.invoke(cli, ["schema", "--format=prompt", "--tools=file_read,shell_exec"])
         assert result.exit_code == 0
         assert "file_read" in result.output
         assert "shell_exec" in result.output
 
     def test_prompt_with_use_case(self, runner: CliRunner):
-        result = runner.invoke(
-            cli, ["schema", "--format=prompt", "--use-case=code assistant"]
-        )
+        result = runner.invoke(cli, ["schema", "--format=prompt", "--use-case=code assistant"])
         assert result.exit_code == 0
         assert "code assistant" in result.output
 
@@ -189,9 +185,7 @@ class TestSchemaCLI:
 
     def test_prompt_output_to_file(self, runner: CliRunner, tmp_path: Path):
         out_file = tmp_path / "prompt.md"
-        result = runner.invoke(
-            cli, ["schema", "--format=prompt", "-o", str(out_file)]
-        )
+        result = runner.invoke(cli, ["schema", "--format=prompt", "-o", str(out_file)])
         assert result.exit_code == 0
         assert out_file.exists()
         content = out_file.read_text(encoding="utf-8")

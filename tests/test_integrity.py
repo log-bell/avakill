@@ -155,22 +155,16 @@ def signed_policy(tmp_path: Path, signing_key: bytes) -> Path:
 
 
 class TestTOCTOUSafeLoading:
-    def test_loads_valid_signed_policy(
-        self, signed_policy: Path, signing_key: bytes
-    ) -> None:
+    def test_loads_valid_signed_policy(self, signed_policy: Path, signing_key: bytes) -> None:
         pi = PolicyIntegrity(signing_key=signing_key)
         config = pi.load_verified(signed_policy)
         assert isinstance(config, PolicyConfig)
         assert config.version == "1.0"
         assert len(config.policies) == 1
 
-    def test_rejects_unsigned_when_key_set(
-        self, tmp_path: Path, signing_key: bytes
-    ) -> None:
+    def test_rejects_unsigned_when_key_set(self, tmp_path: Path, signing_key: bytes) -> None:
         p = tmp_path / "unsigned.yaml"
-        p.write_text(
-            "version: '1.0'\ndefault_action: allow\npolicies: []\n"
-        )
+        p.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
         pi = PolicyIntegrity(signing_key=signing_key)
         # Should fall back to deny-all (no last-known-good)
         config = pi.load_verified(p)
@@ -190,13 +184,9 @@ class TestTOCTOUSafeLoading:
         config = pi.load_verified(p)
         assert config.default_action == "allow"
 
-    def test_rejects_tampered_signed_policy(
-        self, signed_policy: Path, signing_key: bytes
-    ) -> None:
+    def test_rejects_tampered_signed_policy(self, signed_policy: Path, signing_key: bytes) -> None:
         # Tamper with content after signing
-        signed_policy.write_text(
-            "version: '1.0'\ndefault_action: allow\npolicies: []\n"
-        )
+        signed_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
         pi = PolicyIntegrity(signing_key=signing_key)
         config = pi.load_verified(signed_policy)
         # Falls back to deny-all
@@ -220,16 +210,12 @@ class TestFailClosed:
         assert len(good.policies) == 1
 
         # Tamper with the file
-        signed_policy.write_text(
-            "version: '1.0'\ndefault_action: allow\npolicies: []\n"
-        )
+        signed_policy.write_text("version: '1.0'\ndefault_action: allow\npolicies: []\n")
         # Should fall back to last-known-good
         fallback = pi.load_verified(signed_policy)
         assert len(fallback.policies) == 1  # still the good policy
 
-    def test_invalid_yaml_falls_back(
-        self, tmp_path: Path, signing_key: bytes
-    ) -> None:
+    def test_invalid_yaml_falls_back(self, tmp_path: Path, signing_key: bytes) -> None:
         p = tmp_path / "bad.yaml"
         p.write_text("{{not: valid: yaml::")
         # Sign the bad content (signature is valid but content isn't YAML)
@@ -238,9 +224,7 @@ class TestFailClosed:
         config = pi.load_verified(p)
         assert config.default_action == "deny"  # deny-all fallback
 
-    def test_invalid_schema_falls_back(
-        self, tmp_path: Path, signing_key: bytes
-    ) -> None:
+    def test_invalid_schema_falls_back(self, tmp_path: Path, signing_key: bytes) -> None:
         p = tmp_path / "bad_schema.yaml"
         p.write_text("version: '2.0'\ndefault_action: deny\npolicies: []\n")
         PolicyIntegrity.sign_file(p, signing_key)
@@ -255,9 +239,7 @@ class TestFailClosed:
         assert config.default_action == "deny"
         assert len(config.policies) == 0
 
-    def test_get_last_known_good_after_load(
-        self, signed_policy: Path, signing_key: bytes
-    ) -> None:
+    def test_get_last_known_good_after_load(self, signed_policy: Path, signing_key: bytes) -> None:
         pi = PolicyIntegrity(signing_key=signing_key)
         pi.load_verified(signed_policy)
         lkg = pi.get_last_known_good()
@@ -272,17 +254,13 @@ class TestPolicyIntegrityBaseline:
         assert isinstance(snap, FileSnapshot)
         assert snap.size > 0
 
-    def test_check_integrity_unchanged(
-        self, signed_policy: Path, signing_key: bytes
-    ) -> None:
+    def test_check_integrity_unchanged(self, signed_policy: Path, signing_key: bytes) -> None:
         pi = PolicyIntegrity(signing_key=signing_key)
         pi.set_baseline(signed_policy)
         ok, msg = pi.check_integrity(signed_policy)
         assert ok is True
 
-    def test_check_integrity_tampered(
-        self, signed_policy: Path, signing_key: bytes
-    ) -> None:
+    def test_check_integrity_tampered(self, signed_policy: Path, signing_key: bytes) -> None:
         pi = PolicyIntegrity(signing_key=signing_key)
         pi.set_baseline(signed_policy)
         signed_policy.write_text("tampered!")
@@ -299,13 +277,16 @@ class TestPolicyIntegrityBaseline:
 class TestPackageExports:
     def test_policy_integrity_importable_from_core(self) -> None:
         from avakill.core.integrity import FileSnapshot, PolicyIntegrity
+
         assert PolicyIntegrity is not None
         assert FileSnapshot is not None
 
     def test_policy_integrity_lazy_import(self) -> None:
         import avakill
+
         pi = avakill.PolicyIntegrity
         from avakill.core.integrity import PolicyIntegrity as direct
+
         assert pi is direct
 
 
@@ -346,7 +327,7 @@ class TestEd25519Signing:
         content = sig_path.read_text().strip()
         assert content.startswith("ed25519:")
         # Ed25519 signature is 64 bytes = 128 hex chars after prefix
-        sig_hex = content[len("ed25519:"):]
+        sig_hex = content[len("ed25519:") :]
         assert len(sig_hex) == 128
         bytes.fromhex(sig_hex)  # should not raise
 
@@ -466,9 +447,7 @@ class TestEd25519LoadVerified:
         config = pi.load_verified(ed25519_policy)
         assert config.default_action == "deny"  # HMAC sig but no HMAC key
 
-    def test_signing_enabled_with_verify_key(
-        self, ed25519_keypair: tuple[bytes, bytes]
-    ) -> None:
+    def test_signing_enabled_with_verify_key(self, ed25519_keypair: tuple[bytes, bytes]) -> None:
         _, public_key = ed25519_keypair
         pi = PolicyIntegrity(verify_key=public_key)
         assert pi.signing_enabled is True

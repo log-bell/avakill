@@ -203,11 +203,7 @@ class PolicyConfig(BaseModel):
                             "name": "block-destructive-sql",
                             "tools": ["database_*", "sql_*"],
                             "action": "deny",
-                            "conditions": {
-                                "args_match": {
-                                    "query": ["DROP", "DELETE", "TRUNCATE"]
-                                }
-                            },
+                            "conditions": {"args_match": {"query": ["DROP", "DELETE", "TRUNCATE"]}},
                             "message": "Destructive SQL is blocked",
                         },
                         {

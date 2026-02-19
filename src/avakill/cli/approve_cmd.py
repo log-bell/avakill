@@ -24,7 +24,8 @@ from avakill.core.policy import PolicyEngine
     help="Target filename for the activated policy. Defaults to avakill.yaml.",
 )
 @click.option(
-    "--yes", "-y",
+    "--yes",
+    "-y",
     is_flag=True,
     default=False,
     help="Skip confirmation prompt.",

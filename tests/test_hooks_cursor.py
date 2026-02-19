@@ -17,14 +17,16 @@ class TestCursorParseStdin:
         self.adapter = CursorAdapter()
 
     def test_parse_before_shell_execution(self) -> None:
-        raw = json.dumps({
-            "conversation_id": "conv-1",
-            "generation_id": "gen-1",
-            "command": "git status",
-            "cwd": "/home/user/project",
-            "hook_event_name": "beforeShellExecution",
-            "workspace_roots": ["/home/user/project"],
-        })
+        raw = json.dumps(
+            {
+                "conversation_id": "conv-1",
+                "generation_id": "gen-1",
+                "command": "git status",
+                "cwd": "/home/user/project",
+                "hook_event_name": "beforeShellExecution",
+                "workspace_roots": ["/home/user/project"],
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "shell_command"
         assert req.args["command"] == "git status"
@@ -32,38 +34,44 @@ class TestCursorParseStdin:
         assert req.agent == "cursor"
 
     def test_parse_before_mcp_execution(self) -> None:
-        raw = json.dumps({
-            "conversation_id": "conv-2",
-            "generation_id": "gen-2",
-            "hook_event_name": "beforeMCPExecution",
-            "tool_name": "github__create_issue",
-            "tool_input": {"title": "Bug", "body": "Description"},
-            "workspace_roots": ["/home/user/project"],
-        })
+        raw = json.dumps(
+            {
+                "conversation_id": "conv-2",
+                "generation_id": "gen-2",
+                "hook_event_name": "beforeMCPExecution",
+                "tool_name": "github__create_issue",
+                "tool_input": {"title": "Bug", "body": "Description"},
+                "workspace_roots": ["/home/user/project"],
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "github__create_issue"
         assert req.args["title"] == "Bug"
 
     def test_parse_includes_workspace_roots(self) -> None:
-        raw = json.dumps({
-            "conversation_id": "conv-3",
-            "generation_id": "gen-3",
-            "command": "ls",
-            "cwd": "",
-            "hook_event_name": "beforeShellExecution",
-            "workspace_roots": ["/a", "/b"],
-        })
+        raw = json.dumps(
+            {
+                "conversation_id": "conv-3",
+                "generation_id": "gen-3",
+                "command": "ls",
+                "cwd": "",
+                "hook_event_name": "beforeShellExecution",
+                "workspace_roots": ["/a", "/b"],
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.context["workspace_roots"] == ["/a", "/b"]
 
     def test_parse_before_read_file(self) -> None:
-        raw = json.dumps({
-            "conversation_id": "conv-4",
-            "generation_id": "gen-4",
-            "hook_event_name": "beforeReadFile",
-            "file_path": "/etc/passwd",
-            "workspace_roots": [],
-        })
+        raw = json.dumps(
+            {
+                "conversation_id": "conv-4",
+                "generation_id": "gen-4",
+                "hook_event_name": "beforeReadFile",
+                "file_path": "/etc/passwd",
+                "workspace_roots": [],
+            }
+        )
         req = self.adapter.parse_stdin(raw)
         assert req.tool == "read_file"
         assert req.args["file_path"] == "/etc/passwd"

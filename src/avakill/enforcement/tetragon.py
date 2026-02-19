@@ -74,11 +74,13 @@ class TetragonPolicyGenerator:
             },
         }
 
-        return yaml.dump(
-            policy,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
+        return str(
+            yaml.dump(
+                policy,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
         )
 
     def write(self, config: PolicyConfig, output: Path) -> Path:
@@ -133,9 +135,7 @@ class TetragonPolicyGenerator:
 
                     # Add matchArgs to selectors if specified
                     if "selectors_matchArgs" in spec:
-                        kprobe["selectors"][0]["matchArgs"] = spec[
-                            "selectors_matchArgs"
-                        ]
+                        kprobe["selectors"][0]["matchArgs"] = spec["selectors_matchArgs"]
 
                     kprobes.append(kprobe)
 

@@ -199,7 +199,7 @@ def generate_prompt(
         "## Output Instructions\n\n"
         "1. Output ONLY the YAML policy — no explanations, no markdown fences, "
         "no surrounding text.\n"
-        "2. Start with `version: \"1.0\"` and `default_action:`.\n"
+        '2. Start with `version: "1.0"` and `default_action:`.\n'
         "3. Order rules from most-specific deny rules to broader allow rules.\n"
         "4. Include a `message` field on deny and require_approval rules explaining why.\n"
         "5. Use comments (`#`) to document each rule's purpose.\n"
