@@ -290,6 +290,15 @@ class PolicyEngine:
         """
         args = tool_call.arguments
 
+        if conditions.shell_safe:
+            cmd = str(args.get("command") or args.get("cmd") or "")
+            if cmd:
+                from avakill.core.shell_analysis import is_shell_safe
+
+                safe, _ = is_shell_safe(cmd)
+                if not safe:
+                    return False
+
         if conditions.args_match:
             for key, substrings in conditions.args_match.items():
                 value = str(args.get(key, "")).lower()

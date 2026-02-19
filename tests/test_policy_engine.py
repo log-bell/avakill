@@ -1199,6 +1199,150 @@ class TestPolicyEngineIntegration:
 
 
 # ---------------------------------------------------------------------------
+# PolicyEngine — shell_safe condition
+# ---------------------------------------------------------------------------
+
+
+class TestPolicyEngineShellSafe:
+    """Tests for the shell_safe condition on policy rules."""
+
+    def _engine_with_shell_safe(self) -> PolicyEngine:
+        """Engine with a shell_safe allow rule + catch-all deny."""
+        return PolicyEngine(
+            PolicyConfig(
+                default_action="deny",
+                policies=[
+                    PolicyRule(
+                        name="allow-safe-shell",
+                        tools=["shell_*"],
+                        action="allow",
+                        conditions=RuleConditions(shell_safe=True),
+                    ),
+                ],
+            )
+        )
+
+    def test_clean_command_allowed(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo hello"})
+        assert engine.evaluate(tc).allowed is True
+
+    def test_ls_allowed(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "ls -la"})
+        assert engine.evaluate(tc).allowed is True
+
+    def test_pipe_rejected(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "cat file | sh"})
+        d = engine.evaluate(tc)
+        assert d.allowed is False
+
+    def test_redirect_rejected(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo data > file.txt"})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_semicolon_rejected(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo a; rm -rf /"})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_subshell_rejected(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo $(whoami)"})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_backtick_rejected(self) -> None:
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo `id`"})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_fallthrough_to_default_deny(self) -> None:
+        """Metachar command skips allow rule, hits default deny."""
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo foo > bar"})
+        d = engine.evaluate(tc)
+        assert d.allowed is False
+        assert d.policy_name is None  # fell through to default
+
+    def test_cmd_arg_key_works(self) -> None:
+        """shell_safe checks both 'command' and 'cmd' argument keys."""
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "echo data > file"})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_default_false_ignores_metachars(self) -> None:
+        """When shell_safe is False (default), metachars are not checked."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="deny",
+                policies=[
+                    PolicyRule(
+                        name="allow-all-shell",
+                        tools=["shell_*"],
+                        action="allow",
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": "echo foo > bar"})
+        assert engine.evaluate(tc).allowed is True
+
+    def test_combined_with_args_match(self) -> None:
+        """shell_safe + args_match both must pass."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="deny",
+                policies=[
+                    PolicyRule(
+                        name="allow-echo-safe",
+                        tools=["shell_exec"],
+                        action="allow",
+                        conditions=RuleConditions(
+                            shell_safe=True,
+                            args_match={"command": ["echo"]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        # echo without metachars → both pass → allowed
+        tc_good = ToolCall(tool_name="shell_exec", arguments={"command": "echo hello"})
+        assert engine.evaluate(tc_good).allowed is True
+
+        # echo with redirect → shell_safe fails → denied
+        tc_redir = ToolCall(
+            tool_name="shell_exec", arguments={"command": "echo payload > target.txt"}
+        )
+        assert engine.evaluate(tc_redir).allowed is False
+
+        # ls without metachars → args_match fails (no "echo") → denied
+        tc_ls = ToolCall(tool_name="shell_exec", arguments={"command": "ls -la"})
+        assert engine.evaluate(tc_ls).allowed is False
+
+    def test_empty_command_passes(self) -> None:
+        """Empty command string is considered safe."""
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"command": ""})
+        # Empty command → shell_safe passes → but args_match not set → allowed
+        assert engine.evaluate(tc).allowed is True
+
+    def test_no_command_arg_passes(self) -> None:
+        """Missing command/cmd argument is treated as empty → safe."""
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="shell_exec", arguments={"path": "/tmp"})
+        assert engine.evaluate(tc).allowed is True
+
+    def test_unrelated_tool_unaffected(self) -> None:
+        """shell_safe rule only applies to shell_* tools."""
+        engine = self._engine_with_shell_safe()
+        tc = ToolCall(tool_name="file_read", arguments={"path": "test.txt"})
+        # file_read doesn't match shell_* → falls to default deny
+        assert engine.evaluate(tc).allowed is False
+
+
+# ---------------------------------------------------------------------------
 # PolicyEngine — default template rate limit ordering (Bug 3)
 # ---------------------------------------------------------------------------
 

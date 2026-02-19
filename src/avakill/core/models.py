@@ -80,10 +80,12 @@ class RuleConditions(BaseModel):
     Attributes:
         args_match: Argument values must contain one of these strings (case-insensitive).
         args_not_match: Deny if argument values contain any of these strings (case-insensitive).
+        shell_safe: When True, reject commands containing shell metacharacters.
     """
 
     args_match: dict[str, list[str]] | None = None
     args_not_match: dict[str, list[str]] | None = None
+    shell_safe: bool = False
 
 
 _WINDOW_PATTERN = re.compile(r"^\d+[smh]$")
