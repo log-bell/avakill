@@ -36,7 +36,10 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
         "(allow mach-register)",
         "(allow signal (target self))",
         "(allow process-fork)",
-        "(allow process-info-pidinfo)",
+        "(allow process-info*)",
+        "(allow file-read-metadata)",
+        "(allow file-read-xattr)",
+        "(allow file-write-xattr)",
         "",
     ]
 
