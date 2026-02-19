@@ -392,10 +392,6 @@ avakill approvals grant REQUEST_ID
 
 ## Dashboard
 
-```
-[Terminal dashboard screenshot — add after recording demo GIF]
-```
-
 The dashboard shows:
 - **Safety overview** — total, allowed, denied, and pending counts with percentages
 - **Live tool calls** — real-time stream with tool name, action, policy, and argument previews

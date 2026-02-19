@@ -176,7 +176,7 @@ async def _tail_events(
 @click.option("--agent", default=None, help="Filter by agent ID.")
 @click.option("--session", default=None, help="Filter by session ID.")
 @click.option("--since", default=None, help="Show events after this time (e.g. '1h', '30m', '7d').")
-@click.option("--json", "fmt", flag_value="json", default=False, help="Output as JSON.")
+@click.option("--json", "fmt", flag_value="json", default=None, help="Output as JSON.")
 @click.pass_context
 def logs(
     ctx: click.Context,
@@ -209,6 +209,12 @@ def logs(
     if not db_path.exists():
         console = Console()
         console.print(f"[yellow]Database not found:[/yellow] {db_path}")
+        console.print(
+            "[dim]Enable audit logging by passing a SQLiteLogger to Guard:\n"
+            "  logger = SQLiteLogger('avakill_audit.db')\n"
+            "  guard = Guard(policy='avakill.yaml', logger=logger)\n"
+            "See: https://avakill.com/docs/getting-started[/dim]"
+        )
         raise SystemExit(1)
 
     filters = _build_filters(tool, denied_only, agent, session, since)

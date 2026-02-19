@@ -120,6 +120,12 @@ def fix(show_last: bool, show_all: bool, db: str, output_json: bool) -> None:
     if not db_path.exists():
         console = Console(stderr=True)
         console.print(f"[red]Database not found:[/red] {db_path}")
+        console.print(
+            "[dim]Enable audit logging by passing a SQLiteLogger to Guard:\n"
+            "  logger = SQLiteLogger('avakill_audit.db')\n"
+            "  guard = Guard(policy='avakill.yaml', logger=logger)\n"
+            "See: https://avakill.com/docs/getting-started[/dim]"
+        )
         raise SystemExit(1)
 
     limit = 20 if show_all else 1

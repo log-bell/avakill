@@ -69,6 +69,12 @@ def test_all_exports():
         "PolicyWatcher",
         "DaemonServer",
         "DaemonClient",
+        "ToolNormalizer",
+        "PolicyCascade",
+        "ComplianceAssessor",
+        "ComplianceReporter",
+        "ApprovalStore",
+        "AuditAnalytics",
     }
     assert set(avakill.__all__) == expected
 

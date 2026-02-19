@@ -55,20 +55,23 @@ Run `avakill init` to generate a starter policy file:
 $ avakill init
 Which policy template? [default/strict/permissive] (default): default
 
-╭──── AvaKill Initialized ────╮
-│                                │
-│  Policy file created: avakill.yaml
-│  Template: default             │
-│                                │
-╰────────────────────────────────╯
+╭──────────────────────────── AvaKill Initialized ─────────────────────────────╮
+│                                                                              │
+│  Policy file created: avakill.yaml                                           │
+│  Template: default                                                           │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
 Next steps:
   1. Review and customise avakill.yaml
   2. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started
-  3. Enable audit logging (see docs/getting-started)
-  4. Run avakill dashboard to monitor in real-time
-  5. Run avakill validate to check your policy
+  3. Run avakill hook install --agent all to register agent hooks
+  4. Enable audit logging (see docs/getting-started)
+  5. Run avakill dashboard to monitor in real-time
+  6. Run avakill validate to check your policy
 ```
+
+> **Note:** If AvaKill detects installed frameworks (OpenAI, Anthropic, LangChain, MCP) or AI coding agents (Claude Code, Gemini CLI), it will show quickstart code snippets and agent hook instructions.
 
 Three templates are available:
 
