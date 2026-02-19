@@ -494,17 +494,18 @@ avakill schema --format=prompt -o prompt.txt
 Start the AvaKill evaluation daemon.
 
 ```
-avakill daemon start [--policy PATH] [--socket PATH] [--log-db PATH] [--foreground]
+avakill daemon start [--policy PATH] [--socket PATH] [--tcp-port PORT] [--log-db PATH] [--foreground]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--policy` | `avakill.yaml` | Path to the policy file |
-| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path. Also set via `AVAKILL_SOCKET` env var. |
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path (Linux/macOS). Also set via `AVAKILL_SOCKET` env var. |
+| `--tcp-port` | `19426` | TCP localhost port (default on Windows, optional on Linux/macOS) |
 | `--log-db` | *(none)* | Path to the audit database |
 | `--foreground` | `false` | Run in foreground instead of daemonizing |
 
-The daemon listens on a Unix domain socket and evaluates tool calls sent by agent hooks or the `avakill evaluate` command. It creates a PID file at `~/.avakill/avakill.pid`.
+The daemon evaluates tool calls sent by agent hooks or the `avakill evaluate` command. On Linux/macOS it listens on a Unix domain socket by default; on Windows it uses TCP localhost (port 19426). It creates a PID file at `~/.avakill/avakill.pid`.
 
 **Signal handling:**
 
@@ -537,14 +538,15 @@ kill -HUP $(cat ~/.avakill/avakill.pid)
 Stop the running AvaKill daemon.
 
 ```
-avakill daemon stop [--socket PATH]
+avakill daemon stop [--socket PATH] [--tcp-port PORT]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path |
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path (Linux/macOS) |
+| `--tcp-port` | *(none)* | TCP port |
 
-Sends SIGTERM to the daemon process and waits for shutdown. Cleans up socket and PID files.
+Sends SIGTERM to the daemon process. Cleans up socket/port and PID files.
 
 **Example:**
 
@@ -559,14 +561,15 @@ avakill daemon stop
 Check the AvaKill daemon status.
 
 ```
-avakill daemon status [--socket PATH]
+avakill daemon status [--socket PATH] [--tcp-port PORT]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path |
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path (Linux/macOS) |
+| `--tcp-port` | *(none)* | TCP port |
 
-Reports whether the daemon is running and its PID.
+Reports whether the daemon is running, its PID, and listening address.
 
 **Example:**
 
@@ -582,17 +585,18 @@ avakill daemon status
 Evaluate a tool call against the policy.
 
 ```
-avakill evaluate --agent AGENT [--socket PATH] [--policy FILE] [--json]
+avakill evaluate --agent AGENT [--socket PATH] [--tcp-port PORT] [--policy FILE] [--json]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--agent` | `cli` | Agent identifier (e.g., `cli`, `claude-code`, `gemini-cli`) |
-| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path (for daemon mode) |
+| `--socket` | `~/.avakill/avakill.sock` | Unix domain socket path for daemon mode (Linux/macOS) |
+| `--tcp-port` | *(none)* | TCP port for daemon mode (default on Windows) |
 | `--policy` | *(none)* | Policy file path (for standalone mode, bypasses daemon) |
 | `--json` | `false` | Output full JSON response |
 
-Reads a JSON object from stdin with `tool` and `args` fields. Tries the daemon first; falls back to standalone evaluation if `--policy` is provided.
+Reads a JSON object from stdin with `tool` and `args` fields. Connects to the daemon via Unix socket (Linux/macOS) or TCP localhost (Windows); use `--policy` for standalone evaluation without a daemon.
 
 **Exit codes:**
 

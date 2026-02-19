@@ -9,11 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 #### Phase 1: Persistent Daemon
-- **`DaemonServer`** — Unix domain socket server (`~/.avakill/avakill.sock`) with async connection handling, SIGHUP policy reload, and PID file management.
+- **`DaemonServer`** — Unix domain socket (Linux/macOS) and TCP localhost (Windows) server with async connection handling, SIGHUP policy reload, and PID file management.
 - **`DaemonClient`** — synchronous client for hook scripts with fail-closed behavior (denies on any error).
+- **Transport abstraction** — `ServerTransport`/`ClientTransport` with Unix and TCP implementations; auto-selects per platform.
 - **Wire protocol** — `EvaluateRequest`/`EvaluateResponse` models with newline-delimited JSON serialization.
-- **`avakill daemon start/stop/status`** — CLI commands for daemon lifecycle management.
+- **`avakill daemon start/stop/status`** — CLI commands for daemon lifecycle management with `--tcp-port` option.
 - **`avakill evaluate`** — evaluate tool calls via stdin JSON with exit codes (0=allow, 2=deny, 1=error).
+- **Cross-platform daemonization** — `subprocess.Popen` with `DETACHED_PROCESS` (Windows) or `start_new_session` (Unix).
 
 #### Phase 2: Agent Hook Adapters
 - **`ClaudeCodeAdapter`** — PreToolUse hook for Claude Code with `permissionDecision` response format.

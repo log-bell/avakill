@@ -6,11 +6,26 @@ This guide gets you from zero to a working policy in under 5 minutes.
 
 ## Installation
 
+### Recommended: pipx (isolated install)
+
+```bash
+pipx install avakill
+```
+
+### Or use a virtualenv
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install avakill
+```
+
+### With pip directly
+
 ```bash
 pip install avakill
 ```
 
-Install with framework-specific extras:
+### With framework extras
 
 ```bash
 pip install "avakill[openai]"       # OpenAI function calling
@@ -20,9 +35,11 @@ pip install "avakill[mcp]"          # MCP proxy
 pip install "avakill[all]"          # Everything
 ```
 
+> **macOS note:** macOS 14+ ships Python 3.12+ which blocks `pip install` at the system level (PEP 668). Use `pipx` or a virtualenv.
+
 > **Note:** Quotes around `"avakill[...]"` are required on zsh (the default macOS shell). Bash works with or without them.
 
-From source:
+### From source
 
 ```bash
 git clone https://github.com/log-bell/avakill.git

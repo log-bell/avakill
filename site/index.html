@@ -11,9 +11,15 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://avakill.com">
   <meta property="og:image" content="https://avakill.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="AvaKill — The AI Safety Firewall. Intercept tool calls. Enforce policies. Prevent disasters.">
+  <meta property="og:site_name" content="AvaKill">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="AvaKill — Open-Source Safety Firewall for AI Agents">
   <meta name="twitter:description" content="Stop your AI agents from deleting your database. Open-source, &lt;1ms overhead, YAML policies.">
+  <meta name="twitter:image" content="https://avakill.com/twitter-image.png">
+  <meta name="twitter:image:alt" content="AvaKill — The AI Safety Firewall. Intercept tool calls. Enforce policies. Prevent disasters.">
   <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
   <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
   <link rel="shortcut icon" href="/favicon/favicon.ico">
@@ -1517,6 +1523,103 @@
     }
 
     /* =========================================================
+       Site Navigation
+       ========================================================= */
+    .site-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.3s ease;
+    }
+
+    .site-nav.scrolled {
+      border-bottom-color: rgba(0, 212, 255, 0.1);
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--neon-blue);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--neon-blue);
+    }
+
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Hamburger open state */
+    .site-nav.nav-open .nav-hamburger span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    body {
+      padding-top: 56px;
+    }
+
+    [id$="-section"],
+    #main-content {
+      scroll-margin-top: 72px;
+    }
+
+    /* =========================================================
        Reduced Motion
        ========================================================= */
     @media (prefers-reduced-motion: reduce) {
@@ -1562,6 +1665,34 @@
        Mobile Responsive
        ========================================================= */
     @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 56px;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        padding: 8px 0;
+      }
+
+      .site-nav.nav-open .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
       .hero-logo {
         width: 140px;
         height: 140px;
@@ -1714,6 +1845,22 @@
 </head>
 <body>
 
+  <!-- Site Navigation -->
+  <header class="site-nav" id="site-nav">
+    <a href="#" class="nav-brand">AvaKill</a>
+    <nav class="nav-links">
+      <a href="#quickstart-section">Quickstart</a>
+      <a href="#features-section">Features</a>
+      <a href="#integrations-section">Integrations</a>
+      <a href="#demo-section">Demo</a>
+      <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+    </nav>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
   <!-- Skip to Content -->
   <a href="#main-content" class="skip-to-content">Skip to content</a>
 
@@ -1756,7 +1903,7 @@
   <!-- Testimonials Section (placeholder — add real testimonials when available) -->
 
   <!-- Quick Start Section -->
-  <section class="quickstart">
+  <section class="quickstart" id="quickstart-section">
     <div class="section-header">
       <h2 class="section-title"><span class="chevron">&rsaquo;</span>Quick Start</h2>
     </div>
@@ -1771,10 +1918,11 @@
           </div>
           <div class="terminal-tabs">
             <button class="terminal-tab active" data-tab="oneliner">One-liner</button>
+            <button class="terminal-tab" data-tab="pipx">pipx</button>
             <button class="terminal-tab" data-tab="pip">pip</button>
           </div>
           <div class="terminal-meta">
-            <span class="terminal-os">macOS/Linux</span>
+            <span class="terminal-os">macOS/Linux/Windows</span>
             <span class="terminal-change"></span>
             <span class="terminal-beta">&beta; BETA</span>
           </div>
@@ -1788,12 +1936,12 @@
           </button>
         </div>
       </div>
-      <p class="terminal-footnote">Works on macOS &amp; Linux. Ready in 30 seconds.</p>
+      <p class="terminal-footnote">Works on macOS, Linux &amp; Windows. Use pipx or a virtualenv on macOS.</p>
     </div>
   </section>
 
   <!-- What It Does Section -->
-  <section class="features">
+  <section class="features" id="features-section">
     <div class="section-header">
       <h2 class="section-title"><span class="chevron">&rsaquo;</span>What It Does</h2>
     </div>
@@ -1852,7 +2000,7 @@
   </section>
 
   <!-- Works With Everything Section -->
-  <section class="integrations">
+  <section class="integrations" id="integrations-section">
     <div class="section-header">
       <h2 class="section-title"><span class="chevron">&rsaquo;</span>Works With Everything</h2>
     </div>
@@ -1931,7 +2079,7 @@
   </section>
 
   <!-- See It In Action (Live Demo) -->
-  <section class="demo">
+  <section class="demo" id="demo-section">
     <div class="section-header">
       <h2 class="section-title"><span class="chevron">&rsaquo;</span>See It In Action</h2>
     </div>
@@ -2121,6 +2269,7 @@
     /* ----- Terminal tab switching ----- */
     const commands = {
       oneliner: 'pip install avakill && avakill init',
+      pipx: 'pipx install avakill && avakill init',
       pip: 'pip install avakill',
     };
 
@@ -2301,6 +2450,47 @@
         }, 300);
       });
     }
+
+    /* ----- Site Navigation ----- */
+    const siteNav = document.getElementById('site-nav');
+    const hamburger = document.getElementById('nav-hamburger');
+    const navLinks = siteNav.querySelectorAll('.nav-links a');
+
+    // Hamburger toggle
+    hamburger.addEventListener('click', () => {
+      siteNav.classList.toggle('nav-open');
+    });
+
+    // Close mobile menu on link click
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        siteNav.classList.remove('nav-open');
+      });
+    });
+
+    // Scroll shadow
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 50) {
+        siteNav.classList.add('scrolled');
+      } else {
+        siteNav.classList.remove('scrolled');
+      }
+    }, { passive: true });
+
+    // Active nav link via IntersectionObserver
+    const navSections = document.querySelectorAll('[id$="-section"]');
+    const navObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { rootMargin: '-72px 0px -60% 0px', threshold: 0 });
+
+    navSections.forEach(section => navObserver.observe(section));
   </script>
 
 </body>

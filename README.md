@@ -39,6 +39,8 @@ pip install avakill
 avakill init
 ```
 
+> **Tip:** On macOS, use `pipx install avakill` or create a virtualenv first (`python3 -m venv .venv && source .venv/bin/activate`). System Python on macOS 14+ blocks global pip installs.
+
 ```python
 from avakill import Guard, protect
 
@@ -120,13 +122,13 @@ Update policies without restarting your agents. Call `guard.reload_policy()` or 
 <tr>
 <td>
 
-:satellite: **Native Agent Hooks** `coming soon`<br>
+:satellite: **Native Agent Hooks**<br>
 Drop-in hooks for Claude Code, Gemini CLI, Cursor, and Windsurf. One command to install — no code changes to your agent.
 
 </td>
 <td>
 
-:gear: **Persistent Daemon** `coming soon`<br>
+:gear: **Persistent Daemon**<br>
 Unix socket server with <5ms evaluation. Start once, protect every agent on your machine. SIGHUP to reload policies.
 
 </td>
@@ -134,13 +136,13 @@ Unix socket server with <5ms evaluation. Start once, protect every agent on your
 <tr>
 <td>
 
-:shield: **OS-Level Enforcement** `coming soon`<br>
+:shield: **OS-Level Enforcement**<br>
 Landlock (Linux), sandbox-exec (macOS), and Tetragon (Kubernetes). Kernel-level restrictions that even root can't bypass.
 
 </td>
 <td>
 
-:scroll: **Compliance Reporting** `coming soon`<br>
+:scroll: **Compliance Reporting**<br>
 Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate reports in table, JSON, or Markdown format.
 
 </td>
@@ -158,8 +160,8 @@ Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate
 | Full audit trail | :x: | :x: | :white_check_mark: |
 | MCP server support | — | :x: | :white_check_mark: |
 | <1ms overhead | — | :x: (LLM round-trip) | :white_check_mark: |
-| Native agent hooks (no code changes) | — | :x: | :white_check_mark: `coming soon` |
-| OS-level kernel enforcement | — | :x: | :white_check_mark: `coming soon` |
+| Native agent hooks (no code changes) | — | :x: | :white_check_mark: |
+| OS-level kernel enforcement | — | :x: | :white_check_mark: |
 | Open source | — | Some | :white_check_mark: AGPL 3.0 |
 
 ## Framework Integrations
