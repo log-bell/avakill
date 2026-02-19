@@ -1,0 +1,43 @@
+agent:
+  name: openclaw
+  display_name: OpenClaw
+  command: ["openclaw", "start"]
+  detect_paths:
+    - "~/.openclaw"
+    - "~/.openclaw/config.json"
+  detect_commands:
+    - "openclaw"
+  supports_hooks: false
+  mcp_native: true
+  description: >-
+    High-risk AI agent with native MCP support and a history of
+    critical CVEs. Runs as a Node.js Gateway process connecting to
+    messaging platforms. Requires strict containment.
+
+sandbox:
+  allow_paths:
+    read:
+      - "/usr"
+      - "/bin"
+      - "/lib"
+      - "/etc/ssl"
+      - "/etc/resolv.conf"
+      - "~/.openclaw"
+    write:
+      - "/tmp"
+      - "~/.openclaw"
+    execute:
+      - "/usr/bin/node"
+      - "/usr/local/bin/node"
+      - "/usr/bin/npx"
+      - "/usr/local/bin/npx"
+  allow_network:
+    connect:
+      - "api.openai.com:443"
+      - "api.anthropic.com:443"
+    bind:
+      - "127.0.0.1:18789"
+  resource_limits:
+    max_memory_mb: 1024
+    max_processes: 20
+    timeout_seconds: 86400

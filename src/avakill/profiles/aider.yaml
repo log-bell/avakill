@@ -1,0 +1,40 @@
+agent:
+  name: aider
+  display_name: Aider
+  command: ["aider"]
+  detect_paths:
+    - "~/.aider"
+  detect_commands:
+    - "aider"
+  supports_hooks: false
+  mcp_native: false
+  description: >-
+    Python-based AI coding assistant. Runs shell commands via
+    subprocess with no built-in sandboxing. Reads and writes files
+    directly. Auto-commits via git.
+
+sandbox:
+  allow_paths:
+    read:
+      - "/usr"
+      - "/bin"
+      - "/lib"
+      - "/etc/ssl"
+      - "/etc/resolv.conf"
+      - "~/.aider"
+      - "~/.gitconfig"
+    write:
+      - "/tmp"
+      - "~/.aider"
+    execute:
+      - "/usr/bin/python3"
+      - "/usr/local/bin/python3"
+      - "/usr/bin/git"
+      - "/usr/bin/pip"
+  allow_network:
+    connect:
+      - "api.openai.com:443"
+      - "api.anthropic.com:443"
+  resource_limits:
+    max_memory_mb: 2048
+    max_processes: 10

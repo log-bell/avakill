@@ -1,0 +1,40 @@
+agent:
+  name: swe-agent
+  display_name: SWE-Agent
+  command: ["python", "-m", "sweagent"]
+  detect_paths:
+    - "~/.swe-agent"
+  detect_commands:
+    - "sweagent"
+  supports_hooks: false
+  mcp_native: false
+  description: >-
+    Uses Docker containers as primary sandbox with a FastAPI server
+    inside the container. Requires Docker socket access which is
+    itself a security risk.
+
+sandbox:
+  allow_paths:
+    read:
+      - "/usr"
+      - "/bin"
+      - "/lib"
+      - "/etc/ssl"
+      - "/var/run/docker.sock"
+      - "~/.swe-agent"
+    write:
+      - "/tmp"
+      - "~/.swe-agent"
+    execute:
+      - "/usr/bin/python3"
+      - "/usr/local/bin/python3"
+      - "/usr/bin/docker"
+      - "/usr/local/bin/docker"
+  allow_network:
+    connect:
+      - "api.openai.com:443"
+      - "api.anthropic.com:443"
+  resource_limits:
+    max_memory_mb: 4096
+    max_processes: 50
+    timeout_seconds: 7200

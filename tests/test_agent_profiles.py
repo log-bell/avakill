@@ -100,3 +100,57 @@ class TestProfileLoader:
         profile = load_profile(profile_yaml)
         assert "/usr" in profile.sandbox.allow_paths.read
         assert "/tmp" in profile.sandbox.allow_paths.write
+
+
+class TestBuiltinProfiles:
+    @pytest.mark.parametrize(
+        "name",
+        ["openclaw", "aider", "cline", "continue", "swe-agent"],
+    )
+    def test_builtin_profile_loads(self, name):
+        profile = load_profile(name)
+        assert profile.agent.name == name
+        assert profile.sandbox is not None
+
+    @pytest.mark.parametrize(
+        "name",
+        ["openclaw", "aider", "cline", "continue", "swe-agent"],
+    )
+    def test_builtin_profile_has_detection(self, name):
+        profile = load_profile(name)
+        has_detection = (
+            len(profile.agent.detect_paths) > 0 or len(profile.agent.detect_commands) > 0
+        )
+        assert has_detection, f"Profile {name} has no detection hints"
+
+    def test_list_profiles_includes_all_builtins(self):
+        profiles = list_profiles()
+        expected = {"openclaw", "aider", "cline", "continue", "swe-agent"}
+        assert expected.issubset(set(profiles))
+
+    def test_openclaw_has_node_in_execute(self):
+        profile = load_profile("openclaw")
+        exec_paths = profile.sandbox.allow_paths.execute
+        assert any("node" in p for p in exec_paths)
+
+    def test_openclaw_is_mcp_native(self):
+        profile = load_profile("openclaw")
+        assert profile.agent.mcp_native is True
+
+    def test_aider_has_python_in_execute(self):
+        profile = load_profile("aider")
+        exec_paths = profile.sandbox.allow_paths.execute
+        assert any("python" in p for p in exec_paths)
+
+    def test_aider_supports_no_hooks(self):
+        profile = load_profile("aider")
+        assert profile.agent.supports_hooks is False
+
+    def test_cline_is_mcp_native(self):
+        profile = load_profile("cline")
+        assert profile.agent.mcp_native is True
+
+    def test_swe_agent_needs_docker(self):
+        profile = load_profile("swe-agent")
+        read_paths = profile.sandbox.allow_paths.read
+        assert any("docker" in p.lower() for p in read_paths)

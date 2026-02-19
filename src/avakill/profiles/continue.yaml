@@ -1,0 +1,34 @@
+agent:
+  name: continue
+  display_name: Continue.dev
+  command: []
+  detect_paths:
+    - ".continue/config.json"
+    - "~/.continue"
+  detect_commands: []
+  supports_hooks: false
+  mcp_native: true
+  description: >-
+    MCP-native AI coding assistant acting as an MCP Host that
+    orchestrates user-configured MCP servers via stdio, SSE, or
+    HTTP transports. Ideal for MCP proxy interception.
+
+sandbox:
+  allow_paths:
+    read:
+      - "/usr"
+      - "/bin"
+      - "/lib"
+      - "/etc/ssl"
+      - "~/.continue"
+    write:
+      - "/tmp"
+      - "~/.continue"
+    execute: []
+  allow_network:
+    connect:
+      - "api.openai.com:443"
+      - "api.anthropic.com:443"
+  resource_limits:
+    max_memory_mb: 1024
+    max_processes: 10
