@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- **Phase 1: Daemon + CLI** — `avakill daemon start/stop/status` over Unix domain socket or TCP localhost; `avakill evaluate` CLI for hook scripts; newline-delimited JSON protocol with `EvaluateRequest`/`EvaluateResponse`.
+- **Phase 2: Agent hook adapters** — `avakill hook install/uninstall/list` for Claude Code, Gemini CLI, Cursor, and Windsurf; agent detection, idempotent install, hook binary resolution.
+- **Phase 3: Tool normalization** — `ToolNormalizer` maps agent-specific tool names to canonical forms; multi-level policy cascade; enforcement levels (`hard`/`soft`/`advisory`).
+- **Phase 4: OS-level enforcement** — `LandlockEnforcer` for Linux 5.13+ (unprivileged `restrict_self`); `SandboxExecEnforcer` for macOS (SBPL profile generation); `avakill enforce` CLI with dry-run.
+- **Shell metacharacter detection** — `is_shell_safe()` detects pipes, redirects, chaining, subshells, expansion, and dangerous builtins in shell commands.
+- **`shell_safe` policy condition** — reject commands containing shell metacharacters before `args_match` evaluation; prevents allowlist bypasses via metacharacter injection.
+- **Self-protection for hook binaries** — blocks `rm`, redirect, truncate, `mv`, `chmod`, and write tools targeting `avakill-hook-*` binaries.
+- **Self-protection for agent config files** — blocks writes to `.claude/settings.json`, `.gemini/settings.json`, `.cursor/hooks.json`, `.codeium/windsurf/hooks.json`, and related config files.
+- **`--enforce` flag for daemon** — `avakill daemon start --enforce` applies OS-level filesystem restrictions (Landlock/sandbox-exec) before binding the socket.
+- **Hook installer improvements** — resolves absolute path to hook binary via `shutil.which()` + venv bin dir; smoke test verifies binary exists and executes.
+
 ### Fixed
 - Fix all ruff lint errors (31) — import sorting, unused imports, line length, `raise from`, broad `pytest.raises`.
 - Fix all mypy type errors (13) — missing stubs, `no-any-return`, `no-redef`, `union-attr`, literal types.

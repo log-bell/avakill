@@ -28,8 +28,15 @@ def install(agent: str) -> None:
 
     for a in agents:
         try:
-            path = install_hook(a)
-            console.print(f"[green]Installed[/green] hook for [bold]{a}[/bold] -> {path}")
+            result = install_hook(a)
+            console.print(
+                f"[green]Installed[/green] hook for [bold]{a}[/bold] -> {result.config_path}"
+            )
+            console.print(f"  Command: [cyan]{result.command}[/cyan]")
+            if result.smoke_test_passed:
+                console.print("  Smoke test: [green]passed[/green]")
+            for warning in result.warnings:
+                console.print(f"  [yellow]Warning:[/yellow] {warning}")
         except Exception as exc:  # noqa: BLE001
             console.print(f"[red]Failed[/red] to install hook for {a}: {exc}")
 

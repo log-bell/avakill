@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from avakill.hooks.installer import (
+    HookInstallResult,
     detect_agents,
     install_hook,
     list_installed_hooks,
@@ -51,12 +53,38 @@ class TestInstallHook:
 
     def test_install_claude_code_creates_settings_entry(self, tmp_path: Path) -> None:
         config_path = tmp_path / "settings.json"
-        install_hook("claude-code", config_path=config_path)
+        result = install_hook("claude-code", config_path=config_path)
 
+        assert isinstance(result, HookInstallResult)
+        assert result.config_path == config_path
         data = json.loads(config_path.read_text())
         hooks = data["hooks"]["PreToolUse"]
         assert len(hooks) == 1
         assert any("avakill" in str(h) for h in hooks)
+
+    def test_install_resolves_absolute_path(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "settings.json"
+        result = install_hook("claude-code", config_path=config_path)
+        # Command should contain an absolute path (/ or \) when binary is found
+        # or a bare name with a warning when it isn't
+        if "/" in result.command or "\\" in result.command:
+            assert Path(result.command).name.startswith("avakill-hook-")
+        else:
+            assert any("Could not find" in w for w in result.warnings)
+
+    @patch("avakill.hooks.installer._smoke_test", return_value=True)
+    def test_install_smoke_test_passes(self, _mock: object, tmp_path: Path) -> None:
+        config_path = tmp_path / "settings.json"
+        result = install_hook("claude-code", config_path=config_path)
+        assert result.smoke_test_passed is True
+        assert not any("Smoke test failed" in w for w in result.warnings)
+
+    @patch("avakill.hooks.installer._smoke_test", return_value=False)
+    def test_install_smoke_test_failure_warns(self, _mock: object, tmp_path: Path) -> None:
+        config_path = tmp_path / "settings.json"
+        result = install_hook("claude-code", config_path=config_path)
+        assert result.smoke_test_passed is False
+        assert any("Smoke test failed" in w for w in result.warnings)
 
     def test_install_claude_code_preserves_existing_hooks(self, tmp_path: Path) -> None:
         config_path = tmp_path / "settings.json"
@@ -152,14 +180,14 @@ class TestCursorConfigPathLazy:
 
         # Install in project_a
         monkeypatch.chdir(project_a)
-        path_a = install_hook("cursor")
-        assert "project_a" in str(path_a)
+        result_a = install_hook("cursor")
+        assert "project_a" in str(result_a.config_path)
 
         # Install in project_b — should resolve to project_b, not project_a
         monkeypatch.chdir(project_b)
-        path_b = install_hook("cursor")
-        assert "project_b" in str(path_b)
-        assert path_a != path_b
+        result_b = install_hook("cursor")
+        assert "project_b" in str(result_b.config_path)
+        assert result_a.config_path != result_b.config_path
 
 
 class TestListInstalledHooks:
