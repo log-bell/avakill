@@ -75,6 +75,7 @@ def test_all_exports():
         "ComplianceReporter",
         "ApprovalStore",
         "AuditAnalytics",
+        "ProcessLauncher",
     }
     assert set(avakill.__all__) == expected
 
@@ -98,3 +99,10 @@ def test_daemon_client_importable():
     from avakill.daemon.client import DaemonClient
 
     assert cls is DaemonClient
+
+
+def test_process_launcher_importable():
+    cls = avakill.ProcessLauncher
+    from avakill.launcher.core import ProcessLauncher
+
+    assert cls is ProcessLauncher

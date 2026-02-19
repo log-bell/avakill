@@ -81,6 +81,10 @@ def __getattr__(name: str):  # noqa: ANN001
         from avakill.analytics.engine import AuditAnalytics
 
         return AuditAnalytics
+    if name == "ProcessLauncher":
+        from avakill.launcher.core import ProcessLauncher
+
+        return ProcessLauncher
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -108,4 +112,5 @@ __all__ = [
     "ComplianceReporter",
     "ApprovalStore",
     "AuditAnalytics",
+    "ProcessLauncher",
 ]
