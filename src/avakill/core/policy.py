@@ -299,6 +299,13 @@ class PolicyEngine:
                 if not safe:
                     return False
 
+        if conditions.command_allowlist:
+            cmd = str(args.get("command") or args.get("cmd") or "")
+            parts = cmd.split()
+            first_token = parts[0].lower() if parts else ""
+            if first_token not in {c.lower() for c in conditions.command_allowlist}:
+                return False
+
         if conditions.args_match:
             for key, substrings in conditions.args_match.items():
                 value = str(args.get(key, "")).lower()

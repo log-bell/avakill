@@ -1417,3 +1417,110 @@ class TestLoadPolicy:
         monkeypatch.chdir(tmp_path)
         with pytest.raises(ConfigError, match="No policy file found"):
             load_policy()
+
+
+# ---------------------------------------------------------------------------
+# command_allowlist condition
+# ---------------------------------------------------------------------------
+
+
+class TestPolicyEngineCommandAllowlist:
+    """Tests for the command_allowlist condition."""
+
+    def _engine(self) -> PolicyEngine:
+        return PolicyEngine(
+            PolicyConfig(
+                default_action="deny",
+                policies=[
+                    PolicyRule(
+                        name="allow-safe-commands",
+                        tools=["shell_execute"],
+                        action="allow",
+                        conditions=RuleConditions(
+                            shell_safe=True,
+                            command_allowlist=["echo", "ls", "git", "cat", "pip"],
+                        ),
+                    ),
+                    PolicyRule(
+                        name="deny-all",
+                        tools=["*"],
+                        action="deny",
+                    ),
+                ],
+            )
+        )
+
+    def test_allowed_command_passes(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(tool_name="shell_execute", arguments={"command": "echo hello"})
+        assert engine.evaluate(tc).allowed
+
+    def test_allowed_command_with_flags(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(tool_name="shell_execute", arguments={"command": "ls -la"})
+        assert engine.evaluate(tc).allowed
+
+    def test_git_subcommand_allowed(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(tool_name="shell_execute", arguments={"command": "git status"})
+        assert engine.evaluate(tc).allowed
+
+    def test_env_prefix_bypass_blocked(self) -> None:
+        """Attack #30: env VAR=val echo should be denied."""
+        engine = self._engine()
+        tc = ToolCall(
+            tool_name="shell_execute",
+            arguments={"command": "env AVAKILL_POLICY=/dev/null echo bypassed"},
+        )
+        assert not engine.evaluate(tc).allowed
+
+    def test_unknown_command_denied(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(tool_name="shell_execute", arguments={"command": "rm -rf /"})
+        assert not engine.evaluate(tc).allowed
+
+    def test_empty_command_denied(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(tool_name="shell_execute", arguments={"command": ""})
+        assert not engine.evaluate(tc).allowed
+
+    def test_case_insensitive(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(tool_name="shell_execute", arguments={"command": "ECHO hello"})
+        assert engine.evaluate(tc).allowed
+
+    def test_combined_with_shell_safe_blocks_metachar(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(
+            tool_name="shell_execute",
+            arguments={"command": "echo hello | sh"},
+        )
+        assert not engine.evaluate(tc).allowed
+
+    def test_sudo_prefix_blocked(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(
+            tool_name="shell_execute",
+            arguments={"command": "sudo echo hello"},
+        )
+        assert not engine.evaluate(tc).allowed
+
+    def test_pip_list_allowed(self) -> None:
+        engine = self._engine()
+        tc = ToolCall(
+            tool_name="shell_execute",
+            arguments={"command": "pip list"},
+        )
+        assert engine.evaluate(tc).allowed
+
+    def test_pip_uninstall_blocked_by_self_protection_not_allowlist(self) -> None:
+        """pip is in allowlist but uninstall is caught by self-protection."""
+        engine = self._engine()
+        tc = ToolCall(
+            tool_name="shell_execute",
+            arguments={"command": "pip uninstall avakill"},
+        )
+        # command_allowlist allows "pip" as first token, but shell_safe passes
+        # (no metacharacters). This would be allowed by the policy engine alone.
+        # Self-protection catches it at a higher layer.
+        assert engine.evaluate(tc).allowed

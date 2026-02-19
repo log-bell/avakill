@@ -81,11 +81,16 @@ class RuleConditions(BaseModel):
         args_match: Argument values must contain one of these strings (case-insensitive).
         args_not_match: Deny if argument values contain any of these strings (case-insensitive).
         shell_safe: When True, reject commands containing shell metacharacters.
+        command_allowlist: When set, the first token of the ``command`` (or ``cmd``)
+            argument must match one of these names exactly (case-insensitive).
+            Unlike ``args_match`` (substring), this prevents prefix-smuggling
+            attacks like ``env VAR=val echo ...``.
     """
 
     args_match: dict[str, list[str]] | None = None
     args_not_match: dict[str, list[str]] | None = None
     shell_safe: bool = False
+    command_allowlist: list[str] | None = None
 
 
 _WINDOW_PATTERN = re.compile(r"^\d+[smh]$")
