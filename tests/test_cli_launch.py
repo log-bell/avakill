@@ -68,8 +68,85 @@ class TestLaunchCLI:
         assert result.exit_code == 1
         assert "policy file not found" in result.output
 
-    def test_launch_missing_command_exits_2(self, tmp_path: Path) -> None:
+    def test_launch_missing_command_exits_error(self, tmp_path: Path) -> None:
         policy_path = _write_policy(tmp_path)
         runner = CliRunner()
         result = runner.invoke(cli, ["launch", "--policy", str(policy_path)])
-        assert result.exit_code == 2  # Click exits 2 for missing required arg
+        assert result.exit_code != 0
+
+
+class TestLaunchAgentFlag:
+    def test_launch_agent_flag_dry_run(self, tmp_path: Path) -> None:
+        policy_path = _write_policy(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "launch",
+                "--agent",
+                "openclaw",
+                "--policy",
+                str(policy_path),
+                "--dry-run",
+                "--",
+                "echo",
+                "test",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "openclaw" in result.output.lower() or "sandbox" in result.output.lower()
+
+    def test_launch_agent_uses_profile_sandbox(self, tmp_path: Path) -> None:
+        policy_path = _write_policy(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "launch",
+                "--agent",
+                "aider",
+                "--policy",
+                str(policy_path),
+                "--dry-run",
+                "--",
+                "echo",
+                "test",
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_launch_unknown_agent_exits_error(self, tmp_path: Path) -> None:
+        policy_path = _write_policy(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "launch",
+                "--agent",
+                "nonexistent-agent",
+                "--policy",
+                str(policy_path),
+                "--dry-run",
+                "--",
+                "echo",
+                "test",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "not found" in result.output.lower()
+
+    def test_launch_agent_without_command_uses_profile_default(self, tmp_path: Path) -> None:
+        policy_path = _write_policy(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "launch",
+                "--agent",
+                "openclaw",
+                "--policy",
+                str(policy_path),
+                "--dry-run",
+            ],
+        )
+        assert result.exit_code == 0
