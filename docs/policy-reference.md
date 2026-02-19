@@ -228,6 +228,109 @@ conditions:
     command: ["push --force"]  # Must NOT contain "push --force"
 ```
 
+### `shell_safe`
+
+The `shell_safe` condition rejects commands containing shell metacharacters. When set to `true`, the rule only matches if the `command` (or `cmd`) argument contains **no shell metacharacters**.
+
+```yaml
+conditions:
+  shell_safe: true
+```
+
+Detected metacharacter patterns:
+
+| Category | Patterns |
+|----------|----------|
+| Pipes | `\|` |
+| Redirects | `>`, `>>`, `<`, `<<` |
+| Chaining | `;`, `&&`, `\|\|` |
+| Subshells | `` ` ``, `$()` |
+| Variable expansion | `${}` |
+| Dangerous builtins | `eval`, `source`, `xargs` |
+
+If metacharacters are found, the condition fails and the rule is skipped — falling through to subsequent rules (typically a catch-all deny). Default: `false` (disabled).
+
+**Example:** Allow simple commands but deny anything with metacharacters:
+
+```yaml
+policies:
+  - name: allow-safe-shell
+    tools: ["shell_execute"]
+    action: allow
+    conditions:
+      shell_safe: true
+
+  - name: deny-everything-else
+    tools: ["*"]
+    action: deny
+```
+
+| Command | Result | Reason |
+|---------|--------|--------|
+| `echo hello` | Allowed | No metacharacters → `shell_safe` passes → matches `allow-safe-shell` |
+| `echo hello \| sh` | Denied | Pipe detected → `shell_safe` fails → falls through to `deny-everything-else` |
+| `cat file; rm -rf /` | Denied | Semicolon detected → `shell_safe` fails → falls through to deny |
+
+### `command_allowlist`
+
+The `command_allowlist` condition extracts the **first whitespace-delimited token** from the `command` (or `cmd`) argument and checks if it matches any entry in the list (case-insensitive, exact match).
+
+```yaml
+conditions:
+  command_allowlist:
+    - echo
+    - ls
+    - git
+    - python
+    - pip
+```
+
+Unlike `args_match` (substring matching), `command_allowlist` prevents prefix-smuggling attacks where a dangerous command appears to contain an allowed substring.
+
+**Why this exists — the bypass that motivated it:**
+
+```yaml
+# VULNERABLE — uses args_match (substring)
+conditions:
+  args_match:
+    command: ["echo"]
+```
+
+The command `env AVAKILL_POLICY=/dev/null echo bypassed` passes `args_match` because it contains the substring "echo" — but the actual command being executed is `env`, not `echo`.
+
+```yaml
+# SECURE — uses command_allowlist (first-token match)
+conditions:
+  command_allowlist: [echo, ls, git]
+```
+
+Now `env AVAKILL_POLICY=/dev/null echo bypassed` is rejected because the first token is `env`, which is not in the allowlist.
+
+### Combining `shell_safe` and `command_allowlist`
+
+For shell command policies, always combine both conditions with a catch-all deny. This is the recommended pattern:
+
+```yaml
+policies:
+  - name: allow-safe-shell
+    tools: ["shell_execute", "shell_*", "bash_*", "command_*"]
+    action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: [echo, ls, git, python, pip, cat, head, tail]
+
+  - name: deny-everything-else
+    tools: ["*"]
+    action: deny
+```
+
+This provides two independent layers of defense:
+
+1. **`command_allowlist`** ensures only known-good binaries can be invoked (blocks `env`, `bash -c`, etc.)
+2. **`shell_safe`** ensures no metacharacter injection even in allowed commands (blocks `echo hello | sh`)
+
+Both conditions must pass for the rule to match. If either fails, the rule is skipped and the catch-all deny applies.
+
 ### Matching behavior details
 
 - Argument values are converted to strings with `str()` before matching.
