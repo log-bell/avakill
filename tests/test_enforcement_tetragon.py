@@ -207,3 +207,53 @@ class TestTetragonPolicyGenerator:
         match_args = kprobe["selectors"][0].get("matchArgs", [])
         assert len(match_args) > 0
         assert match_args[0]["operator"] == "MaskAny"
+
+
+class TestTetragonMatchBinaries:
+    def test_generate_with_binary_filter(self) -> None:
+        gen = TetragonPolicyGenerator()
+        config = _deny_policy("file_write")
+        yaml_str = gen.generate(config, match_binaries=["/usr/bin/node"])
+        assert "matchBinaries" in yaml_str
+        assert "/usr/bin/node" in yaml_str
+
+    def test_generate_with_multiple_binaries(self) -> None:
+        gen = TetragonPolicyGenerator()
+        config = _deny_policy("shell_execute")
+        yaml_str = gen.generate(config, match_binaries=["/usr/bin/node", "/usr/bin/python3"])
+        assert "/usr/bin/node" in yaml_str
+        assert "/usr/bin/python3" in yaml_str
+
+    def test_generate_without_binaries_has_no_matchBinaries(self) -> None:
+        gen = TetragonPolicyGenerator()
+        config = _deny_policy("file_write")
+        yaml_str = gen.generate(config)
+        assert "matchBinaries" not in yaml_str
+
+
+class TestTetragonOverrideAction:
+    def test_generate_with_override_action(self) -> None:
+        gen = TetragonPolicyGenerator()
+        config = _deny_policy("file_write")
+        yaml_str = gen.generate(config, action="Override")
+        assert "Override" in yaml_str
+        assert "Sigkill" not in yaml_str
+
+    def test_generate_default_action_is_sigkill(self) -> None:
+        gen = TetragonPolicyGenerator()
+        config = _deny_policy("file_write")
+        yaml_str = gen.generate(config)
+        assert "Sigkill" in yaml_str
+
+
+class TestTetragonFromProfile:
+    def test_generate_from_agent_profile(self) -> None:
+        from avakill.profiles.loader import load_profile
+
+        gen = TetragonPolicyGenerator()
+        profile = load_profile("openclaw")
+        config = _deny_policy("file_write", "shell_execute")
+        binaries = profile.sandbox.allow_paths.execute
+        yaml_str = gen.generate(config, match_binaries=binaries, action="Override")
+        assert "node" in yaml_str
+        assert "Override" in yaml_str

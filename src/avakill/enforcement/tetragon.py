@@ -49,16 +49,24 @@ class TetragonPolicyGenerator:
     Output only — not applied directly. For infra teams to deploy.
     """
 
-    def generate(self, config: PolicyConfig) -> str:
+    def generate(
+        self,
+        config: PolicyConfig,
+        *,
+        match_binaries: list[str] | None = None,
+        action: str = "Sigkill",
+    ) -> str:
         """Generate a TracingPolicy YAML from AvaKill deny rules.
 
         Args:
             config: The policy configuration to translate.
+            match_binaries: Optional list of binary paths to scope enforcement to.
+            action: Tetragon action to take (default "Sigkill", or "Override").
 
         Returns:
             A YAML string containing a Tetragon TracingPolicy resource.
         """
-        kprobes = self._collect_kprobes(config)
+        kprobes = self._collect_kprobes(config, action=action, match_binaries=match_binaries)
 
         policy: dict = {
             "apiVersion": "cilium.io/v1alpha1",
@@ -83,23 +91,38 @@ class TetragonPolicyGenerator:
             )
         )
 
-    def write(self, config: PolicyConfig, output: Path) -> Path:
+    def write(
+        self,
+        config: PolicyConfig,
+        output: Path,
+        *,
+        match_binaries: list[str] | None = None,
+        action: str = "Sigkill",
+    ) -> Path:
         """Generate and write a TracingPolicy YAML to a file.
 
         Args:
             config: The policy configuration to translate.
             output: Path where the YAML should be written.
+            match_binaries: Optional list of binary paths to scope enforcement to.
+            action: Tetragon action to take (default "Sigkill", or "Override").
 
         Returns:
             The path where the YAML was written.
         """
-        content = self.generate(config)
+        content = self.generate(config, match_binaries=match_binaries, action=action)
         output = Path(output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(content, encoding="utf-8")
         return output
 
-    def _collect_kprobes(self, config: PolicyConfig) -> list[dict]:
+    def _collect_kprobes(
+        self,
+        config: PolicyConfig,
+        *,
+        action: str = "Sigkill",
+        match_binaries: list[str] | None = None,
+    ) -> list[dict]:
         """Collect kprobe specs from deny rules."""
         seen_calls: set[str] = set()
         kprobes: list[dict] = []
@@ -115,6 +138,20 @@ class TetragonPolicyGenerator:
                         continue
                     seen_calls.add(call)
 
+                    selector: dict = {
+                        "matchActions": [{"action": action}],
+                    }
+
+                    # Add matchArgs to selector if specified
+                    if "selectors_matchArgs" in spec:
+                        selector["matchArgs"] = spec["selectors_matchArgs"]
+
+                    # Add matchBinaries if specified
+                    if match_binaries:
+                        selector["matchBinaries"] = [
+                            {"operator": "In", "values": list(match_binaries)}
+                        ]
+
                     kprobe: dict = {
                         "call": call,
                         "syscall": False,
@@ -122,20 +159,8 @@ class TetragonPolicyGenerator:
                             {"index": i, "type": arg_type}
                             for i, arg_type in enumerate(spec.get("args", []))
                         ],
-                        "selectors": [
-                            {
-                                "matchActions": [
-                                    {
-                                        "action": "Sigkill",
-                                    }
-                                ],
-                            }
-                        ],
+                        "selectors": [selector],
                     }
-
-                    # Add matchArgs to selectors if specified
-                    if "selectors_matchArgs" in spec:
-                        kprobe["selectors"][0]["matchArgs"] = spec["selectors_matchArgs"]
 
                     kprobes.append(kprobe)
 
