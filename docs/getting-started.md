@@ -569,6 +569,7 @@ Exit codes: `0` = allowed, `2` = denied, `1` = error.
 - **[Policy Reference](policy-reference.md)** — full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
 - **[Framework Integrations](framework-integrations.md)** — drop-in wrappers for OpenAI, Anthropic, LangChain, CrewAI, and MCP.
 - **[MCP Proxy](mcp-proxy.md)** — deploy AvaKill as a transparent proxy for any MCP server.
+- **[MCP Universal Interception](mcp-proxy-universal.md)** — wrap any agent's MCP config with `avakill mcp-wrap` for zero-code interception.
 - **[Security Hardening](security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
 - **[Deployment Guide](deployment.md)** — dev → staging → production patterns, Docker, and systemd.
 - **[Cookbook](cookbook.md)** — real-world policy recipes for common use cases.
