@@ -198,6 +198,42 @@ guard = Guard(policy="avakill.yaml", self_protection=False)
 
 Never disable in production.
 
+## Shell Command Hardening
+
+Shell commands are the most common attack surface for AI agents. AvaKill provides two policy conditions designed to work together:
+
+- **`shell_safe: true`** — rejects commands containing shell metacharacters (pipes, redirects, chaining, subshells, variable expansion, dangerous builtins). Prevents injection attacks like `echo hello | sh`.
+- **`command_allowlist: [...]`** — extracts the first whitespace-delimited token and matches it exactly. Prevents prefix-smuggling attacks like `env AVAKILL_POLICY=/dev/null echo bypassed`.
+
+Always combine both conditions on shell allow rules, paired with a catch-all deny:
+
+```yaml
+- name: allow-safe-shell
+  tools: ["shell_execute", "shell_*", "bash_*", "command_*"]
+  action: allow
+  conditions:
+    shell_safe: true
+    command_allowlist: [echo, ls, git, python, pip, cat, head, tail]
+
+- name: deny-everything-else
+  tools: ["*"]
+  action: deny
+```
+
+This pattern was validated by adversarial red team testing (30/30 attack vectors blocked). The `command_allowlist` condition was added specifically after red teaming discovered that `args_match` substring matching could be bypassed by prefix-smuggling.
+
+### Standalone Mode for Project-Level Hooks
+
+For per-project hook setups without a daemon, use a wrapper script with `AVAKILL_POLICY` pointing to your project's policy file:
+
+```bash
+#!/bin/bash
+export AVAKILL_POLICY="/path/to/project/avakill.yaml"
+exec /path/to/avakill-hook-claude-code
+```
+
+See [Getting Started — Project-Level Hook Setup](getting-started.md#9-project-level-hook-setup-standalone-mode) for the full walkthrough.
+
 ## C-Level Audit Hooks (Optional)
 
 Python's `sys.addaudithook()` provides runtime monitoring, but it can be bypassed via `ctypes` or `gc` introspection. The C extension plugs these gaps.

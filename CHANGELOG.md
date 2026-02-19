@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Phase 4: OS-level enforcement** — `LandlockEnforcer` for Linux 5.13+ (unprivileged `restrict_self`); `SandboxExecEnforcer` for macOS (SBPL profile generation); `WindowsEnforcer` for Windows (Job Objects + privilege removal via `AdjustTokenPrivileges`); `avakill enforce` CLI with dry-run.
 - **Shell metacharacter detection** — `is_shell_safe()` detects pipes, redirects, chaining, subshells, expansion, and dangerous builtins in shell commands.
 - **`shell_safe` policy condition** — reject commands containing shell metacharacters before `args_match` evaluation; prevents allowlist bypasses via metacharacter injection.
+- **`command_allowlist` policy condition** — first-token matching prevents prefix-smuggling attacks like `env VAR=val echo bypassed`. Unlike `args_match` (substring), matches only the actual command binary.
 - **Self-protection for hook binaries** — blocks `rm`, redirect, truncate, `mv`, `chmod`, and write tools targeting `avakill-hook-*` binaries.
 - **Self-protection for agent config files** — blocks writes to `.claude/settings.json`, `.gemini/settings.json`, `.cursor/hooks.json`, `.codeium/windsurf/hooks.json`, and related config files.
 - **`--enforce` flag for daemon** — `avakill daemon start --enforce` applies OS-level restrictions (Landlock/sandbox-exec/Job Objects) before binding the socket.
