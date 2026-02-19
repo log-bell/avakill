@@ -26,6 +26,10 @@ if sys.platform == "win32":
     userenv = ctypes.windll.userenv  # type: ignore[attr-defined]
     advapi32 = ctypes.windll.advapi32  # type: ignore[attr-defined]
     kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+else:
+    userenv: Any = None
+    advapi32: Any = None
+    kernel32: Any = None
 
 
 # Win32 constants

@@ -16,7 +16,9 @@ from avakill.core.audit_hooks import AuditHookManager
 
 
 class TestAuditHookManager:
-    def test_install_registers_hook(self) -> None:
+    def test_install_registers_hook(self, monkeypatch) -> None:
+        # Prevent C-level hooks from being armed (irreversible, blocks ctypes)
+        monkeypatch.setattr("avakill.core.audit_hooks._c_arm", None)
         mgr = AuditHookManager(protected_paths=set())
         assert mgr.is_installed is False
         mgr.install()
