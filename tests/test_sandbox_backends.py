@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from avakill.core.models import SandboxConfig, SandboxPathRules
+from avakill.core.models import (
+    SandboxConfig,
+    SandboxPathRules,
+    SandboxResourceLimits,
+)
 from avakill.launcher.backends.base import SandboxBackend, get_sandbox_backend
 from avakill.launcher.backends.darwin_backend import DarwinSandboxBackend
 from avakill.launcher.backends.landlock_backend import LandlockBackend
 from avakill.launcher.backends.noop import NoopSandboxBackend
+from avakill.launcher.backends.windows_backend import WindowsSandboxBackend
 
 
 class TestSandboxBackendProtocol:
@@ -187,3 +192,65 @@ class TestDarwinSandboxBackend:
         config = SandboxConfig()
         report = backend.describe(config)
         assert report["sandbox_applied"] is False
+
+
+class TestWindowsSandboxBackend:
+    def test_available_true_on_windows(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "win32")
+        backend = WindowsSandboxBackend()
+        assert backend.available() is True
+
+    def test_available_false_on_non_windows(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        backend = WindowsSandboxBackend()
+        assert backend.available() is False
+
+    def test_prepare_preexec_returns_none(self):
+        """Windows doesn't use preexec_fn."""
+        backend = WindowsSandboxBackend()
+        config = SandboxConfig()
+        assert backend.prepare_preexec(config) is None
+
+    def test_prepare_process_args_includes_creation_flags(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "win32")
+        backend = WindowsSandboxBackend()
+        config = SandboxConfig()
+        args = backend.prepare_process_args(config)
+        assert "creationflags" in args
+
+    def test_prepare_process_args_empty_on_non_windows(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        backend = WindowsSandboxBackend()
+        config = SandboxConfig()
+        assert backend.prepare_process_args(config) == {}
+
+    def test_describe_includes_appcontainer_info(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "win32")
+        backend = WindowsSandboxBackend()
+        config = SandboxConfig(
+            allow_paths=SandboxPathRules(read=["C:\\Users\\me\\project"]),
+        )
+        report = backend.describe(config)
+        assert report["platform"] == "windows"
+        assert report["sandbox_applied"] is True
+        assert report["mechanism"] == "appcontainer"
+
+    def test_describe_when_unavailable(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
+        backend = WindowsSandboxBackend()
+        config = SandboxConfig()
+        report = backend.describe(config)
+        assert report["sandbox_applied"] is False
+
+    def test_describe_includes_resource_limits(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "win32")
+        backend = WindowsSandboxBackend()
+        config = SandboxConfig(
+            resource_limits=SandboxResourceLimits(
+                max_memory_mb=512,
+                max_processes=10,
+            ),
+        )
+        report = backend.describe(config)
+        assert report["job_object"]["memory_limit_mb"] == 512
+        assert report["job_object"]["process_limit"] == 10
