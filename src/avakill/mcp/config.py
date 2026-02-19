@@ -134,9 +134,11 @@ def is_already_wrapped(entry: MCPServerEntry) -> bool:
 
 def _detect_transport(entry: dict[str, Any]) -> Literal["stdio", "sse", "streamable-http"]:
     """Detect the transport type from a raw config entry."""
-    transport = entry.get("transport", "stdio")
-    if transport in ("sse", "streamable-http"):
-        return transport  # type: ignore[return-value]
+    transport: str = entry.get("transport", "stdio")
+    if transport == "sse":
+        return "sse"
+    if transport == "streamable-http":
+        return "streamable-http"
     if entry.get("url"):
         return "streamable-http"
     return "stdio"
