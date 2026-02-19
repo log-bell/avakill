@@ -572,6 +572,7 @@ Exit codes: `0` = allowed, `2` = denied, `1` = error.
 - **[Security Hardening](security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
 - **[Deployment Guide](deployment.md)** — dev → staging → production patterns, Docker, and systemd.
 - **[Cookbook](cookbook.md)** — real-world policy recipes for common use cases.
+- **[Process Launcher](process-launcher.md)** — launch agent processes inside OS-level sandboxes with `avakill launch`.
 - **[CLI Reference](cli-reference.md)** — complete documentation for all CLI commands.
 - **[API Reference](api-reference.md)** — full Python API documentation.
 - **[Troubleshooting](troubleshooting.md)** — common issues and solutions.
