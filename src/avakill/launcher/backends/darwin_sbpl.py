@@ -23,6 +23,8 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
     - Process execution for specified binaries
     - Network outbound for specified hosts/ports
     """
+    # Platform baseline derived from OpenAI Codex's seatbelt policies.
+    # Without these, even basic commands fail because dyld can't load libraries.
     lines: list[str] = [
         "(version 1)",
         "",
@@ -40,6 +42,33 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
         "(allow file-read-metadata)",
         "(allow file-read-xattr)",
         "(allow file-write-xattr)",
+        "(allow ipc-posix-sem)",
+        "(allow pseudo-tty)",
+        "",
+        ";; dyld: allow loading system frameworks and shared libraries",
+        '(allow file-map-executable (subpath "/usr/lib"))',
+        '(allow file-map-executable (subpath "/System/Library"))',
+        '(allow file-map-executable (subpath "/Library/Apple/System/Library"))',
+        '(allow file-map-executable (subpath "/Library/Apple/usr/lib"))',
+        "",
+        ";; System paths required for basic process operation",
+        '(allow file-read* (subpath "/usr/lib"))',
+        '(allow file-read* (subpath "/usr/share"))',
+        '(allow file-read* (subpath "/private/etc"))',
+        '(allow file-read* (subpath "/private/var/db/timezone"))',
+        '(allow file-read* (literal "/dev/null"))',
+        '(allow file-read* (literal "/dev/urandom"))',
+        '(allow file-read* (literal "/dev/random"))',
+        '(allow file-read* (literal "/"))',
+        '(allow file-write-data (literal "/dev/null"))',
+        "",
+        ";; PTY support for interactive processes",
+        '(allow file-read* file-write* file-ioctl (literal "/dev/ptmx"))',
+        '(allow file-read* file-write* (regex #"^/dev/ttys[0-9]+"))',
+        '(allow file-ioctl (regex #"^/dev/ttys[0-9]+"))',
+        "",
+        ";; Network: Unix domain sockets for system services",
+        '(allow network-outbound (literal "/private/var/run/syslog"))',
         "",
     ]
 
@@ -54,49 +83,46 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
             lines.append(f'(allow file-read* (subpath "{p}"))')
         lines.append("")
 
-    # File writes
+    # File writes — also grant read access (you need to list a dir to write into it)
     write_paths = [str(Path(p).expanduser().resolve()) for p in paths.write]
     if write_paths:
-        lines.append(";; Allowed write paths")
+        lines.append(";; Allowed write paths (read + write)")
         for p in write_paths:
+            lines.append(f'(allow file-read* (subpath "{p}"))')
             lines.append(f'(allow file-write* (subpath "{p}"))')
         lines.append("")
 
-    # Executable paths - use literal for files, subpath for directories
+    # Executables: allow process-exec for read paths (directories) and explicit binaries
+    # Codex uses a broad (allow process-exec) — we scope it to allowed paths.
+    if read_paths:
+        lines.append(";; Allow execution of binaries in readable paths")
+        for p in read_paths:
+            lines.append(f'(allow process-exec (subpath "{p}"))')
+
     exec_paths = [str(Path(p).expanduser().resolve()) for p in paths.execute]
     if exec_paths:
-        lines.append(";; Allowed executables")
+        lines.append(";; Explicitly allowed executables")
         for p in exec_paths:
             resolved = Path(p)
             if resolved.is_dir():
                 lines.append(f'(allow process-exec (subpath "{p}"))')
             else:
                 lines.append(f'(allow process-exec (literal "{p}"))')
-        for p in exec_paths:
-            resolved = Path(p)
-            if resolved.is_dir():
-                lines.append(f'(allow file-read* (subpath "{p}"))')
-            else:
                 lines.append(f'(allow file-read* (literal "{p}"))')
         lines.append("")
 
-    # Network outbound
+    # Network outbound — SBPL inline mode doesn't support host/port filters,
+    # so we allow TCP outbound broadly. Fine-grained host filtering is handled
+    # by the cooperative policy engine (hooks/MCP proxy), not the kernel sandbox.
     if network.connect:
-        lines.append(";; Allowed outbound network connections")
-        for entry in network.connect:
-            if ":" in entry:
-                host, port = entry.rsplit(":", 1)
-                lines.append(f'(allow network-outbound (remote tcp "{host}" (to port {port})))')
-            else:
-                lines.append(f'(allow network-outbound (remote tcp "{entry}"))')
+        lines.append(";; Allowed outbound network connections (TCP)")
+        lines.append("(allow network-outbound (remote tcp))")
         lines.append("")
 
-    # Network bind (for servers)
+    # Network bind
     if network.bind:
-        lines.append(";; Allowed bind ports")
-        for entry in network.bind:
-            port = entry.rsplit(":", 1)[-1] if ":" in entry else entry
-            lines.append(f"(allow network-bind (local tcp (to port {port})))")
+        lines.append(";; Allowed network bind")
+        lines.append("(allow network-bind (local tcp))")
         lines.append("")
 
     return "\n".join(lines) + "\n"

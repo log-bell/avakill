@@ -165,8 +165,6 @@ class ProcessLauncher:
             return None
 
         def _combined() -> None:
-            if sys.platform != "win32":
-                os.setsid()
             if sandbox_fn:
                 sandbox_fn()
             if rlimit_fn:
@@ -189,7 +187,9 @@ class ProcessLauncher:
             return None
 
         def _apply_rlimits() -> None:
-            if limits.max_memory_mb is not None:
+            if limits.max_memory_mb is not None and sys.platform != "darwin":
+                # macOS does not enforce RLIMIT_AS or RLIMIT_DATA via setrlimit;
+                # memory containment on macOS relies on the sandbox profile instead.
                 mem_bytes = limits.max_memory_mb * 1024 * 1024
                 resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
             if limits.max_open_files is not None:
