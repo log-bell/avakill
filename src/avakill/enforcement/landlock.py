@@ -68,6 +68,20 @@ TOOL_TO_ACCESS_FLAGS: dict[str, int] = {
     "shell_execute": LANDLOCK_ACCESS_FS_EXECUTE,
 }
 
+# Map path access types to Landlock filesystem flags
+PATH_ACCESS_MAP: dict[str, int] = {
+    "read": LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR,
+    "write": (
+        LANDLOCK_ACCESS_FS_WRITE_FILE
+        | LANDLOCK_ACCESS_FS_MAKE_REG
+        | LANDLOCK_ACCESS_FS_MAKE_DIR
+        | LANDLOCK_ACCESS_FS_MAKE_SYM
+        | LANDLOCK_ACCESS_FS_REMOVE_FILE
+        | LANDLOCK_ACCESS_FS_REMOVE_DIR
+    ),
+    "execute": LANDLOCK_ACCESS_FS_EXECUTE,
+}
+
 # All filesystem access rights combined (for ruleset creation)
 ALL_ACCESS_FS = (
     LANDLOCK_ACCESS_FS_EXECUTE
@@ -315,6 +329,107 @@ class LandlockEnforcer:
                 raise RuntimeError(f"landlock_restrict_self failed: errno {errno}")
         finally:
             os.close(ruleset_fd)
+
+    def apply_path_rules(
+        self,
+        ruleset_fd: int,
+        allow_paths: dict[str, list[str]],
+        handled_flags: int,
+    ) -> None:
+        """Add per-path Landlock rules to an existing ruleset.
+
+        For each path in allow_paths, opens the directory and adds a
+        LANDLOCK_RULE_PATH_BENEATH rule with the appropriate access flags.
+
+        Args:
+            ruleset_fd: File descriptor of the Landlock ruleset.
+            allow_paths: Mapping of access type ("read", "write", "execute")
+                to list of allowed paths. Paths may use ~ for home directory.
+            handled_flags: The handled_access_fs flags for this ruleset,
+                used to intersect with requested access.
+        """
+        libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+
+        for access_type, paths in allow_paths.items():
+            base_flags = PATH_ACCESS_MAP.get(access_type, 0)
+            if not base_flags:
+                continue
+            # Only grant flags that are actually handled by this ruleset
+            allowed_access = base_flags & handled_flags
+            if not allowed_access:
+                continue
+
+            for raw_path in paths:
+                path = os.path.expanduser(raw_path)
+                if not os.path.exists(path):
+                    continue
+                try:
+                    fd = os.open(path, os.O_PATH | os.O_DIRECTORY)  # type: ignore[attr-defined]
+                except OSError:
+                    # Path exists but can't be opened as directory — try as file
+                    try:
+                        fd = os.open(path, os.O_PATH)  # type: ignore[attr-defined]
+                    except OSError:
+                        continue
+                try:
+                    path_attr = LandlockPathBeneathAttr(
+                        allowed_access=allowed_access,
+                        parent_fd=fd,
+                    )
+                    libc.syscall(
+                        LANDLOCK_ADD_RULE,
+                        ruleset_fd,
+                        LANDLOCK_RULE_PATH_BENEATH,
+                        ctypes.byref(path_attr),
+                        0,
+                    )
+                finally:
+                    os.close(fd)
+
+    def apply_network_rules(
+        self,
+        ruleset_fd: int,
+        connect_ports: list[int] | None = None,
+        bind_ports: list[int] | None = None,
+    ) -> None:
+        """Add per-port Landlock network rules (requires ABI 4+).
+
+        Args:
+            ruleset_fd: File descriptor of the Landlock ruleset.
+            connect_ports: Ports to allow outbound TCP connections.
+            bind_ports: Ports to allow TCP binding.
+        """
+        abi = self.abi_version()
+        if abi < 4:
+            return  # Network rules not supported below ABI 4
+
+        libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+
+        for port in connect_ports or []:
+            net_attr = LandlockNetPortAttr(
+                allowed_access=LANDLOCK_ACCESS_NET_CONNECT_TCP,
+                port=port,
+            )
+            libc.syscall(
+                LANDLOCK_ADD_RULE,
+                ruleset_fd,
+                LANDLOCK_RULE_NET_PORT,
+                ctypes.byref(net_attr),
+                0,
+            )
+
+        for port in bind_ports or []:
+            net_attr = LandlockNetPortAttr(
+                allowed_access=LANDLOCK_ACCESS_NET_BIND_TCP,
+                port=port,
+            )
+            libc.syscall(
+                LANDLOCK_ADD_RULE,
+                ruleset_fd,
+                LANDLOCK_RULE_NET_PORT,
+                ctypes.byref(net_attr),
+                0,
+            )
 
     def _tool_pattern_to_flags(self, tool_pattern: str) -> int:
         """Convert a tool name pattern to Landlock access flags."""
