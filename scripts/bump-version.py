@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Bump the avakill version in pyproject.toml and CHANGELOG.md."""
+"""Bump the avakill version across the entire codebase."""
 
 from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -12,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = ROOT / "pyproject.toml"
 CHANGELOG = ROOT / "CHANGELOG.md"
+SITE_INDEX = ROOT / "site" / "index.html"
+WELCOME_EMAIL = ROOT / "site" / "welcome-email.mjml"
 
 
 def validate_version(v: str) -> str:
@@ -79,6 +82,54 @@ def bump_changelog(new_version: str, old_version: str | None, *, dry_run: bool) 
     print(f"  CHANGELOG.md: added [{new_version}] - {today}")
 
 
+def bump_site_index(new_version: str, *, dry_run: bool) -> None:
+    if not SITE_INDEX.exists():
+        print("  site/index.html not found, skipping")
+        return
+
+    text = SITE_INDEX.read_text()
+    pattern = r"(AvaKill v)\d+\.\d+\.\d+"
+    if not re.search(pattern, text):
+        print("  site/index.html: no version pill found, skipping")
+        return
+
+    updated = re.sub(pattern, rf"\g<1>{new_version}", text)
+    if not dry_run:
+        SITE_INDEX.write_text(updated)
+    print(f"  site/index.html: version pill -> v{new_version}")
+
+
+def bump_welcome_email(new_version: str, *, dry_run: bool) -> None:
+    if not WELCOME_EMAIL.exists():
+        print("  site/welcome-email.mjml not found, skipping")
+        return
+
+    text = WELCOME_EMAIL.read_text()
+    pattern = r"v\d+\.\d+\.\d+( is live)"
+    if not re.search(pattern, text):
+        print("  site/welcome-email.mjml: no version string found, skipping")
+        return
+
+    updated = re.sub(pattern, rf"v{new_version}\1", text)
+    if not dry_run:
+        WELCOME_EMAIL.write_text(updated)
+    print(f"  site/welcome-email.mjml: -> v{new_version}")
+
+
+def refresh_lockfile(*, dry_run: bool) -> None:
+    if dry_run:
+        print("  uv.lock: would re-lock")
+        return
+
+    try:
+        subprocess.run(["uv", "lock"], cwd=ROOT, check=True, capture_output=True)
+        print("  uv.lock: re-locked")
+    except FileNotFoundError:
+        print("  uv.lock: uv not found, skipping (run `uv lock` manually)")
+    except subprocess.CalledProcessError as e:
+        print(f"  uv.lock: lock failed: {e.stderr.decode().strip()}", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bump avakill version")
     parser.add_argument("version", type=validate_version, help="New version (X.Y.Z)")
@@ -92,9 +143,12 @@ def main() -> None:
 
     old_version = bump_pyproject(args.version, dry_run=args.dry_run)
     bump_changelog(args.version, old_version, dry_run=args.dry_run)
+    bump_site_index(args.version, dry_run=args.dry_run)
+    bump_welcome_email(args.version, dry_run=args.dry_run)
+    refresh_lockfile(dry_run=args.dry_run)
 
     print("\nDone. Next steps:")
-    print("  git add pyproject.toml CHANGELOG.md")
+    print("  git add -A")
     print(f'  git commit -m "chore: bump version to {args.version}"')
     print(f"  git tag v{args.version}")
     print("  git push && git push --tags")
