@@ -17,7 +17,9 @@ _EVALUATION_RULES = """\
 ## Evaluation Rules
 
 1. **First-match-wins**: Rules are evaluated top-to-bottom. The first rule whose \
-`tools` pattern matches the tool call is applied. No further rules are checked.
+`tools` pattern matches the tool call AND whose conditions (if any) are all satisfied \
+is applied. No further rules are checked. If a tool matches the pattern but conditions \
+are not met, that rule is skipped and evaluation continues to the next rule.
 2. **Glob syntax**: Tool patterns use glob matching — `*` matches any sequence of \
 characters. Examples: `shell_*` matches `shell_execute`, `shell_run`; `*_read` matches \
 `file_read`, `db_read`; `*` or `all` matches every tool.
@@ -155,6 +157,19 @@ def generate_prompt(
 
     # Evaluation rules
     sections.append(_EVALUATION_RULES)
+
+    # Enforcement levels
+    sections.append(
+        "## Enforcement Levels\n\n"
+        "Each rule has an optional `enforcement` field (default: `hard`) that controls "
+        "how denials are handled:\n\n"
+        "- **hard** (default): Denied calls are blocked. Cannot be overridden.\n"
+        "- **soft**: Denied calls are blocked by default but can be overridden by passing "
+        "`override=True` to `Guard.evaluate()`. The override is logged in the audit trail. "
+        "Use this for rules where a human or senior agent should be able to approve exceptions.\n"
+        "- **advisory**: The rule is evaluated and logged, but the call is always allowed "
+        "regardless of the action. Use this for monitoring and visibility without enforcement."
+    )
 
     # Anti-patterns
     sections.append(_ANTI_PATTERNS)

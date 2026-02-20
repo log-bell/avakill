@@ -89,6 +89,20 @@ def launch(
             new_sandbox = config.sandbox.model_copy(update={"resource_limits": new_limits})
             config = config.model_copy(update={"sandbox": new_sandbox})
 
+    # Fail loudly on macOS when no sandbox config is available.
+    # Without a sandbox section, ProcessLauncher uses NoopSandboxBackend and
+    # the user gets zero protection while thinking they're sandboxed.
+    import sys as _sys
+
+    if _sys.platform == "darwin" and config.sandbox is None:
+        click.echo(
+            "Error: macOS does not support `avakill launch` without a sandbox configuration.\n"
+            "Use `avakill enforce sandbox` to generate a sandbox-exec profile, then run:\n"
+            "  sandbox-exec -f <profile> <command>",
+            err=True,
+        )
+        raise SystemExit(1)
+
     from avakill.launcher.core import ProcessLauncher
 
     launcher = ProcessLauncher(policy=config)

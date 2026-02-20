@@ -19,7 +19,7 @@ def _write_policy(tmp_path: Path, sandbox: dict | None = None) -> Path:
             {"name": "allow-all", "tools": ["*"], "action": "allow"},
         ],
     }
-    if sandbox:
+    if sandbox is not None:
         data["sandbox"] = sandbox
     path = tmp_path / "test-policy.yaml"
     path.write_text(yaml.dump(data))
@@ -38,7 +38,12 @@ class TestLaunchCLI:
         assert "--dry-run" in result.output
         assert "--pty" in result.output
 
-    def test_launch_dry_run_shows_sandbox_info(self, tmp_path: Path) -> None:
+    def test_launch_dry_run_shows_sandbox_info(
+        self,
+        tmp_path: Path,
+        monkeypatch: object,
+    ) -> None:
+        monkeypatch.setattr("sys.platform", "linux")  # type: ignore[attr-defined]
         policy_path = _write_policy(tmp_path)
         runner = CliRunner()
         result = runner.invoke(
@@ -48,13 +53,23 @@ class TestLaunchCLI:
         assert "Sandbox dry-run report" in result.output
         assert "Features:" in result.output
 
-    def test_launch_echo_returns_0(self, tmp_path: Path) -> None:
+    def test_launch_echo_returns_0(
+        self,
+        tmp_path: Path,
+        monkeypatch: object,
+    ) -> None:
+        monkeypatch.setattr("sys.platform", "linux")  # type: ignore[attr-defined]
         policy_path = _write_policy(tmp_path)
         runner = CliRunner()
         result = runner.invoke(cli, ["launch", "--policy", str(policy_path), "--", "echo", "hello"])
         assert result.exit_code == 0
 
-    def test_launch_false_returns_1(self, tmp_path: Path) -> None:
+    def test_launch_false_returns_1(
+        self,
+        tmp_path: Path,
+        monkeypatch: object,
+    ) -> None:
+        monkeypatch.setattr("sys.platform", "linux")  # type: ignore[attr-defined]
         policy_path = _write_policy(tmp_path)
         runner = CliRunner()
         result = runner.invoke(cli, ["launch", "--policy", str(policy_path), "--", "false"])
@@ -73,6 +88,26 @@ class TestLaunchCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["launch", "--policy", str(policy_path)])
         assert result.exit_code != 0
+
+
+class TestLaunchDarwinError:
+    """Tests for macOS-specific error when no sandbox config is available."""
+
+    def test_launch_darwin_no_sandbox_exits_error(
+        self,
+        tmp_path: Path,
+        monkeypatch: object,
+    ) -> None:
+        """On macOS without a sandbox section, launch should fail with guidance."""
+        import sys as _sys
+
+        monkeypatch.setattr(_sys, "platform", "darwin")  # type: ignore[attr-defined]
+        policy_path = _write_policy(tmp_path)  # no sandbox section
+        runner = CliRunner()
+        result = runner.invoke(cli, ["launch", "--policy", str(policy_path), "--", "echo", "hello"])
+        assert result.exit_code == 1
+        assert "avakill enforce sandbox" in result.output
+        assert "sandbox-exec -f" in result.output
 
 
 class TestLaunchAgentFlag:
