@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-20
+
 ### Added
 - **Phase 1: Daemon + CLI** — `avakill daemon start/stop/status` over Unix domain socket or TCP localhost; `avakill evaluate` CLI for hook scripts; newline-delimited JSON protocol with `EvaluateRequest`/`EvaluateResponse`.
 - **Phase 2: Agent hook adapters** — `avakill hook install/uninstall/list` for Claude Code, Gemini CLI, Cursor, and Windsurf; agent detection, idempotent install, hook binary resolution.
@@ -19,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **`--enforce` flag for daemon** — `avakill daemon start --enforce` applies OS-level restrictions (Landlock/sandbox-exec/Job Objects) before binding the socket.
 - **Windows enforcement** — `WindowsEnforcer` creates Job Objects with child-process limits and irreversibly removes dangerous token privileges (`SeRestore`, `SeBackup`, `SeTakeOwnership`, `SeDebug`, `SeImpersonate`).
 - **Hook installer improvements** — resolves absolute path to hook binary via `shutil.which()` + venv bin dir; smoke test verifies binary exists and executes.
+- **CI/CD overhaul** — parallel CI jobs with `uv`, Python 3.10–3.13 matrix, concurrency groups, `alls-green` gate job; release workflow with separate build/publish jobs, version-tag validation, smoke test, auto GitHub Release creation.
+- **Single-source versioning** — `__version__` reads from `importlib.metadata`; `pyproject.toml` is the sole version source.
+- **Version bump script** — `scripts/bump-version.py` updates `pyproject.toml` and `CHANGELOG.md` in one command.
 
 ### Fixed
 - Fix all ruff lint errors (31) — import sorting, unused imports, line length, `raise from`, broad `pytest.raises`.
@@ -28,10 +33,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Fix `avakill logs` table rendering (column alignment, empty-state message).
 - Fix documentation mismatches in `avakill init` output and README examples.
 - Resolve UX paper cuts: install guidance, nav labels, coming-soon badges.
+- Fix stale version assertions in tests (version drift between `pyproject.toml` and test files).
 
 ### Changed
 - Restructure README roadmap into maturity tiers (Foundation / Growth / Enterprise).
 - Add integration row labels to landing page feature matrix.
+- Makefile targets use `uv` instead of `pip`/`twine` (with auto-detection fallback).
 
 ## [0.1.0] - 2026-02-16
 
@@ -58,5 +65,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Example scripts** — runnable demos for quickstart, OpenAI, Anthropic, LangChain/LangGraph, MCP proxy, and real-world disaster scenarios.
 - **CI pipeline** — GitHub Actions with Python 3.10/3.11/3.12 matrix, Ruff, mypy, pytest with coverage, Codecov upload.
 
-[Unreleased]: https://github.com/log-bell/avakill/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/log-bell/avakill/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/log-bell/avakill/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/log-bell/avakill/releases/tag/v0.1.0

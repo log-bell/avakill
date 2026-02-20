@@ -6,7 +6,9 @@ import avakill
 
 
 def test_version():
-    assert avakill.__version__ == "0.2.0"
+    from importlib.metadata import version
+
+    assert avakill.__version__ == version("avakill")
 
 
 def test_core_exports():

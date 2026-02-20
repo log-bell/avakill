@@ -100,9 +100,11 @@ class TestCLIBasics:
         assert "fix" in result.output
 
     def test_cli_version(self, runner: CliRunner) -> None:
+        import avakill
+
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "0.1.0" in result.output
+        assert avakill.__version__ in result.output
 
 
 class TestLazyGroup:

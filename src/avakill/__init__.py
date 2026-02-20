@@ -1,10 +1,15 @@
 """AvaKill — Open-source safety firewall for AI agents. She doesn't guard. She kills."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from avakill.core.engine import Guard
 from avakill.core.exceptions import ConfigError, PolicyViolation, RateLimitExceeded
 from avakill.interceptors.decorator import protect
 
-__version__ = "0.2.0"
+try:
+    __version__ = version("avakill")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
 
 
 def __getattr__(name: str):  # noqa: ANN001
