@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from avakill.cli.scanner import detect_project_type, detect_sensitive_files
+from avakill.cli.scanner import (
+    SensitiveFile,
+    detect_project_type,
+    detect_sensitive_files,
+    generate_scan_rules,
+)
 
 
 class TestDetectSensitiveFiles:
@@ -122,3 +127,58 @@ class TestDetectProjectType:
     def test_empty_directory(self, tmp_path: Path) -> None:
         result = detect_project_type(tmp_path)
         assert result == []
+
+
+class TestGenerateScanRules:
+    def test_env_files_produce_deny_rule(self) -> None:
+        files = [
+            SensitiveFile(".env", "env", "Environment variables"),
+            SensitiveFile(".env.local", "env", "Environment variables"),
+        ]
+        rules = generate_scan_rules(files, [])
+        env_rules = [r for r in rules if r["name"] == "protect-env-files"]
+        assert len(env_rules) == 1
+        assert env_rules[0]["action"] == "deny"
+        assert ".env" in env_rules[0]["conditions"]["args_match"]["file_path"]
+        assert ".env.local" in env_rules[0]["conditions"]["args_match"]["file_path"]
+
+    def test_crypto_files_produce_deny_rule(self) -> None:
+        files = [SensitiveFile("server.pem", "crypto", "TLS cert")]
+        rules = generate_scan_rules(files, [])
+        crypto_rules = [r for r in rules if r["name"] == "protect-crypto-files"]
+        assert len(crypto_rules) == 1
+        assert crypto_rules[0]["action"] == "deny"
+
+    def test_database_files_produce_deny_rule(self) -> None:
+        files = [SensitiveFile("app.sqlite", "database", "SQLite DB")]
+        rules = generate_scan_rules(files, [])
+        db_rules = [r for r in rules if r["name"] == "protect-database-files"]
+        assert len(db_rules) == 1
+        assert db_rules[0]["action"] == "deny"
+
+    def test_credential_files_produce_deny_rule(self) -> None:
+        files = [SensitiveFile("credentials.json", "credentials", "Creds")]
+        rules = generate_scan_rules(files, [])
+        cred_rules = [r for r in rules if r["name"] == "protect-credential-files"]
+        assert len(cred_rules) == 1
+
+    def test_no_files_no_rules(self) -> None:
+        rules = generate_scan_rules([], [])
+        assert rules == []
+
+    def test_rules_target_write_and_delete_tools(self) -> None:
+        files = [SensitiveFile(".env", "env", "Env")]
+        rules = generate_scan_rules(files, [])
+        assert rules[0]["tools"] == ["file_write", "file_delete"]
+
+    def test_rules_are_valid_policy_dicts(self) -> None:
+        files = [
+            SensitiveFile(".env", "env", "Env"),
+            SensitiveFile("key.pem", "crypto", "Key"),
+        ]
+        rules = generate_scan_rules(files, [])
+        for rule in rules:
+            assert "name" in rule
+            assert "tools" in rule
+            assert "action" in rule
+            assert len(rule["tools"]) >= 1

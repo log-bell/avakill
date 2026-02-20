@@ -126,3 +126,65 @@ def detect_project_type(cwd: Path) -> list[str]:
         detected.append("swift")
 
     return detected
+
+
+_CATEGORY_RULE_NAMES: dict[str, str] = {
+    "env": "protect-env-files",
+    "crypto": "protect-crypto-files",
+    "credentials": "protect-credential-files",
+    "database": "protect-database-files",
+}
+
+_CATEGORY_MESSAGES: dict[str, str] = {
+    "env": "Detected env file(s) — blocking write/delete by default",
+    "crypto": "Detected crypto key(s) — blocking write/delete by default",
+    "credentials": "Detected credential file(s) — blocking write/delete by default",
+    "database": "Detected database file(s) — blocking write/delete by default",
+}
+
+
+def generate_scan_rules(
+    sensitive_files: list[SensitiveFile],
+    project_types: list[str],
+) -> list[dict[str, object]]:
+    """Generate deny rules for detected sensitive files.
+
+    Groups files by category and produces one rule per category.
+
+    Args:
+        sensitive_files: Detected sensitive files from detect_sensitive_files().
+        project_types: Detected project types from detect_project_type().
+
+    Returns:
+        List of rule dicts ready for YAML serialization.
+    """
+    if not sensitive_files:
+        return []
+
+    # Group by category
+    by_category: dict[str, list[str]] = {}
+    for sf in sensitive_files:
+        by_category.setdefault(sf.category, []).append(sf.path)
+
+    rules: list[dict[str, object]] = []
+    for category, paths in by_category.items():
+        rule_name = _CATEGORY_RULE_NAMES.get(category, f"protect-{category}-files")
+        message = _CATEGORY_MESSAGES.get(
+            category,
+            f"Detected {category} file(s) — blocking write/delete by default",
+        )
+        rules.append(
+            {
+                "name": rule_name,
+                "tools": ["file_write", "file_delete"],
+                "action": "deny",
+                "conditions": {
+                    "args_match": {
+                        "file_path": sorted(paths),
+                    },
+                },
+                "message": message,
+            }
+        )
+
+    return rules
