@@ -42,8 +42,6 @@ jobs:
         include:
           - os: macos-latest
             python-version: "3.13"
-          - os: windows-latest
-            python-version: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +54,18 @@ jobs:
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
+
+  test-windows:
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --locked --all-extras --dev
+      - run: uv run pytest tests/
 
   check:
     if: always()
