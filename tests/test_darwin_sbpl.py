@@ -17,11 +17,11 @@ class TestSBPLProfileGeneration:
 
     def test_read_paths_produce_allow_file_read(self):
         config = SandboxConfig(
-            allow_paths=SandboxPathRules(read=["/usr", "/lib"]),
+            allow_paths=SandboxPathRules(read=["/usr", "/opt"]),
         )
         profile = generate_sbpl_profile(config)
         assert '(allow file-read* (subpath "/usr"))' in profile
-        assert '(allow file-read* (subpath "/lib"))' in profile
+        assert '(allow file-read* (subpath "/opt"))' in profile
 
     def test_write_paths_produce_allow_file_write(self):
         config = SandboxConfig(
