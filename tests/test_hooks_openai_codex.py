@@ -260,3 +260,17 @@ class TestOpenAICodexFormatResponse:
         assert parsed["decision"] == "block"
         assert "approval" in parsed["message"].lower()
         assert exit_code == 1
+
+
+class TestOpenAICodexRegistration:
+    """Test adapter registration in the hook registry."""
+
+    def test_adapter_registered_in_registry(self) -> None:
+        from avakill.hooks import get_adapter
+
+        adapter_cls = get_adapter("openai-codex")
+        assert adapter_cls is OpenAICodexAdapter
+
+    def test_adapter_agent_name(self) -> None:
+        adapter = OpenAICodexAdapter()
+        assert adapter.agent_name == "openai-codex"

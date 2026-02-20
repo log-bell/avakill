@@ -42,4 +42,5 @@ def _import_all() -> None:
     import avakill.hooks.claude_code as _cc  # noqa: F811, F401
     import avakill.hooks.cursor as _cu  # noqa: F811, F401
     import avakill.hooks.gemini_cli as _gc  # noqa: F811, F401
+    import avakill.hooks.openai_codex as _oc  # noqa: F811, F401
     import avakill.hooks.windsurf as _ws  # noqa: F811, F401

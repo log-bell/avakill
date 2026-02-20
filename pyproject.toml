@@ -74,6 +74,7 @@ avakill-hook-claude-code = "avakill.hooks.claude_code:main"
 avakill-hook-gemini-cli = "avakill.hooks.gemini_cli:main"
 avakill-hook-cursor = "avakill.hooks.cursor:main"
 avakill-hook-windsurf = "avakill.hooks.windsurf:main"
+avakill-hook-openai-codex = "avakill.hooks.openai_codex:main"
 
 [project.urls]
 Homepage = "https://github.com/log-bell/avakill"
