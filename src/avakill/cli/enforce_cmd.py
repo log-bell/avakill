@@ -71,14 +71,21 @@ def landlock(policy: str, dry_run: bool) -> None:
 
 @enforce.command()
 @click.option("--policy", default="avakill.yaml", help="Path to policy file.")
-@click.option("--output", "-o", required=True, help="Output path for SBPL profile.")
-def sandbox(policy: str, output: str) -> None:
+@click.option("--output", "-o", default=None, help="Output path for SBPL profile.")
+@click.option("--dry-run", is_flag=True, help="Print generated profile to stdout without writing.")
+def sandbox(policy: str, output: str | None, dry_run: bool) -> None:
     """Generate macOS sandbox-exec profile.
 
     Produces a Sandbox Profile Language (SBPL) file from deny rules.
     Use with: sandbox-exec -f <profile> <command>
     """
-    from avakill.enforcement.sandbox_exec import SandboxExecEnforcer
+    from avakill.enforcement.sandbox_exec import SandboxExecEnforcer, SandboxProfileError
+
+    if not dry_run and not output:
+        console.print(
+            "[bold red]Error:[/] --output is required when not using --dry-run.",
+        )
+        raise SystemExit(1)
 
     enforcer = SandboxExecEnforcer()
 
@@ -95,8 +102,22 @@ def sandbox(policy: str, output: str) -> None:
         raise SystemExit(1) from exc
 
     config = engine.config
-    result = enforcer.write_profile(config, Path(output))
-    console.print(f"[bold green]Sandbox profile written to:[/] {result}")
+
+    try:
+        profile = enforcer.generate_profile(config)
+    except SandboxProfileError as exc:
+        console.print(f"[bold red]Error:[/] {exc}")
+        raise SystemExit(1) from exc
+
+    if dry_run:
+        console.print("[bold]Sandbox Profile (dry run):[/]")
+        console.print(profile)
+        return
+
+    output_path = Path(output)  # type: ignore[arg-type]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(profile, encoding="utf-8")
+    console.print(f"[bold green]Sandbox profile written to:[/] {output_path}")
 
 
 @enforce.command()
