@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import click
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
@@ -113,7 +114,12 @@ _PROTECTION_MODES = {
     default=None,
     help="Protection mode (hooks, launch, mcp, all).",
 )
-def init(template: str | None, output: str, mode: str | None) -> None:
+@click.option(
+    "--scan/--no-scan",
+    default=False,
+    help="Scan project directory for sensitive files and generate targeted deny rules.",
+)
+def init(template: str | None, output: str, mode: str | None, scan: bool) -> None:
     """Initialize a new AvaKill policy file."""
     console = Console()
 
@@ -157,11 +163,41 @@ def init(template: str | None, output: str, mode: str | None) -> None:
 
     shutil.copy2(src, output_path)
 
+    # Scan project for sensitive files if requested
+    scan_results: list[object] = []
+    if scan:
+        from avakill.cli.scanner import (
+            detect_project_type,
+            detect_sensitive_files,
+            generate_scan_rules,
+        )
+
+        sensitive_files = detect_sensitive_files(Path.cwd())
+        project_types = detect_project_type(Path.cwd())
+        scan_rules = generate_scan_rules(sensitive_files, project_types)
+        scan_results = sensitive_files
+
+        if scan_rules:
+            # Read template, merge scan rules before template rules
+            policy_data = yaml.safe_load(output_path.read_text(encoding="utf-8"))
+            existing_rules = policy_data.get("policies", [])
+            policy_data["policies"] = scan_rules + existing_rules
+            output_path.write_text(
+                yaml.dump(policy_data, default_flow_style=False, sort_keys=False),
+                encoding="utf-8",
+            )
+
     # Build summary panel
     lines: list[str] = []
     lines.append(f"[bold green]Policy file created:[/bold green] {output_path.resolve()}")
     lines.append(f"[dim]Template:[/dim] {template}")
     lines.append("")
+
+    if scan and scan_results:
+        lines.append("[bold yellow]Detected sensitive files:[/bold yellow]")
+        for sf in scan_results:
+            lines.append(f"  [yellow]{sf.path}[/yellow] [dim]({sf.description})[/dim]")
+        lines.append("")
 
     if detected:
         lines.append("[bold cyan]Detected frameworks:[/bold cyan]")
