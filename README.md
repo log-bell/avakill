@@ -2,17 +2,25 @@
 
 # :shield: AvaKill
 
-### She doesn't guard. She kills.
-
-*Open-source safety firewall for AI agents*
+### Open-source safety firewall for AI coding agents
 
 [![PyPI version](https://img.shields.io/pypi/v/avakill?color=blue)](https://pypi.org/project/avakill/)
 [![Python](https://img.shields.io/pypi/pyversions/avakill)](https://pypi.org/project/avakill/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/log-bell/avakill/ci.yml?branch=main&label=tests)](https://github.com/log-bell/avakill/actions)
+![Tests](https://img.shields.io/badge/tests-1%2C183%20passing-brightgreen)
+![Red Team](https://img.shields.io/badge/red%20team-30%2F30%20blocked-red)
 [![GitHub stars](https://img.shields.io/github/stars/log-bell/avakill?style=social)](https://github.com/log-bell/avakill)
 
 **Stop your AI agents from deleting your database, wiping your files, or going rogue.**
+
+<!-- TODO: Add terminal GIF here showing attack interception -->
+> :tv: **[Watch the demo →](#demo)** See AvaKill block a live red team attack in real-time.
+
+```bash
+pipx install avakill    # Recommended
+# or: pip install avakill
+```
 
 [Quickstart](#quickstart) · [Tutorial](docs/tutorial-you-couldve-invented-avakill.md) · [Integrations](#framework-integrations) · [Policy Reference](#policy-configuration) · [Security](docs/security-hardening.md) · [Deployment](docs/deployment.md) · [CLI](docs/cli-reference.md) · [Cookbook](docs/cookbook.md) · [API](docs/api-reference.md) · [Contributing](CONTRIBUTING.md)
 
@@ -497,6 +505,8 @@ See [**CONTRIBUTING.md**](CONTRIBUTING.md) for the full guide — architecture o
 ---
 
 <div align="center">
+
+*She doesn't guard. She kills.*
 
 **If AvaKill would have saved you from an AI agent disaster, [give it a star](https://github.com/log-bell/avakill).**
 

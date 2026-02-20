@@ -7,6 +7,9 @@ import sys
 
 import pytest
 
+if sys.platform == "win32":
+    pytest.skip("No PTY support on Windows", allow_module_level=True)
+
 from avakill.launcher.pty_relay import PTYRelay
 
 

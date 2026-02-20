@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import os
-import resource
 import signal
 import subprocess
 import sys
@@ -136,7 +135,7 @@ class ProcessLauncher:
                 "cwd": str(cwd) if cwd else None,
                 "preexec_fn": preexec_fn,
             }
-            if sys.platform != "win32":
+            if sys.platform != "win32" and sys.version_info >= (3, 11):
                 popen_kwargs["process_group"] = 0
             popen_kwargs.update(extra_args)
 
@@ -187,6 +186,8 @@ class ProcessLauncher:
             return None
 
         def _apply_rlimits() -> None:
+            import resource
+
             if limits.max_memory_mb is not None and sys.platform != "darwin":
                 # macOS does not enforce RLIMIT_AS or RLIMIT_DATA via setrlimit;
                 # memory containment on macOS relies on the sandbox profile instead.

@@ -41,6 +41,6 @@ class TestProfileIntegration:
         for name in list_profiles():
             profile = load_profile(name)
             if profile.agent.mcp_native:
-                assert (
-                    "mcp" in profile.agent.description.lower()
-                ), f"{name} is MCP-native but description omits MCP"
+                assert "mcp" in profile.agent.description.lower(), (
+                    f"{name} is MCP-native but description omits MCP"
+                )
