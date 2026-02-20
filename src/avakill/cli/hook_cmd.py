@@ -15,7 +15,7 @@ def hook() -> None:
 @hook.command()
 @click.option(
     "--agent",
-    type=click.Choice(["claude-code", "gemini-cli", "cursor", "windsurf", "all"]),
+    type=click.Choice(["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex", "all"]),
     required=True,
     help="Agent to install hook for.",
 )
@@ -24,7 +24,11 @@ def install(agent: str) -> None:
     from avakill.hooks.installer import install_hook
 
     console = Console()
-    agents = ["claude-code", "gemini-cli", "cursor", "windsurf"] if agent == "all" else [agent]
+    agents = (
+        ["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex"]
+        if agent == "all"
+        else [agent]
+    )
 
     for a in agents:
         try:
@@ -62,7 +66,7 @@ def install(agent: str) -> None:
 @hook.command()
 @click.option(
     "--agent",
-    type=click.Choice(["claude-code", "gemini-cli", "cursor", "windsurf", "all"]),
+    type=click.Choice(["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex", "all"]),
     required=True,
     help="Agent to uninstall hook for.",
 )
@@ -71,7 +75,11 @@ def uninstall(agent: str) -> None:
     from avakill.hooks.installer import uninstall_hook
 
     console = Console()
-    agents = ["claude-code", "gemini-cli", "cursor", "windsurf"] if agent == "all" else [agent]
+    agents = (
+        ["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex"]
+        if agent == "all"
+        else [agent]
+    )
 
     for a in agents:
         try:
@@ -98,7 +106,7 @@ def list_hooks() -> None:
     table.add_column("Detected")
     table.add_column("Hook Installed")
 
-    for agent in ("claude-code", "gemini-cli", "cursor", "windsurf"):
+    for agent in ("claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex"):
         is_detected = agent in detected
         is_installed = installed.get(agent, False)
         table.add_row(

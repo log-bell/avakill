@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
 from avakill.daemon.protocol import EvaluateResponse
 from avakill.hooks.installer import HookInstallResult
@@ -423,3 +424,15 @@ class TestCodexRulesGeneration:
 
         content = output_path.read_text()
         assert "auto-generated" in content.lower() or "avakill" in content.lower()
+
+
+class TestOpenAICodexCLI:
+    """Test CLI integration for Codex hook commands."""
+
+    def test_hook_list_includes_openai_codex(self) -> None:
+        from avakill.cli.hook_cmd import hook
+
+        runner = CliRunner()
+        result = runner.invoke(hook, ["list"])
+        assert result.exit_code == 0
+        assert "openai-codex" in result.output
