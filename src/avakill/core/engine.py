@@ -6,7 +6,6 @@ import asyncio
 import contextlib
 import logging
 import os
-import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -542,13 +541,16 @@ class Guard:
             task = loop.create_task(self._logger.log(event))  # type: ignore[union-attr]
             task.add_done_callback(self._on_log_done)
         except RuntimeError:
-            # No running event loop — fire in a background thread
-            t = threading.Thread(
-                target=self._log_sync,
-                args=(event,),
-                daemon=True,
-            )
-            t.start()
+            # No running event loop — buffer the event directly so it's
+            # available when the caller next invokes flush().  This avoids
+            # spawning a daemon thread whose event loop creates a separate
+            # DB connection that won't be visible to subsequent flush/query
+            # calls in the caller's own asyncio.run().
+            try:
+                self._logger._buffer.append(event)  # type: ignore[union-attr]
+            except Exception as exc:
+                self._log_failures += 1
+                _logger.error("Audit logging failed (sync): %s", exc)
 
     def _on_log_done(self, task: asyncio.Task[None]) -> None:
         """Callback for completed async log tasks."""
@@ -556,19 +558,6 @@ class Guard:
         if exc is not None:
             self._log_failures += 1
             _logger.error("Audit logging failed: %s", exc)
-
-    def _log_sync(self, event: AuditEvent) -> None:
-        """Run the async logger.log in a new event loop (background thread)."""
-        try:
-
-            async def _log_and_flush() -> None:
-                await self._logger.log(event)  # type: ignore[union-attr]
-                await self._logger.flush()  # type: ignore[union-attr]
-
-            asyncio.run(_log_and_flush())
-        except Exception as exc:
-            self._log_failures += 1
-            _logger.error("Audit logging failed (sync): %s", exc)
 
 
 class GuardSession:

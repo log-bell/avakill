@@ -14,7 +14,7 @@ avakill [--version] <command> [options]
 
 **Monitoring & Logging:** [dashboard](#avakill-dashboard) | [logs](#avakill-logs) | [metrics](#avakill-metrics) | [fix](#avakill-fix)
 
-**Integration:** [mcp-proxy](#avakill-mcp-proxy) | [schema](#avakill-schema)
+**Integration:** [mcp-proxy](#avakill-mcp-proxy) | [mcp-wrap](#avakill-mcp-wrap) | [mcp-unwrap](#avakill-mcp-unwrap) | [launch](#avakill-launch) | [profile list](#avakill-profile-list) | [profile show](#avakill-profile-show) | [schema](#avakill-schema)
 
 **Daemon:** [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status)
 
@@ -22,7 +22,7 @@ avakill [--version] <command> [options]
 
 **Agent Hooks:** [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list)
 
-**OS Enforcement:** [enforce landlock](#avakill-enforce-landlock) | [enforce sandbox](#avakill-enforce-sandbox) | [enforce tetragon](#avakill-enforce-tetragon)
+**OS Enforcement:** [enforce landlock](#avakill-enforce-landlock) | [enforce sandbox](#avakill-enforce-sandbox) | [enforce tetragon](#avakill-enforce-tetragon) | [enforce windows](#avakill-enforce-windows)
 
 **Compliance:** [compliance report](#avakill-compliance-report) | [compliance gaps](#avakill-compliance-gaps)
 
@@ -35,27 +35,43 @@ avakill [--version] <command> [options]
 Initialize a new AvaKill policy file.
 
 ```
-avakill init [--template default|strict|permissive] [--output PATH]
+avakill init [--template default|strict|permissive|hooks] [--output PATH] [--mode MODE]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--template` | *(interactive)* | Policy template: `default`, `strict`, or `permissive` |
+| `--template` | *(interactive)* | Policy template: `default`, `strict`, `permissive`, or `hooks` |
 | `--output` | `avakill.yaml` | Output path for the generated file |
+| `--mode` | *(interactive)* | Protection mode: `hooks`, `launch`, `mcp`, or `all` |
 
-Auto-detects installed frameworks (OpenAI, Anthropic, LangChain, MCP) and shows integration snippets.
+Auto-detects installed frameworks (OpenAI, Anthropic, LangChain, MCP) and shows integration snippets. Detects installed AI coding agents and suggests hook installation.
+
+**Protection modes:**
+
+| Mode | Description |
+|------|-------------|
+| `hooks` | Cooperative — agents report tool calls via hooks |
+| `launch` | OS sandbox — contain any agent with filesystem/network restrictions |
+| `mcp` | MCP proxy — intercept MCP tool server calls |
+| `all` | All of the above (maximum protection) |
 
 **Examples:**
 
 ```bash
-# Interactive — prompts for template choice
+# Interactive — prompts for template and mode
 avakill init
 
 # Non-interactive with specific template
 avakill init --template strict
 
+# Hooks-only template for agent hook integration
+avakill init --template hooks
+
 # Custom output path
 avakill init --template permissive --output policies/dev.yaml
+
+# Set protection mode directly
+avakill init --template default --mode launch
 ```
 
 ---
@@ -452,6 +468,166 @@ avakill mcp-proxy \
 
 ---
 
+## avakill mcp-wrap
+
+Wrap MCP server configs to route tool calls through AvaKill.
+
+```
+avakill mcp-wrap [--agent AGENT] [--policy PATH] [--daemon] [--dry-run]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--agent` | `all` | Which agent to wrap: `claude-desktop`, `cursor`, `windsurf`, `cline`, `continue`, or `all` |
+| `--policy` | `avakill.yaml` | Path to the policy file |
+| `--daemon` | `false` | Use daemon mode instead of embedded Guard |
+| `--dry-run` | `false` | Show changes without writing |
+
+Rewrites agent MCP configs so all stdio-transport tool calls pass through `avakill mcp-proxy`. Creates a backup of the original config. Skips servers that are already wrapped or use non-stdio transports.
+
+**Examples:**
+
+```bash
+# Wrap all detected agents
+avakill mcp-wrap
+
+# Wrap a specific agent with custom policy
+avakill mcp-wrap --agent claude-desktop --policy hardened.yaml
+
+# Use daemon mode for evaluation
+avakill mcp-wrap --agent all --daemon
+
+# Preview changes without writing
+avakill mcp-wrap --dry-run
+```
+
+---
+
+## avakill mcp-unwrap
+
+Restore original MCP server configs (undo mcp-wrap).
+
+```
+avakill mcp-unwrap [--agent AGENT]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--agent` | `all` | Which agent to unwrap: `claude-desktop`, `cursor`, `windsurf`, `cline`, `continue`, or `all` |
+
+Reverses the wrapping done by `mcp-wrap`, restoring the original server commands. Creates a backup before writing.
+
+**Examples:**
+
+```bash
+# Unwrap all agents
+avakill mcp-unwrap
+
+# Unwrap a specific agent
+avakill mcp-unwrap --agent claude-desktop
+```
+
+---
+
+## avakill launch
+
+Launch a process inside an OS-level sandbox.
+
+```
+avakill launch [--policy PATH] [--agent NAME] [--pty|--no-pty] [--dry-run] [--timeout N] -- COMMAND...
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | `avakill.yaml` | Path to the policy file |
+| `--agent` | *(none)* | Agent profile name (e.g. `openclaw`, `aider`) |
+| `--pty/--no-pty` | `--no-pty` | Allocate PTY for interactive agents |
+| `--dry-run` | `false` | Show sandbox restrictions without launching |
+| `--timeout` | *(none)* | Kill child process after N seconds |
+| `COMMAND` | *(from profile)* | Command to run (everything after `--`) |
+
+The command to run can be specified after `--` or pulled from the agent profile's default command. If `--agent` is specified, the profile's sandbox configuration is used when the policy has no `sandbox:` section.
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| *(child's code)* | Propagated from the child process |
+| `126` | Sandbox setup failed |
+
+**Examples:**
+
+```bash
+# Launch with explicit command
+avakill launch --policy hardened.yaml -- openclaw start
+
+# Launch using agent profile defaults
+avakill launch --agent openclaw
+
+# Launch with profile and custom command
+avakill launch --agent aider -- aider --model gpt-4
+
+# Preview sandbox restrictions
+avakill launch --dry-run --agent openclaw
+
+# Set a timeout
+avakill launch --agent openclaw --timeout 3600
+```
+
+---
+
+## avakill profile list
+
+List available agent containment profiles.
+
+```
+avakill profile list [--verbose]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--verbose`, `-v` | `false` | Show profile descriptions |
+
+Displays a table of built-in agent profiles with their hook support and MCP capabilities.
+
+**Example:**
+
+```bash
+$ avakill profile list -v
+       Agent Profiles
+┌────────────┬───────┬─────┬──────────────────────┐
+│ Name       │ Hooks │ MCP │ Description          │
+├────────────┼───────┼─────┼──────────────────────┤
+│ Claude Code│ yes   │ yes │ Anthropic CLI agent  │
+│ Aider      │ no    │ no  │ AI pair programmer   │
+│ OpenClaw   │ yes   │ yes │ Open-source agent    │
+└────────────┴───────┴─────┴──────────────────────┘
+```
+
+---
+
+## avakill profile show
+
+Show details of an agent containment profile.
+
+```
+avakill profile show NAME
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `NAME` | Yes | Profile name (e.g. `openclaw`, `aider`, `claude-code`) |
+
+Displays the full profile details including protection modes, detection paths, sandbox paths, network rules, and resource limits.
+
+**Example:**
+
+```bash
+avakill profile show openclaw
+```
+
+---
+
 ## avakill schema
 
 Export the AvaKill policy JSON Schema or generate an LLM prompt.
@@ -766,6 +942,33 @@ avakill enforce tetragon --policy PATH --output PATH
 ```bash
 avakill enforce tetragon --policy avakill.yaml --output tetragon-policy.yaml
 kubectl apply -f tetragon-policy.yaml
+```
+
+---
+
+## avakill enforce windows
+
+Apply Windows process restrictions.
+
+```
+avakill enforce windows --policy PATH [--dry-run]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | `avakill.yaml` | Path to the policy file |
+| `--dry-run` | `false` | Show restrictions without applying |
+
+Creates a Job Object with child-process limits and removes dangerous token privileges (SeRestorePrivilege, SeBackupPrivilege, etc.). **Privilege removal is irreversible for the process lifetime.** Requires Windows.
+
+**Examples:**
+
+```bash
+# Preview restrictions
+avakill enforce windows --policy avakill.yaml --dry-run
+
+# Apply restrictions
+avakill enforce windows --policy avakill.yaml
 ```
 
 ---

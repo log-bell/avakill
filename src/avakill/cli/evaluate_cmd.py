@@ -71,7 +71,9 @@ def evaluate(
     if output_json:
         click.echo(response.model_dump_json())
     else:
-        click.echo(f"{response.decision}: {response.reason or 'no reason'}")
+        # Write to stderr so deny messages don't mix with piped data
+        # and don't get duplicated by agent tool runners on non-zero exit.
+        click.echo(f"{response.decision}: {response.reason or 'no reason'}", err=True)
 
     if response.decision == "deny":
         raise SystemExit(2)

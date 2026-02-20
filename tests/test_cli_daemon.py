@@ -141,7 +141,7 @@ class TestEvaluateCLI:
             input=stdin_json,
         )
         assert result.exit_code == 0
-        assert "allow" in result.output
+        assert "allow" in result.stderr
 
     def test_evaluate_standalone_deny_exits_2(self, runner: CliRunner, policy_file: Path):
         stdin_json = json.dumps({"tool": "file_delete", "args": {"path": "/etc/passwd"}})
@@ -151,7 +151,7 @@ class TestEvaluateCLI:
             input=stdin_json,
         )
         assert result.exit_code == 2
-        assert "deny" in result.output
+        assert "deny" in result.stderr
 
     def test_evaluate_standalone_json_output(self, runner: CliRunner, policy_file: Path):
         stdin_json = json.dumps({"tool": "file_read", "args": {}})
@@ -183,7 +183,7 @@ class TestEvaluateCLI:
             input=stdin_json,
         )
         assert result.exit_code == 0
-        assert "allow" in result.output
+        assert "allow" in result.stderr
 
     def test_evaluate_empty_stdin_exits_1(self, runner: CliRunner):
         result = runner.invoke(cli, ["evaluate", "--policy", "x.yaml"], input="")

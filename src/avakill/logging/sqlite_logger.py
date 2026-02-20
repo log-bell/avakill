@@ -211,8 +211,19 @@ class SQLiteLogger(AuditLogger):
             try:
                 loop = asyncio.get_running_loop()
                 self._flush_task = loop.create_task(self._timed_flush())
+                self._flush_task.add_done_callback(self._on_flush_done)
             except RuntimeError:
                 pass
+
+    @staticmethod
+    def _on_flush_done(task: asyncio.Task[None]) -> None:
+        """Silently consume exceptions from scheduled flushes."""
+        if not task.cancelled():
+            exc = task.exception()
+            if exc is not None:
+                import logging
+
+                logging.getLogger("avakill.logging").error("Scheduled flush failed: %s", exc)
 
     async def _timed_flush(self) -> None:
         """Wait for the flush interval, then flush."""

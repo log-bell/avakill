@@ -226,6 +226,12 @@ class DaemonServer:
                 await writer.drain()
         except (ConnectionError, BrokenPipeError, OSError) as exc:
             logger.debug("Client connection error: %s", exc)
+        except Exception as exc:
+            logger.exception("Unhandled error in connection handler: %s", exc)
+            with contextlib.suppress(Exception):
+                resp = EvaluateResponse(decision="deny", reason="internal server error")
+                writer.write(serialize_response(resp))
+                await writer.drain()
         finally:
             with contextlib.suppress(Exception):
                 writer.close()
