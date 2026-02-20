@@ -36,6 +36,12 @@ class NoopSandboxBackend:
             pid,
         )
 
+    def wrap_command(self, command: list[str], config: SandboxConfig) -> list[str]:
+        return command
+
+    def cleanup(self) -> None:
+        pass
+
     def describe(self, config: SandboxConfig) -> dict[str, Any]:
         return {
             "platform": "unsupported",

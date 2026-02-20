@@ -172,11 +172,15 @@ class SandboxExecEnforcer:
         for op in op_names:
             if allowed:
                 lines.append(f"(deny {op}")
-                lines.append("  (require-not")
-                for path in allowed:
-                    expanded = str(Path(path).expanduser())
-                    lines.append(f'    (subpath "{expanded}")')
-                lines.append("  ))")
+                if len(allowed) == 1:
+                    expanded = str(Path(allowed[0]).expanduser())
+                    lines.append(f'  (require-not (subpath "{expanded}")))')
+                else:
+                    lines.append("  (require-not (require-any")
+                    for path in allowed:
+                        expanded = str(Path(path).expanduser())
+                        lines.append(f'    (subpath "{expanded}")')
+                    lines.append("  )))")
             else:
                 # No write allowlist — deny globally (file writes, not exec)
                 lines.append(f"(deny {op})")
@@ -224,19 +228,19 @@ class SandboxExecEnforcer:
         allowed_hosts = sandbox_cfg.allow_network.connect
 
         if allowed_hosts:
+            # Multiple exceptions: require-not takes exactly one arg
             lines.append("(deny network-outbound")
-            lines.append("  (require-not")
+            lines.append("  (require-not (require-any")
             for host_port in allowed_hosts:
                 lines.append(f'    (remote tcp "{host_port}")')
             # Always allow localhost
             lines.append('    (remote tcp "localhost:*")')
-            lines.append("  ))")
+            lines.append("  )))")
         else:
             # No allowlist — deny all outbound except localhost
             lines.append("(deny network-outbound")
-            lines.append("  (require-not")
-            lines.append('    (remote tcp "localhost:*")')
-            lines.append("  ))")
+            lines.append('  (require-not (remote tcp "localhost:*")))')
+
         lines.append("")
 
         return lines

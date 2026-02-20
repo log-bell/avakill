@@ -176,6 +176,7 @@ class TestProcessLauncherBackend:
         mock_backend = MagicMock(spec=SandboxBackend)
         mock_backend.prepare_preexec.return_value = None
         mock_backend.prepare_process_args.return_value = {}
+        mock_backend.wrap_command.side_effect = lambda cmd, cfg: cmd
         mock_backend.available.return_value = True
         mock_backend.describe.return_value = {"sandbox_applied": True}
         launcher = ProcessLauncher(

@@ -61,7 +61,11 @@ class ProcessLauncher:
             self._backend = backend
         elif policy.sandbox is not None:
             # Sandbox explicitly configured — use platform backend
-            self._backend = get_sandbox_backend()
+            self._backend = get_sandbox_backend(policy=policy)
+        elif sys.platform == "darwin":
+            # On macOS, sandbox-exec can enforce policy deny rules
+            # even without a sandbox section
+            self._backend = get_sandbox_backend(policy=policy)
         else:
             # No sandbox section — no OS-level sandboxing
             from avakill.launcher.backends.noop import NoopSandboxBackend
@@ -99,51 +103,57 @@ class ProcessLauncher:
                 duration_seconds=0.0,
             )
 
+        # Allow backend to wrap the command (e.g., sandbox-exec -f <profile>)
+        command = self._backend.wrap_command(command, self._sandbox_config)
+
         preexec_fn = self._build_preexec_fn()
         extra_args = self._backend.prepare_process_args(self._sandbox_config)
         child_env = self._build_env(env)
 
         start = time.monotonic()
 
-        if pty:
-            from avakill.launcher.pty_relay import PTYRelay
+        try:
+            if pty:
+                from avakill.launcher.pty_relay import PTYRelay
 
-            relay = PTYRelay()
-            master_fd, slave_fd = relay.allocate()
-            try:
-                process = subprocess.Popen(
-                    command,
-                    stdin=slave_fd,
-                    stdout=slave_fd,
-                    stderr=slave_fd,
-                    env=child_env,
-                    cwd=str(cwd) if cwd else None,
-                    preexec_fn=preexec_fn,
-                    close_fds=True,
-                    **extra_args,
-                )
-                os.close(slave_fd)
+                relay = PTYRelay()
+                master_fd, slave_fd = relay.allocate()
+                try:
+                    process = subprocess.Popen(
+                        command,
+                        stdin=slave_fd,
+                        stdout=slave_fd,
+                        stderr=slave_fd,
+                        env=child_env,
+                        cwd=str(cwd) if cwd else None,
+                        preexec_fn=preexec_fn,
+                        close_fds=True,
+                        **extra_args,
+                    )
+                    os.close(slave_fd)
+                    self._backend.post_create(process.pid, self._sandbox_config)
+                    self._install_signal_forwarding(process.pid)
+                    exit_code = relay.relay(master_fd, process)
+                finally:
+                    os.close(master_fd)
+                    self._restore_signals()
+            else:
+                popen_kwargs: dict[str, Any] = {
+                    "env": child_env,
+                    "cwd": str(cwd) if cwd else None,
+                    "preexec_fn": preexec_fn,
+                }
+                if sys.platform != "win32" and sys.version_info >= (3, 11):
+                    popen_kwargs["process_group"] = 0
+                popen_kwargs.update(extra_args)
+
+                process = subprocess.Popen(command, **popen_kwargs)
                 self._backend.post_create(process.pid, self._sandbox_config)
                 self._install_signal_forwarding(process.pid)
-                exit_code = relay.relay(master_fd, process)
-            finally:
-                os.close(master_fd)
+                exit_code = self._wait_for_child(process)
                 self._restore_signals()
-        else:
-            popen_kwargs: dict[str, Any] = {
-                "env": child_env,
-                "cwd": str(cwd) if cwd else None,
-                "preexec_fn": preexec_fn,
-            }
-            if sys.platform != "win32" and sys.version_info >= (3, 11):
-                popen_kwargs["process_group"] = 0
-            popen_kwargs.update(extra_args)
-
-            process = subprocess.Popen(command, **popen_kwargs)
-            self._backend.post_create(process.pid, self._sandbox_config)
-            self._install_signal_forwarding(process.pid)
-            exit_code = self._wait_for_child(process)
-            self._restore_signals()
+        finally:
+            self._backend.cleanup()
 
         duration = time.monotonic() - start
 

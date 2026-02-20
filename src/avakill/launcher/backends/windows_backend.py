@@ -86,6 +86,12 @@ class WindowsSandboxBackend:
         # 5. Resume the primary thread
         self._resume_process(pid)
 
+    def wrap_command(self, command: list[str], config: SandboxConfig) -> list[str]:
+        return command
+
+    def cleanup(self) -> None:
+        pass
+
     def describe(self, config: SandboxConfig) -> dict[str, Any]:
         if not self.available():
             return {

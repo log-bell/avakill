@@ -13,6 +13,11 @@ import click
 @click.option("--pty/--no-pty", default=False, help="Allocate PTY for interactive agents.")
 @click.option("--dry-run", is_flag=True, help="Show sandbox restrictions without launching.")
 @click.option("--timeout", type=int, default=None, help="Kill child after N seconds.")
+@click.option(
+    "--keep-profile",
+    is_flag=True,
+    help="Save the generated sandbox profile for inspection.",
+)
 @click.argument("command", nargs=-1, required=False)
 def launch(
     policy: str,
@@ -20,6 +25,7 @@ def launch(
     pty: bool,
     dry_run: bool,
     timeout: int | None,
+    keep_profile: bool,
     command: tuple[str, ...],
 ) -> None:
     """Launch a process inside an OS-level sandbox.
@@ -89,26 +95,26 @@ def launch(
             new_sandbox = config.sandbox.model_copy(update={"resource_limits": new_limits})
             config = config.model_copy(update={"sandbox": new_sandbox})
 
-    # Fail loudly on macOS when no sandbox config is available.
-    # Without a sandbox section, ProcessLauncher uses NoopSandboxBackend and
-    # the user gets zero protection while thinking they're sandboxed.
     import sys as _sys
-
-    if _sys.platform == "darwin" and config.sandbox is None:
-        click.echo(
-            "Error: macOS does not support `avakill launch` without a sandbox configuration.\n"
-            "Use `avakill enforce sandbox` to generate a sandbox-exec profile, then run:\n"
-            "  sandbox-exec -f <profile> <command>",
-            err=True,
-        )
-        raise SystemExit(1)
 
     from avakill.launcher.core import ProcessLauncher
 
     launcher = ProcessLauncher(policy=config)
 
+    # Configure --keep-profile on the macOS sandbox backend
+    if _sys.platform == "darwin" and hasattr(launcher._backend, "set_keep_profile"):
+        launcher._backend.set_keep_profile(keep_profile)
+
     if dry_run:
         result = launcher.launch(cmd_list or ["echo", "dry-run"], dry_run=True)
+
+        # On macOS with sandbox-exec, show the generated SBPL profile
+        sbpl_profile = result.sandbox_features.get("sbpl_profile")
+        if sbpl_profile:
+            click.echo("Generated sandbox-exec profile (.sb):")
+            click.echo(sbpl_profile)
+            return
+
         click.echo("Sandbox dry-run report:")
         if profile:
             click.echo(f"  Agent profile: {profile.agent.name}")
@@ -132,5 +138,32 @@ def launch(
     except Exception as exc:
         click.echo(f"Error: sandbox setup failed: {exc}", err=True)
         raise SystemExit(126) from None
+
+    # Show profile path if --keep-profile was used
+    if keep_profile and hasattr(launcher._backend, "profile_path"):
+        profile_path_val = launcher._backend.profile_path
+        if profile_path_val:
+            click.echo(f"Sandbox profile saved: {profile_path_val}", err=True)
+
+    # Translate sandbox-specific exit codes
+    if result.exit_code == 126:
+        click.echo(
+            "Error: sandbox-exec failed to apply the profile. "
+            "Check that the .sb profile syntax is valid.",
+            err=True,
+        )
+    elif result.exit_code == 127:
+        click.echo(
+            "Error: command not found inside sandbox. "
+            "The sandbox may be blocking the executable.",
+            err=True,
+        )
+    elif result.exit_code < 0:
+        signum = -result.exit_code
+        if signum == 9:  # SIGKILL
+            click.echo(
+                "Process was killed (SIGKILL). " "The sandbox may have blocked an operation.",
+                err=True,
+            )
 
     raise SystemExit(result.exit_code)

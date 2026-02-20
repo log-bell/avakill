@@ -6,7 +6,7 @@ import sys
 from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
-from avakill.core.models import SandboxConfig
+from avakill.core.models import PolicyConfig, SandboxConfig
 
 
 @runtime_checkable
@@ -50,16 +50,33 @@ class SandboxBackend(Protocol):
         """
         ...
 
+    def wrap_command(self, command: list[str], config: SandboxConfig) -> list[str]:
+        """Optionally wrap the command for external sandbox enforcement.
+
+        Backends that apply sandboxing by wrapping the command (e.g.,
+        sandbox-exec -f profile) override this method.  The default
+        returns the command unchanged.
+        """
+        ...
+
+    def cleanup(self) -> None:
+        """Clean up any resources created during sandboxing.
+
+        Called after the child process exits.  Backends that create
+        temporary files (e.g., .sb profiles) should remove them here.
+        """
+        ...
+
     def describe(self, config: SandboxConfig) -> dict[str, Any]:
         """Return a dry-run report of what restrictions would be applied."""
         ...
 
 
-def get_sandbox_backend() -> SandboxBackend:
+def get_sandbox_backend(policy: PolicyConfig | None = None) -> SandboxBackend:
     """Auto-detect and return the appropriate sandbox backend.
 
     Returns:
-        LandlockBackend on Linux, DarwinSandboxBackend on macOS,
+        LandlockBackend on Linux, MacOSSandboxBackend on macOS,
         WindowsSandboxBackend on Windows, NoopSandboxBackend otherwise.
     """
     if sys.platform == "linux":
@@ -68,9 +85,9 @@ def get_sandbox_backend() -> SandboxBackend:
         return LandlockBackend()
 
     if sys.platform == "darwin":
-        from avakill.launcher.backends.darwin_backend import DarwinSandboxBackend
+        from avakill.launcher.backends.macos_sandbox import MacOSSandboxBackend
 
-        return DarwinSandboxBackend()
+        return MacOSSandboxBackend(policy)
 
     if sys.platform == "win32":
         from avakill.launcher.backends.windows_backend import WindowsSandboxBackend

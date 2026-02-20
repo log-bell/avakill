@@ -24,7 +24,7 @@ class TestSandboxBackendAutoDetection:
     def test_returns_darwin_on_macos(self, monkeypatch):
         monkeypatch.setattr("sys.platform", "darwin")
         backend = get_sandbox_backend()
-        assert type(backend).__name__ == "DarwinSandboxBackend"
+        assert type(backend).__name__ == "MacOSSandboxBackend"
 
     def test_returns_windows_on_win32(self, monkeypatch):
         monkeypatch.setattr("sys.platform", "win32")
