@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
 from avakill.daemon.protocol import EvaluateResponse
+from avakill.hooks.installer import HookInstallResult
 from avakill.hooks.openai_codex import OpenAICodexAdapter
 
 
@@ -298,3 +300,126 @@ class TestOpenAICodexNormalization:
         from avakill.core.normalization import normalize_tool_name
 
         assert normalize_tool_name("new_future_tool", "openai-codex") == "new_future_tool"
+
+
+class TestOpenAICodexDetection:
+    """Test Codex CLI agent detection."""
+
+    def test_detect_codex_by_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        codex_dir = tmp_path / ".codex"
+        codex_dir.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        from avakill.hooks.installer import detect_agents
+
+        detected = detect_agents()
+        assert "openai-codex" in detected
+
+    def test_detect_codex_by_binary(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        import shutil
+
+        original_which = shutil.which
+
+        def mock_which(name: str) -> str | None:
+            if name == "codex":
+                return "/usr/local/bin/codex"
+            return original_which(name)
+
+        monkeypatch.setattr(shutil, "which", mock_which)
+        from avakill.hooks.installer import detect_agents
+
+        detected = detect_agents()
+        assert "openai-codex" in detected
+
+
+class TestOpenAICodexInstaller:
+    """Test hook installation for Codex CLI."""
+
+    def test_install_creates_result_with_pending_warning(self, tmp_path: Path) -> None:
+        from avakill.hooks.installer import install_hook
+
+        config_path = tmp_path / "config.toml"
+        result = install_hook("openai-codex", config_path=config_path)
+        assert isinstance(result, HookInstallResult)
+        assert any("not yet" in w.lower() or "upstream" in w.lower() for w in result.warnings)
+
+
+class TestCodexRulesGeneration:
+    """Test exec policy .rules file generation."""
+
+    def test_generates_deny_prefix_rules(self, tmp_path: Path) -> None:
+        from avakill.hooks.openai_codex import generate_codex_rules
+
+        policy_path = tmp_path / "avakill.yaml"
+        policy_path.write_text(
+            'version: "1.0"\n'
+            "default_action: allow\n"
+            "policies:\n"
+            "  - name: block-rm\n"
+            '    tools: ["shell*"]\n'
+            "    action: deny\n"
+            "    conditions:\n"
+            "      args_match:\n"
+            '        command: ["rm -rf"]\n'
+        )
+        output_path = tmp_path / "avakill.rules"
+        generate_codex_rules(policy_path, output_path)
+
+        content = output_path.read_text()
+        assert "prefix_rule" in content
+        assert "rm" in content
+        assert "forbidden" in content
+
+    def test_generates_allow_prefix_rules(self, tmp_path: Path) -> None:
+        from avakill.hooks.openai_codex import generate_codex_rules
+
+        policy_path = tmp_path / "avakill.yaml"
+        policy_path.write_text(
+            'version: "1.0"\n'
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: safe-commands\n"
+            '    tools: ["shell*"]\n'
+            "    action: allow\n"
+            "    conditions:\n"
+            "      command_allowlist: [git, ls, echo]\n"
+        )
+        output_path = tmp_path / "avakill.rules"
+        generate_codex_rules(policy_path, output_path)
+
+        content = output_path.read_text()
+        assert 'pattern = ["git"]' in content
+        assert 'pattern = ["ls"]' in content
+        assert 'decision = "allow"' in content
+
+    def test_skips_non_shell_rules(self, tmp_path: Path) -> None:
+        from avakill.hooks.openai_codex import generate_codex_rules
+
+        policy_path = tmp_path / "avakill.yaml"
+        policy_path.write_text(
+            'version: "1.0"\n'
+            "default_action: allow\n"
+            "policies:\n"
+            "  - name: block-file-write\n"
+            '    tools: ["write_*"]\n'
+            "    action: deny\n"
+        )
+        output_path = tmp_path / "avakill.rules"
+        generate_codex_rules(policy_path, output_path)
+
+        content = output_path.read_text()
+        assert "prefix_rule" not in content
+        assert "skipped" in content.lower() or "non-shell" in content.lower()
+
+    def test_generates_header_comment(self, tmp_path: Path) -> None:
+        from avakill.hooks.openai_codex import generate_codex_rules
+
+        policy_path = tmp_path / "avakill.yaml"
+        policy_path.write_text('version: "1.0"\n' "default_action: allow\n" "policies: []\n")
+        output_path = tmp_path / "avakill.rules"
+        generate_codex_rules(policy_path, output_path)
+
+        content = output_path.read_text()
+        assert "auto-generated" in content.lower() or "avakill" in content.lower()

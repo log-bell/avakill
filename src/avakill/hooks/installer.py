@@ -7,6 +7,7 @@ registers/unregisters AvaKill hooks in each agent's configuration.
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -51,6 +52,9 @@ AGENT_DETECTORS: dict[str, Callable[[], bool]] = {
         or Path.home().joinpath(".continue").is_dir()
     ),
     "swe-agent": lambda: shutil.which("sweagent") is not None,
+    "openai-codex": lambda: (
+        Path.home().joinpath(".codex").is_dir() or shutil.which("codex") is not None
+    ),
 }
 
 
@@ -92,6 +96,12 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         "config_path": Path.home() / ".codeium" / "windsurf" / "hooks.json",
         "event": "pre_run_command",
         "hook_entry": lambda cmd: {"command": cmd, "show_output": True},
+    },
+    "openai-codex": {
+        "config_path": Path.home() / ".codex" / "config.toml",
+        "event": "before_tool_use",
+        "pending_upstream": True,
+        "hook_entry": lambda cmd: {"command": cmd},
     },
 }
 
@@ -180,6 +190,33 @@ def install_hook(agent: str, config_path: Path | None = None) -> HookInstallResu
         raise KeyError(f"unknown agent: {agent!r}")
 
     cfg = _AGENT_CONFIG[agent]
+
+    if cfg.get("pending_upstream"):
+        path = config_path or _resolve_config_path(cfg)
+        cmd = _hook_command(agent)
+        result = HookInstallResult(config_path=path, command=cmd)
+        result.warnings.append(
+            "Codex CLI does not yet support pre-execution hooks. "
+            "The AvaKill adapter is ready and will activate when upstream "
+            "support ships. See https://github.com/openai/codex/issues/2109"
+        )
+
+        # Generate exec policy rules if a policy file is available.
+        policy_path_env = os.environ.get("AVAKILL_POLICY")
+        if policy_path_env:
+            from avakill.hooks.openai_codex import generate_codex_rules
+
+            rules_path = Path.home() / ".codex" / "rules" / "avakill.rules"
+            try:
+                generate_codex_rules(Path(policy_path_env), rules_path)
+                result.warnings.append(
+                    f"Generated exec policy rules at {rules_path} for shell command protection."
+                )
+            except Exception as exc:
+                result.warnings.append(f"Failed to generate exec policy rules: {exc}")
+
+        return result
+
     path = config_path or _resolve_config_path(cfg)
     event: str = cfg["event"]  # type: ignore[assignment]
     make_entry: Callable[[str], dict[str, object]] = cfg["hook_entry"]  # type: ignore[assignment]
