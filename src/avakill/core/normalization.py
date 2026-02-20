@@ -40,6 +40,16 @@ AGENT_TOOL_MAP: dict[str, dict[str, str]] = {
         "write_code": "file_write",
         "read_code": "file_read",
     },
+    "openai-codex": {
+        "shell": "shell_execute",
+        "shell_command": "shell_execute",
+        "local_shell": "shell_execute",
+        "exec_command": "shell_execute",
+        "apply_patch": "file_write",
+        "read_file": "file_read",
+        "list_dir": "file_list",
+        "grep_files": "content_search",
+    },
 }
 
 # Pre-computed reverse maps: canonical -> agent-native

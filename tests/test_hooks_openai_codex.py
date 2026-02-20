@@ -274,3 +274,27 @@ class TestOpenAICodexRegistration:
     def test_adapter_agent_name(self) -> None:
         adapter = OpenAICodexAdapter()
         assert adapter.agent_name == "openai-codex"
+
+
+class TestOpenAICodexNormalization:
+    """Test tool name normalization for Codex tools."""
+
+    def test_shell_normalizes_to_shell_execute(self) -> None:
+        from avakill.core.normalization import normalize_tool_name
+
+        assert normalize_tool_name("shell", "openai-codex") == "shell_execute"
+
+    def test_apply_patch_normalizes_to_file_write(self) -> None:
+        from avakill.core.normalization import normalize_tool_name
+
+        assert normalize_tool_name("apply_patch", "openai-codex") == "file_write"
+
+    def test_read_file_normalizes_to_file_read(self) -> None:
+        from avakill.core.normalization import normalize_tool_name
+
+        assert normalize_tool_name("read_file", "openai-codex") == "file_read"
+
+    def test_unknown_tool_passes_through(self) -> None:
+        from avakill.core.normalization import normalize_tool_name
+
+        assert normalize_tool_name("new_future_tool", "openai-codex") == "new_future_tool"
