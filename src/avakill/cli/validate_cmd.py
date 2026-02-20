@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from fnmatch import fnmatch
 from pathlib import Path
 
 import click
@@ -14,6 +15,7 @@ from rich.text import Text
 
 from avakill.core.exceptions import ConfigError
 from avakill.core.integrity import PolicyIntegrity
+from avakill.core.models import PolicyRule
 from avakill.core.policy import PolicyEngine
 
 
@@ -98,6 +100,10 @@ def validate(policy_file: str) -> None:
         if not rule.log:
             warnings.append(f"Rule '{rule.name}' has logging disabled")
 
+    # Shadow detection
+    shadow_warnings = _detect_shadowed_rules(config.policies)
+    warnings.extend(shadow_warnings)
+
     console.print()
     console.print(table)
     console.print()
@@ -136,3 +142,68 @@ def validate(policy_file: str) -> None:
                     console.print("[yellow]Signature: unsigned[/yellow]")
         except (ValueError, OSError):
             pass
+
+
+def _detect_shadowed_rules(rules: list[PolicyRule]) -> list[str]:
+    """Check for rules that shadow later rules with different actions.
+
+    A rule R[i] shadows R[j] (j > i) if at least one tool name from R[j]
+    also matches a pattern in R[i], and R[i] and R[j] have different actions.
+    """
+    warnings: list[str] = []
+
+    # Collect all explicit tool names across all rules as test probes
+    all_tool_names: set[str] = set()
+    for rule in rules:
+        for pattern in rule.tools:
+            if "*" not in pattern and "?" not in pattern and pattern != "all":
+                all_tool_names.add(pattern)
+
+    for j in range(1, len(rules)):
+        later = rules[j]
+        for i in range(j):
+            earlier = rules[i]
+            if earlier.action == later.action:
+                continue
+
+            for tool in later.tools:
+                if "*" in tool or "?" in tool or tool == "all":
+                    # Glob in later rule: test known names that match it
+                    for probe in all_tool_names:
+                        if fnmatch(probe, tool) and _matches_rule(probe, earlier.tools):
+                            warnings.append(
+                                f"Rule {i + 1} '{earlier.name}' "
+                                f"(tools: {', '.join(earlier.tools)}) "
+                                f"shadows Rule {j + 1} "
+                                f"'{later.name}' "
+                                f"(tools: {', '.join(later.tools)}) "
+                                f"\u2014 {probe} matches both. "
+                                f"Rule {j + 1} may be unreachable "
+                                f"for {probe} calls."
+                            )
+                            break
+                else:
+                    # Exact name: test against earlier patterns
+                    if _matches_rule(tool, earlier.tools):
+                        warnings.append(
+                            f"Rule {i + 1} '{earlier.name}' "
+                            f"(tools: {', '.join(earlier.tools)}) "
+                            f"shadows Rule {j + 1} "
+                            f"'{later.name}' "
+                            f"(tools: {', '.join(later.tools)}) "
+                            f"\u2014 {tool} matches both. "
+                            f"Rule {j + 1} may be unreachable "
+                            f"for {tool} calls."
+                        )
+
+    return warnings
+
+
+def _matches_rule(tool_name: str, patterns: list[str]) -> bool:
+    """Check if a tool name matches any pattern in a rule's tools list."""
+    for pattern in patterns:
+        if pattern in ("*", "all"):
+            return True
+        if fnmatch(tool_name, pattern):
+            return True
+    return False

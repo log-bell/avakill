@@ -302,6 +302,154 @@ class TestValidateCommand:
             result = runner.invoke(cli, ["validate", str(template_file)])
             assert result.exit_code == 0, f"Template {template_file.name} failed validation"
 
+    def test_validate_warns_shadowed_rules(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Validate warns when an earlier rule shadows a later rule with different action."""
+        policy = tmp_path / "shadow.yaml"
+        policy.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: block-all-writes\n"
+            "    tools: ['file_*']\n"
+            "    action: deny\n"
+            "  - name: allow-reads\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        result = runner.invoke(cli, ["validate", str(policy)])
+        assert result.exit_code == 0
+        assert "shadows" in result.output
+        assert "block-all-writes" in result.output
+        assert "allow-reads" in result.output
+        assert "file_read" in result.output
+
+    def test_validate_no_shadow_when_actions_match(self, runner: CliRunner, tmp_path: Path) -> None:
+        """No shadow warning when overlapping rules have the same action."""
+        policy = tmp_path / "no_shadow.yaml"
+        policy.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: deny-all-files\n"
+            "    tools: ['file_*']\n"
+            "    action: deny\n"
+            "  - name: deny-read\n"
+            "    tools: [file_read]\n"
+            "    action: deny\n"
+        )
+        result = runner.invoke(cli, ["validate", str(policy)])
+        assert result.exit_code == 0
+        assert "shadows" not in result.output
+
+    def test_validate_no_shadow_when_patterns_dont_overlap(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """No shadow warning when tool patterns don't overlap."""
+        policy = tmp_path / "disjoint.yaml"
+        policy.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: deny-shell\n"
+            "    tools: ['shell_*']\n"
+            "    action: deny\n"
+            "  - name: allow-read\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        result = runner.invoke(cli, ["validate", str(policy)])
+        assert result.exit_code == 0
+        assert "shadows" not in result.output
+
+    def test_validate_shadow_still_valid(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Shadow warnings don't cause validation failure."""
+        policy = tmp_path / "shadow_valid.yaml"
+        policy.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: catch-all\n"
+            "    tools: ['*']\n"
+            "    action: deny\n"
+            "  - name: allow-read\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        result = runner.invoke(cli, ["validate", str(policy)])
+        assert result.exit_code == 0
+        assert "valid" in result.output.lower()
+        assert "shadows" in result.output
+
+
+# ---------------------------------------------------------------
+# Evaluate command (burst simulation)
+# ---------------------------------------------------------------
+
+
+class TestEvaluateCommand:
+    def test_evaluate_subcommand_help(self, runner: CliRunner) -> None:
+        result = runner.invoke(cli, ["evaluate", "--help"])
+        assert result.exit_code == 0
+        assert "simulate-burst" in result.output
+
+    def test_simulate_burst_hits_rate_limit(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Burst simulation shows when rate limit triggers."""
+        policy = tmp_path / "rate.yaml"
+        policy.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: throttle-writes\n"
+            "    tools: [file_write]\n"
+            "    action: allow\n"
+            "    rate_limit:\n"
+            "      max_calls: 5\n"
+            "      window: '60s'\n"
+        )
+        stdin_data = '{"tool": "file_write", "args": {}}'
+        result = runner.invoke(
+            cli,
+            ["evaluate", "--policy", str(policy), "--simulate-burst", "8"],
+            input=stdin_data,
+        )
+        assert result.exit_code == 0
+        output = result.output
+        assert "ALLOW" in output
+        assert "DENY" in output
+        assert "1-5" in output
+
+    def test_simulate_burst_no_rate_limit(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Burst simulation with no rate limit shows all calls allowed."""
+        policy = tmp_path / "nolimit.yaml"
+        policy.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: allow-reads\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        stdin_data = '{"tool": "file_read", "args": {}}'
+        result = runner.invoke(
+            cli,
+            ["evaluate", "--policy", str(policy), "--simulate-burst", "10"],
+            input=stdin_data,
+        )
+        assert result.exit_code == 0
+        output = result.output
+        assert "ALLOW" in output
+        assert "All 10 calls" in output
+
+    def test_simulate_burst_requires_policy(self, runner: CliRunner) -> None:
+        """--simulate-burst without --policy should error."""
+        stdin_data = '{"tool": "file_read", "args": {}}'
+        result = runner.invoke(
+            cli,
+            ["evaluate", "--simulate-burst", "5"],
+            input=stdin_data,
+        )
+        assert result.exit_code == 1
+
 
 # ---------------------------------------------------------------
 # Logs command
