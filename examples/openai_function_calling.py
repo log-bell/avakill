@@ -122,10 +122,7 @@ def print_decisions(decisions: list, label: str) -> None:
     for tc, decision in decisions:
         name = tc.function.name if hasattr(tc, "function") else str(tc)
         args = tc.function.arguments if hasattr(tc, "function") else ""
-        if decision.allowed:
-            verdict = "[bold green]ALLOWED[/]"
-        else:
-            verdict = "[bold red]BLOCKED[/]"
+        verdict = "[bold green]ALLOWED[/]" if decision.allowed else "[bold red]BLOCKED[/]"
         table.add_row(name, args, verdict, decision.policy_name or "default")
 
     console.print(table)
@@ -138,9 +135,14 @@ def print_decisions(decisions: list, label: str) -> None:
 
 def demo_manual_evaluation() -> None:
     """Evaluate each tool_call yourself — full control."""
-    console.print(Panel("[bold]Approach 1: Manual Evaluation[/]\n"
-                        "Call evaluate_tool_calls() on each response's tool_calls.",
-                        title="Manual", border_style="blue"))
+    console.print(
+        Panel(
+            "[bold]Approach 1: Manual Evaluation[/]\n"
+            "Call evaluate_tool_calls() on each response's tool_calls.",
+            title="Manual",
+            border_style="blue",
+        )
+    )
 
     guard = Guard(policy=POLICY_PATH)
 
@@ -162,10 +164,15 @@ def demo_manual_evaluation() -> None:
 
 def demo_guarded_client() -> None:
     """Wrap the client — denied tool_calls are automatically removed."""
-    console.print(Panel("[bold]Approach 2: GuardedOpenAIClient[/]\n"
-                        "Wrap your OpenAI client. Denied tool_calls are removed\n"
-                        "from the response automatically.",
-                        title="Automatic", border_style="green"))
+    console.print(
+        Panel(
+            "[bold]Approach 2: GuardedOpenAIClient[/]\n"
+            "Wrap your OpenAI client. Denied tool_calls are removed\n"
+            "from the response automatically.",
+            title="Automatic",
+            border_style="green",
+        )
+    )
 
     # Build mock responses for each scenario
     responses = [_mock_response(s["tool_calls"]) for s in SCENARIOS]
@@ -256,10 +263,12 @@ def demo_live() -> None:
 
 
 def main() -> None:
-    console.print(Panel.fit(
-        "[bold]AvaKill + OpenAI Function Calling Demo[/]",
-        border_style="bright_blue",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]AvaKill + OpenAI Function Calling Demo[/]",
+            border_style="bright_blue",
+        )
+    )
 
     if "--live" in sys.argv:
         demo_live()

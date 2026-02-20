@@ -60,6 +60,7 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
+    "types-PyYAML",
     "pre-commit",
     "opentelemetry-api>=1.0,<2.0",
     "opentelemetry-sdk>=1.0,<2.0",

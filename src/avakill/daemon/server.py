@@ -318,8 +318,7 @@ class DaemonServer:
                 enforcer = WindowsEnforcer()
                 enforcer.apply(config)
                 logger.info(
-                    "OS enforcement: Windows restrictions applied "
-                    "(Job Object + privilege removal)."
+                    "OS enforcement: Windows restrictions applied (Job Object + privilege removal)."
                 )
             except Exception:
                 logger.warning(

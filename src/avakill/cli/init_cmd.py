@@ -237,21 +237,17 @@ def init(template: str | None, output: str, mode: str | None) -> None:
 
     if use_hooks:
         console.print(
-            f"  {step}. Run [cyan]avakill hook install --agent all[/cyan]"
-            " to register agent hooks"
+            f"  {step}. Run [cyan]avakill hook install --agent all[/cyan] to register agent hooks"
         )
         step += 1
     if use_launch:
         agent_hint = agents[0] if agents else "your-agent"
         console.print(
-            f"  {step}. Run [cyan]avakill launch --agent {agent_hint}[/cyan]"
-            " to sandbox your agent"
+            f"  {step}. Run [cyan]avakill launch --agent {agent_hint}[/cyan] to sandbox your agent"
         )
         step += 1
     if use_mcp:
-        console.print(
-            f"  {step}. Run [cyan]avakill mcp-wrap[/cyan]" " to intercept MCP tool servers"
-        )
+        console.print(f"  {step}. Run [cyan]avakill mcp-wrap[/cyan] to intercept MCP tool servers")
         step += 1
 
     console.print(f"  {step}. Enable audit logging (see [cyan]docs/getting-started[/cyan])")

@@ -51,12 +51,15 @@ TOOL_CALLS = [
 
 def demo_callback_handler() -> None:
     """Use AvaKillCallbackHandler.on_tool_start() to gate every tool call."""
-    console.print(Panel(
-        "[bold]Approach 1: AvaKillCallbackHandler[/]\n"
-        "Register as a LangChain callback. Every tool invocation is\n"
-        "evaluated before the tool runs. Denied calls raise PolicyViolation.",
-        title="Callback Handler", border_style="blue",
-    ))
+    console.print(
+        Panel(
+            "[bold]Approach 1: AvaKillCallbackHandler[/]\n"
+            "Register as a LangChain callback. Every tool invocation is\n"
+            "evaluated before the tool runs. Denied calls raise PolicyViolation.",
+            title="Callback Handler",
+            border_style="blue",
+        )
+    )
 
     handler = AvaKillCallbackHandler(policy=POLICY_PATH)
 
@@ -85,12 +88,15 @@ def demo_callback_handler() -> None:
 
 def demo_langgraph_wrapper() -> None:
     """Use create_avakill_wrapper() to validate tool calls in a ToolNode."""
-    console.print(Panel(
-        "[bold]Approach 2: LangGraph ToolNode Wrapper[/]\n"
-        "Pass the wrapper to ToolNode's handle_tool_call parameter.\n"
-        "It evaluates each call and raises PolicyViolation on denial.",
-        title="LangGraph Wrapper", border_style="green",
-    ))
+    console.print(
+        Panel(
+            "[bold]Approach 2: LangGraph ToolNode Wrapper[/]\n"
+            "Pass the wrapper to ToolNode's handle_tool_call parameter.\n"
+            "It evaluates each call and raises PolicyViolation on denial.",
+            title="LangGraph Wrapper",
+            border_style="green",
+        )
+    )
 
     guard = Guard(policy=POLICY_PATH)
     wrapper = create_avakill_wrapper(guard)
@@ -114,7 +120,7 @@ def demo_langgraph_wrapper() -> None:
     for tc in graph_tool_calls:
         args_str = json.dumps(tc["args"])
         try:
-            result = wrapper(tc)
+            wrapper(tc)
             table.add_row(tc["name"], args_str, "[bold green]ALLOWED[/]", "passed through")
         except PolicyViolation as e:
             table.add_row(tc["name"], args_str, "[bold red]BLOCKED[/]", e.message)
@@ -129,12 +135,15 @@ def demo_langgraph_wrapper() -> None:
 
 def demo_agent_loop() -> None:
     """Simulate a ReAct agent loop with AvaKill protecting each step."""
-    console.print(Panel(
-        "[bold]Simulated Agent Loop[/]\n"
-        "A mock agent plans multiple tool calls. AvaKill evaluates\n"
-        "each one before execution, blocking dangerous operations.",
-        title="Agent Loop", border_style="magenta",
-    ))
+    console.print(
+        Panel(
+            "[bold]Simulated Agent Loop[/]\n"
+            "A mock agent plans multiple tool calls. AvaKill evaluates\n"
+            "each one before execution, blocking dangerous operations.",
+            title="Agent Loop",
+            border_style="magenta",
+        )
+    )
 
     guard = Guard(policy=POLICY_PATH)
     handler = AvaKillCallbackHandler(guard=guard)
@@ -157,10 +166,10 @@ def demo_agent_loop() -> None:
                 serialized={"name": tool_name},
                 input_str=args_json,
             )
-            console.print(f"    -> [green]Executed successfully[/]")
+            console.print("    -> [green]Executed successfully[/]")
         except PolicyViolation as e:
             console.print(f"    -> [red]BLOCKED by AvaKill[/]: {e.message}")
-            console.print(f"       [dim]Agent must find an alternative approach[/]")
+            console.print("       [dim]Agent must find an alternative approach[/]")
 
     allowed = sum(1 for d in handler.decisions if d.allowed)
     denied = sum(1 for d in handler.decisions if not d.allowed)
@@ -173,10 +182,12 @@ def demo_agent_loop() -> None:
 
 
 def main() -> None:
-    console.print(Panel.fit(
-        "[bold]AvaKill + LangChain / LangGraph Demo[/]",
-        border_style="bright_blue",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]AvaKill + LangChain / LangGraph Demo[/]",
+            border_style="bright_blue",
+        )
+    )
 
     demo_callback_handler()
     console.print()

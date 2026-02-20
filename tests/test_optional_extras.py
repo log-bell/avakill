@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import tomllib
+
+tomllib = pytest.importorskip("tomllib", reason="tomllib requires Python 3.11+")
 
 PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 

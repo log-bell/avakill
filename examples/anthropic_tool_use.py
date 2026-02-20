@@ -124,10 +124,7 @@ def print_decisions(decisions: list, label: str) -> None:
 
     for block, decision in decisions:
         input_str = str(block.input) if hasattr(block, "input") else ""
-        if decision.allowed:
-            verdict = "[bold green]ALLOWED[/]"
-        else:
-            verdict = "[bold red]BLOCKED[/]"
+        verdict = "[bold green]ALLOWED[/]" if decision.allowed else "[bold red]BLOCKED[/]"
         table.add_row(block.name, input_str, verdict, decision.policy_name or "default")
 
     console.print(table)
@@ -140,9 +137,14 @@ def print_decisions(decisions: list, label: str) -> None:
 
 def demo_manual_evaluation() -> None:
     """Evaluate content blocks manually — full control over handling."""
-    console.print(Panel("[bold]Approach 1: Manual Evaluation[/]\n"
-                        "Call evaluate_tool_use_blocks() on response.content.",
-                        title="Manual", border_style="blue"))
+    console.print(
+        Panel(
+            "[bold]Approach 1: Manual Evaluation[/]\n"
+            "Call evaluate_tool_use_blocks() on response.content.",
+            title="Manual",
+            border_style="blue",
+        )
+    )
 
     guard = Guard(policy=POLICY_PATH)
 
@@ -163,10 +165,15 @@ def demo_manual_evaluation() -> None:
 
 def demo_guarded_client() -> None:
     """Wrap the client — denied tool_use blocks are automatically removed."""
-    console.print(Panel("[bold]Approach 2: GuardedAnthropicClient[/]\n"
-                        "Wrap your Anthropic client. Denied tool_use blocks\n"
-                        "are removed from response.content automatically.",
-                        title="Automatic", border_style="green"))
+    console.print(
+        Panel(
+            "[bold]Approach 2: GuardedAnthropicClient[/]\n"
+            "Wrap your Anthropic client. Denied tool_use blocks\n"
+            "are removed from response.content automatically.",
+            title="Automatic",
+            border_style="green",
+        )
+    )
 
     responses = [_mock_response(s["content"]) for s in SCENARIOS]
     mock_client = _MockAnthropicClient(responses)
@@ -254,10 +261,12 @@ def demo_live() -> None:
 
 
 def main() -> None:
-    console.print(Panel.fit(
-        "[bold]AvaKill + Anthropic Tool Use Demo[/]",
-        border_style="bright_blue",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]AvaKill + Anthropic Tool Use Demo[/]",
+            border_style="bright_blue",
+        )
+    )
 
     if "--live" in sys.argv:
         demo_live()

@@ -134,13 +134,16 @@ REQUESTS = [
 
 async def demo_proxy_interception() -> None:
     """Show how the proxy evaluates each MCP request."""
-    console.print(Panel(
-        "[bold]MCP Proxy Interception Demo[/]\n"
-        "The proxy sits between the MCP client (Claude Desktop, Cursor, etc.)\n"
-        "and the upstream MCP server. Only tools/call is intercepted.\n"
-        "All other methods pass through unchanged.",
-        title="How It Works", border_style="blue",
-    ))
+    console.print(
+        Panel(
+            "[bold]MCP Proxy Interception Demo[/]\n"
+            "The proxy sits between the MCP client (Claude Desktop, Cursor, etc.)\n"
+            "and the upstream MCP server. Only tools/call is intercepted.\n"
+            "All other methods pass through unchanged.",
+            title="How It Works",
+            border_style="blue",
+        )
+    )
 
     guard = Guard(policy=POLICY_PATH)
     proxy = MCPProxyServer(upstream_cmd="echo", upstream_args=[], guard=guard)
@@ -182,12 +185,15 @@ async def demo_proxy_interception() -> None:
 
 def generate_config_snippet() -> None:
     """Generate claude_desktop_config.json snippet for the MCP proxy."""
-    console.print(Panel(
-        "[bold]Claude Desktop Configuration[/]\n"
-        "Add this to your claude_desktop_config.json to protect\n"
-        "an MCP server with AvaKill.",
-        title="Configuration", border_style="green",
-    ))
+    console.print(
+        Panel(
+            "[bold]Claude Desktop Configuration[/]\n"
+            "Add this to your claude_desktop_config.json to protect\n"
+            "an MCP server with AvaKill.",
+            title="Configuration",
+            border_style="green",
+        )
+    )
 
     # Before: direct connection
     before = {
@@ -200,12 +206,14 @@ def generate_config_snippet() -> None:
     }
 
     console.print("\n  [bold]Before[/] (unprotected):")
-    console.print(Syntax(
-        json.dumps(before, indent=2),
-        "json",
-        theme="monokai",
-        padding=1,
-    ))
+    console.print(
+        Syntax(
+            json.dumps(before, indent=2),
+            "json",
+            theme="monokai",
+            padding=1,
+        )
+    )
 
     # After: AvaKill proxy in front
     after = {
@@ -214,21 +222,26 @@ def generate_config_snippet() -> None:
                 "command": "avakill",
                 "args": [
                     "mcp-proxy",
-                    "--upstream-cmd", "python",
-                    "--upstream-args", "db_server.py",
-                    "--policy", "avakill.yaml",
+                    "--upstream-cmd",
+                    "python",
+                    "--upstream-args",
+                    "db_server.py",
+                    "--policy",
+                    "avakill.yaml",
                 ],
             }
         }
     }
 
     console.print("\n  [bold]After[/] (protected by AvaKill):")
-    console.print(Syntax(
-        json.dumps(after, indent=2),
-        "json",
-        theme="monokai",
-        padding=1,
-    ))
+    console.print(
+        Syntax(
+            json.dumps(after, indent=2),
+            "json",
+            theme="monokai",
+            padding=1,
+        )
+    )
 
     # Multi-server example
     multi = {
@@ -237,30 +250,38 @@ def generate_config_snippet() -> None:
                 "command": "avakill",
                 "args": [
                     "mcp-proxy",
-                    "--upstream-cmd", "python",
-                    "--upstream-args", "db_server.py",
-                    "--policy", "strict_db.yaml",
+                    "--upstream-cmd",
+                    "python",
+                    "--upstream-args",
+                    "db_server.py",
+                    "--policy",
+                    "strict_db.yaml",
                 ],
             },
             "filesystem": {
                 "command": "avakill",
                 "args": [
                     "mcp-proxy",
-                    "--upstream-cmd", "npx",
-                    "--upstream-args", "@anthropic/mcp-server-filesystem /home/user/safe-dir",
-                    "--policy", "fs_policy.yaml",
+                    "--upstream-cmd",
+                    "npx",
+                    "--upstream-args",
+                    "@anthropic/mcp-server-filesystem /home/user/safe-dir",
+                    "--policy",
+                    "fs_policy.yaml",
                 ],
             },
         }
     }
 
     console.print("\n  [bold]Multi-server[/] (each with its own policy):")
-    console.print(Syntax(
-        json.dumps(multi, indent=2),
-        "json",
-        theme="monokai",
-        padding=1,
-    ))
+    console.print(
+        Syntax(
+            json.dumps(multi, indent=2),
+            "json",
+            theme="monokai",
+            padding=1,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -291,12 +312,15 @@ class _MockStreamWriter:
 
 async def demo_full_relay() -> None:
     """Drive the proxy's run() method with simulated streams."""
-    console.print(Panel(
-        "[bold]Full Relay Simulation[/]\n"
-        "Sends multiple MCP messages through the proxy's relay loop.\n"
-        "Shows what the upstream receives vs. what the client gets back.",
-        title="Relay", border_style="magenta",
-    ))
+    console.print(
+        Panel(
+            "[bold]Full Relay Simulation[/]\n"
+            "Sends multiple MCP messages through the proxy's relay loop.\n"
+            "Shows what the upstream receives vs. what the client gets back.",
+            title="Relay",
+            border_style="magenta",
+        )
+    )
 
     guard = Guard(policy=POLICY_PATH)
     proxy = MCPProxyServer("echo", [], guard)
@@ -356,10 +380,12 @@ async def demo_full_relay() -> None:
 
 
 def main() -> None:
-    console.print(Panel.fit(
-        "[bold]AvaKill MCP Proxy Demo[/]",
-        border_style="bright_blue",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]AvaKill MCP Proxy Demo[/]",
+            border_style="bright_blue",
+        )
+    )
 
     asyncio.run(_async_main())
 

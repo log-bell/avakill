@@ -14,15 +14,12 @@ Usage:
 
 from __future__ import annotations
 
-import time
-from pathlib import Path
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from avakill import Guard, PolicyViolation
+from avakill import Guard
 from avakill.core.models import PolicyConfig, PolicyRule, RuleConditions
 
 console = Console()
@@ -65,8 +62,9 @@ DEMO_POLICY = PolicyConfig(
             tools=["shell_execute", "run_command", "execute_command", "bash", "terminal"],
             action="deny",
             conditions=RuleConditions(
-                args_match={"command": ["rm -rf", "rm -r", "sudo", "chmod 777",
-                                        "> /dev/", "mkfs", "dd if="]},
+                args_match={
+                    "command": ["rm -rf", "rm -r", "sudo", "chmod 777", "> /dev/", "mkfs", "dd if="]
+                },
             ),
             message="Dangerous shell command blocked by AvaKill.",
         ),
@@ -158,15 +156,21 @@ SCENARIOS = [
         "agent_says": "I'll take care of the customer complaints right away.",
         "tool_calls": [
             ("search_customers", {"query": "complaint status:open"}),
-            ("send_email", {
-                "to": "all-customers@company.com",
-                "subject": "Our Sincere Apology",
-                "body": "We apologize. Here's 50% off: SORRY50",
-            }),
-            ("post_slack", {
-                "channel": "#general",
-                "message": "Sent apology emails to all customers with 50% discount",
-            }),
+            (
+                "send_email",
+                {
+                    "to": "all-customers@company.com",
+                    "subject": "Our Sincere Apology",
+                    "body": "We apologize. Here's 50% off: SORRY50",
+                },
+            ),
+            (
+                "post_slack",
+                {
+                    "channel": "#general",
+                    "message": "Sent apology emails to all customers with 50% discount",
+                },
+            ),
         ],
     },
 ]
@@ -184,13 +188,14 @@ def print_scenario_header(scenario: dict, number: int) -> None:
     header.append(scenario["title"], style="bold red")
     header.append(f"\nSource: {scenario['source']}", style="dim italic")
 
-    console.print(Panel(
-        f"{scenario['description']}\n\n"
-        f"[italic]Agent: \"{scenario['agent_says']}\"[/italic]",
-        title=str(header),
-        border_style="red",
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            f'{scenario["description"]}\n\n[italic]Agent: "{scenario["agent_says"]}"[/italic]',
+            title=str(header),
+            border_style="red",
+            padding=(1, 2),
+        )
+    )
 
 
 def run_scenario(guard: Guard, scenario: dict, number: int) -> dict:
@@ -228,12 +233,14 @@ def run_scenario(guard: Guard, scenario: dict, number: int) -> dict:
 
     # Audit log entry
     if blocked_count > 0:
-        console.print(Panel(
-            f"[green]AvaKill prevented {blocked_count} dangerous operation(s).[/]\n"
-            f"[dim]{allowed_count} safe operation(s) were allowed to proceed.[/]",
-            title="Audit Summary",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                f"[green]AvaKill prevented {blocked_count} dangerous operation(s).[/]\n"
+                f"[dim]{allowed_count} safe operation(s) were allowed to proceed.[/]",
+                title="Audit Summary",
+                border_style="green",
+            )
+        )
     console.print()
 
     return {"allowed": allowed_count, "blocked": blocked_count}
@@ -246,12 +253,13 @@ def run_scenario(guard: Guard, scenario: dict, number: int) -> dict:
 
 def main() -> None:
     console.print()
-    console.print(Panel.fit(
-        "[bold]AvaKill Demo[/]\n"
-        "[dim]Watch AvaKill prevent real-world AI agent disasters[/]",
-        border_style="bright_blue",
-        padding=(1, 4),
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]AvaKill Demo[/]\n[dim]Watch AvaKill prevent real-world AI agent disasters[/]",
+            border_style="bright_blue",
+            padding=(1, 4),
+        )
+    )
     console.print()
 
     guard = Guard(policy=DEMO_POLICY)
@@ -277,14 +285,8 @@ def main() -> None:
     console.print(Panel(summary, border_style="bright_blue", padding=(1, 2)))
 
     console.print()
-    console.print(
-        "  [dim]Add AvaKill to your project:[/] "
-        "[bold]pip install avakill[/]"
-    )
-    console.print(
-        "  [dim]Protect your first function:[/]     "
-        "[bold]from avakill import protect[/]"
-    )
+    console.print("  [dim]Add AvaKill to your project:[/] [bold]pip install avakill[/]")
+    console.print("  [dim]Protect your first function:[/]     [bold]from avakill import protect[/]")
     console.print()
 
 

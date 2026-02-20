@@ -53,7 +53,7 @@ def _check_immutable_macos(path: Path) -> bool:
         st = os.stat(str(path))
         SF_IMMUTABLE = 0x00020000
         UF_IMMUTABLE = 0x00000002
-        return bool(st.st_flags & (SF_IMMUTABLE | UF_IMMUTABLE))
+        return bool(st.st_flags & (SF_IMMUTABLE | UF_IMMUTABLE))  # type: ignore[attr-defined]
     except (OSError, AttributeError):
         return False
 
