@@ -98,7 +98,7 @@ _PROTECTION_MODES = {
 @click.command()
 @click.option(
     "--template",
-    type=click.Choice(["default", "strict", "permissive"]),
+    type=click.Choice(["default", "strict", "permissive", "hooks"]),
     default=None,
     help="Policy template to use.",
 )
@@ -145,7 +145,7 @@ def init(template: str | None, output: str, mode: str | None) -> None:
         else:
             template = Prompt.ask(
                 "Which policy template?",
-                choices=["default", "strict", "permissive"],
+                choices=["default", "strict", "permissive", "hooks"],
                 default="default",
                 console=console,
             )
@@ -227,7 +227,7 @@ def init(template: str | None, output: str, mode: str | None) -> None:
     else:
         console.print(
             f"  {step}. Add AvaKill to your agent code"
-            " — see https://avakill.com/docs/getting-started"
+            " — see https://github.com/log-bell/avakill/blob/main/docs/getting-started.md"
         )
     step += 1
 

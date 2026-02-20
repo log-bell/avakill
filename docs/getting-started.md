@@ -53,7 +53,7 @@ Run `avakill init` to generate a starter policy file:
 
 ```bash
 $ avakill init
-Which policy template? [default/strict/permissive] (default): default
+Which policy template? [default/strict/permissive/hooks] (default): default
 
 ╭──────────────────────────── AvaKill Initialized ─────────────────────────────╮
 │                                                                              │
@@ -64,7 +64,7 @@ Which policy template? [default/strict/permissive] (default): default
 
 Next steps:
   1. Review and customise avakill.yaml
-  2. Add AvaKill to your agent code — see https://avakill.com/docs/getting-started
+  2. Add AvaKill to your agent code — see https://github.com/log-bell/avakill/blob/main/docs/getting-started.md
   3. Run avakill hook install --agent all to register agent hooks
   4. Enable audit logging (see docs/getting-started)
   5. Run avakill dashboard to monitor in real-time
@@ -73,17 +73,21 @@ Next steps:
 
 > **Note:** If AvaKill detects installed frameworks (OpenAI, Anthropic, LangChain, MCP) or AI coding agents (Claude Code, Gemini CLI), it will show quickstart code snippets and agent hook instructions.
 
-Three templates are available:
+Four templates are available:
 
 | Template | Default action | Philosophy |
 |----------|---------------|------------|
 | `default` | `deny` | Balanced — allows reads, blocks destructive ops, rate-limits searches |
 | `strict` | `deny` | Maximum safety — explicit allowlist only, rate limits on everything |
 | `permissive` | `allow` | Audit mode — logs everything, blocks only catastrophic operations |
+| `hooks` | `allow` | Agent hooks — allows everything, blocks catastrophic ops, requires approval for installs |
+
+> **Tip:** Use `hooks` when integrating with AI coding agents via `avakill hook install`. It's designed to let agents work freely while blocking genuinely dangerous operations.
 
 ```bash
 avakill init --template strict
 avakill init --template permissive
+avakill init --template hooks
 ```
 
 You can also specify the output path:

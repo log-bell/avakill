@@ -235,6 +235,22 @@ def recovery_hint_for(
 
         if reason.strip() != standard_reason:
             # Custom message = intentional denial. Don't suggest blanket allow.
+            # Use a context-appropriate condition based on the tool name.
+            if "sql" in tool.lower() or "query" in tool.lower() or "database" in tool.lower():
+                condition_example = (
+                    "  conditions:\n"
+                    "    args_not_match:  # adjust to your needs\n"
+                    '      query: ["DROP", "DELETE", "TRUNCATE"]'
+                )
+            elif "shell" in tool.lower() or "bash" in tool.lower() or "command" in tool.lower():
+                condition_example = (
+                    "  conditions:\n"
+                    "    args_not_match:  # adjust to your needs\n"
+                    '      command: ["rm -rf", "sudo"]'
+                )
+            else:
+                condition_example = "  # Add conditions as needed"
+
             rule_yaml = (
                 f"# WARNING: Rule '{policy_name}' denied this call intentionally.\n"
                 f"# Reason: {reason}\n"
@@ -242,9 +258,7 @@ def recovery_hint_for(
                 f"- name: allow-{tool}\n"
                 f'  tools: ["{tool}"]\n'
                 f"  action: allow\n"
-                f"  conditions:\n"
-                f"    args_not_match:  # adjust to your needs\n"
-                f'      command: ["rm -rf", "sudo"]'
+                f"{condition_example}"
             )
         else:
             rule_yaml = (

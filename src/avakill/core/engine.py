@@ -560,7 +560,12 @@ class Guard:
     def _log_sync(self, event: AuditEvent) -> None:
         """Run the async logger.log in a new event loop (background thread)."""
         try:
-            asyncio.run(self._logger.log(event))  # type: ignore[union-attr]
+
+            async def _log_and_flush() -> None:
+                await self._logger.log(event)  # type: ignore[union-attr]
+                await self._logger.flush()  # type: ignore[union-attr]
+
+            asyncio.run(_log_and_flush())
         except Exception as exc:
             self._log_failures += 1
             _logger.error("Audit logging failed (sync): %s", exc)

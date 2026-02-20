@@ -1,0 +1,55 @@
+# AvaKill Hooks Policy
+# Designed for use with agent hooks (Claude Code, Gemini CLI, Cursor, Windsurf).
+# Uses canonical tool names — AvaKill normalizes agent-native names automatically.
+#
+# This template blocks genuinely dangerous operations while allowing
+# the full range of tools that AI coding agents need to function.
+
+version: "1.0"
+default_action: allow
+
+policies:
+  # --- Block catastrophic shell commands ---
+  - name: block-dangerous-shell
+    tools:
+      - "shell_execute"
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf /", "rm -rf /*", "mkfs", "> /dev/", "dd if=", ":(){ :|:& };:"]
+    message: "Catastrophic shell command blocked."
+
+  # --- Block destructive database operations ---
+  - name: block-destructive-sql
+    tools:
+      - "shell_execute"
+    action: deny
+    conditions:
+      args_match:
+        command: ["DROP DATABASE", "DROP SCHEMA"]
+    message: "Destructive database command blocked."
+
+  # --- Require approval for package management ---
+  - name: approve-package-installs
+    tools:
+      - "shell_execute"
+    action: require_approval
+    conditions:
+      args_match:
+        command: ["pip install", "npm install -g", "brew install"]
+    message: "Package installation requires approval."
+
+  # --- Rate limit agent spawning ---
+  - name: rate-limit-agents
+    tools:
+      - "agent_spawn"
+    action: allow
+    rate_limit:
+      max_calls: 20
+      window: "1m"
+
+  # --- Log everything else (allow, with audit trail) ---
+  - name: log-all
+    tools:
+      - "all"
+    action: allow

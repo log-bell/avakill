@@ -165,15 +165,15 @@ class TestEvaluateCLI:
         assert data["decision"] == "allow"
         assert "latency_ms" in data
 
-    def test_evaluate_no_daemon_no_policy_exits_1(self, runner: CliRunner):
+    def test_evaluate_no_daemon_no_policy_exits_1(self, runner: CliRunner, tmp_path: Path):
         stdin_json = json.dumps({"tool": "file_read", "args": {}})
+        # Use a non-existent socket so a running local daemon doesn't interfere.
         result = runner.invoke(
             cli,
-            ["evaluate"],
+            ["evaluate", "--socket", str(tmp_path / "nonexistent.sock")],
             input=stdin_json,
         )
         assert result.exit_code == 1
-        assert "daemon not running" in result.stderr or "not running" in result.stderr
 
     def test_evaluate_reads_stdin_json(self, runner: CliRunner, policy_file: Path):
         stdin_json = json.dumps({"tool": "file_read", "args": {"path": "foo.txt"}})

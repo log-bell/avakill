@@ -92,7 +92,9 @@ def print_banner() -> None:
     try:
         ver = pkg_version("avakill")
     except Exception:
-        ver = "0.1.0"
+        from avakill import __version__
+
+        ver = __version__
 
     con.print()
 
@@ -118,4 +120,6 @@ def print_banner() -> None:
     info.append(" " * pad)
     info.append("docs: avakill.com", style="#6B7280")
     con.print(info, justify="center")
+    con.print()
+    con.print("run [bold]avakill --help[/bold] for commands", style="#6B7280", justify="center")
     con.print()

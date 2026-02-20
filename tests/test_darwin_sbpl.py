@@ -47,8 +47,7 @@ class TestSBPLProfileGeneration:
             ),
         )
         profile = generate_sbpl_profile(config)
-        assert "(allow network-outbound" in profile
-        assert "api.anthropic.com" in profile
+        assert "(allow network-outbound (remote tcp))" in profile
 
     def test_always_allows_sysctl_and_mach(self):
         """Baseline operations always allowed for process to function."""

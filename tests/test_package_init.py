@@ -6,7 +6,7 @@ import avakill
 
 
 def test_version():
-    assert avakill.__version__ == "0.1.0"
+    assert avakill.__version__ == "0.2.0"
 
 
 def test_core_exports():

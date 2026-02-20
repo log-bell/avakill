@@ -40,6 +40,24 @@ def install(agent: str) -> None:
         except Exception as exc:  # noqa: BLE001
             console.print(f"[red]Failed[/red] to install hook for {a}: {exc}")
 
+    # Warn about policy compatibility
+    console.print()
+    console.print(
+        "[yellow]Important:[/yellow] The hook will evaluate tool calls against your AvaKill policy."
+    )
+    console.print(
+        "  The [bold]default[/bold] template blocks tools not in its allowlist, "
+        "which may lock out your agent."
+    )
+    console.print(
+        "  For hooks, use the [bold]hooks[/bold] template: "
+        "[cyan]avakill init --template hooks[/cyan]"
+    )
+    console.print(
+        "  Or set [cyan]AVAKILL_POLICY[/cyan] to a policy file for standalone mode "
+        "(no daemon required)."
+    )
+
 
 @hook.command()
 @click.option(
