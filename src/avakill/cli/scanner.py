@@ -95,3 +95,34 @@ def detect_sensitive_files(cwd: Path) -> list[SensitiveFile]:
                 )
 
     return results
+
+
+_PROJECT_INDICATORS: list[tuple[list[str], str]] = [
+    (["package.json"], "nodejs"),
+    (["pyproject.toml", "setup.py", "setup.cfg"], "python"),
+    (["Cargo.toml"], "rust"),
+    (["go.mod"], "go"),
+    (["Package.swift"], "swift"),
+    (["Dockerfile", "docker-compose.yml", "docker-compose.yaml"], "docker"),
+]
+
+
+def detect_project_type(cwd: Path) -> list[str]:
+    """Detect project types based on indicator files.
+
+    Args:
+        cwd: The directory to scan.
+
+    Returns:
+        List of detected project type strings (e.g. ["python", "docker"]).
+    """
+    detected: list[str] = []
+    for filenames, project_type in _PROJECT_INDICATORS:
+        if any((cwd / fn).exists() for fn in filenames):
+            detected.append(project_type)
+
+    # Check for Xcode projects (glob needed)
+    if "swift" not in detected and list(cwd.glob("*.xcodeproj")):
+        detected.append("swift")
+
+    return detected
