@@ -57,7 +57,6 @@ jobs:
 
   test-windows:
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v7
@@ -69,7 +68,7 @@ jobs:
 
   check:
     if: always()
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, test-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: re-actors/alls-green@release/v1

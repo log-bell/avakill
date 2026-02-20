@@ -71,6 +71,9 @@ class TestCheckFilePermissions:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="chattr/schg immutable flags not available on Windows"
+)
 class TestHardenCommand:
     """Test avakill harden CLI command."""
 

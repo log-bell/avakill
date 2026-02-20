@@ -287,7 +287,7 @@ class TestLandlockPathRules:
         # Verify tilde expansion works in path handling
         expanded = os.path.expanduser("~/test_path")
         assert "~" not in expanded
-        assert expanded.startswith("/")
+        assert os.path.isabs(expanded)
 
 
 class TestLandlockNetworkRules:

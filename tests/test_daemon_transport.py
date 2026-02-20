@@ -157,8 +157,8 @@ class TestTCPClientTransport:
 
     def test_connect_refused_raises(self) -> None:
         transport = TCPClientTransport(port=19999)
-        with pytest.raises(ConnectionRefusedError):
-            transport.connect(timeout=0.5)
+        with pytest.raises((ConnectionRefusedError, OSError)):
+            transport.connect(timeout=2.0)
 
     def test_missing_port_file_raises(self, tmp_path: Path) -> None:
         transport = TCPClientTransport(port_file=tmp_path / "nonexistent.port")

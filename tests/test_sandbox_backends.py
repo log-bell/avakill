@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import sys
+
+import pytest
+
 from avakill.core.models import (
     SandboxConfig,
     SandboxPathRules,
@@ -74,6 +78,7 @@ class TestLandlockBackend:
         backend = LandlockBackend()
         assert backend.available() is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Landlock requires Linux kernel")
     def test_prepare_preexec_returns_callable(self, monkeypatch):
         monkeypatch.setattr("sys.platform", "linux")
         monkeypatch.setattr(

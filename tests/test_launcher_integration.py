@@ -65,7 +65,7 @@ class TestLauncherIntegration:
             socket_path=Path("/tmp/avakill-test.sock"),
         )
         env = launcher._build_env()
-        assert env["AVAKILL_SOCKET"] == "/tmp/avakill-test.sock"
+        assert env["AVAKILL_SOCKET"] == str(Path("/tmp/avakill-test.sock"))
 
     def test_launch_cwd_override(self, tmp_path: Path) -> None:
         launcher = ProcessLauncher(policy=_allow_policy())

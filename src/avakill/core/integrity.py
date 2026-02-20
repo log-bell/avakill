@@ -144,7 +144,10 @@ class PolicyIntegrity:
 
         # Step 1: Read file into memory (single read, TOCTOU-safe)
         try:
-            fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            fd = os.open(
+                str(path),
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0),
+            )
             try:
                 raw = b""
                 while True:

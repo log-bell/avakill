@@ -6,8 +6,10 @@ import asyncio
 import contextlib
 import logging
 import sys
-import termios
-import tty
+
+if sys.platform != "win32":
+    import termios
+    import tty
 from collections import deque
 from pathlib import Path
 from typing import Any

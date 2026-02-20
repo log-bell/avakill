@@ -28,7 +28,7 @@ class TestAuditHookManager:
         """Run in subprocess to avoid audit hook pollution."""
         protected = tmp_path / "avakill_write_block.yaml"
         protected.write_text("test")
-        abs_path = str(protected.resolve())
+        abs_path = repr(str(protected.resolve()))
 
         result = subprocess.run(
             [
@@ -38,10 +38,10 @@ class TestAuditHookManager:
 import sys
 from avakill.core.audit_hooks import AuditHookManager
 
-mgr = AuditHookManager(protected_paths={{"{abs_path}"}})
+mgr = AuditHookManager(protected_paths={{{abs_path}}})
 mgr.install()
 try:
-    open("{abs_path}", "w")
+    open({abs_path}, "w")
     print("NOT_BLOCKED")
 except PermissionError as e:
     if "protected" in str(e).lower():
@@ -60,7 +60,7 @@ except PermissionError as e:
         """Run in subprocess to avoid audit hook pollution."""
         protected = tmp_path / "avakill_read_allow.yaml"
         protected.write_text("safe to read")
-        abs_path = str(protected.resolve())
+        abs_path = repr(str(protected.resolve()))
 
         result = subprocess.run(
             [
@@ -69,9 +69,9 @@ except PermissionError as e:
                 f"""
 from avakill.core.audit_hooks import AuditHookManager
 
-mgr = AuditHookManager(protected_paths={{"{abs_path}"}})
+mgr = AuditHookManager(protected_paths={{{abs_path}}})
 mgr.install()
-with open("{abs_path}") as f:
+with open({abs_path}) as f:
     content = f.read()
 if content == "safe to read":
     print("READ_OK")
@@ -90,8 +90,8 @@ else:
         protected = tmp_path / "avakill_unprotected.yaml"
         protected.write_text("protected")
         unprotected = tmp_path / "other.txt"
-        abs_protected = str(protected.resolve())
-        abs_unprotected = str(unprotected)
+        abs_protected = repr(str(protected.resolve()))
+        abs_unprotected = repr(str(unprotected))
 
         result = subprocess.run(
             [
@@ -100,11 +100,11 @@ else:
                 f"""
 from avakill.core.audit_hooks import AuditHookManager
 
-mgr = AuditHookManager(protected_paths={{"{abs_protected}"}})
+mgr = AuditHookManager(protected_paths={{{abs_protected}}})
 mgr.install()
-with open("{abs_unprotected}", "w") as f:
+with open({abs_unprotected}, "w") as f:
     f.write("fine")
-with open("{abs_unprotected}") as f:
+with open({abs_unprotected}) as f:
     content = f.read()
 if content == "fine":
     print("WRITE_OK")
@@ -122,7 +122,7 @@ else:
         """Run in subprocess to avoid audit hook pollution."""
         protected = tmp_path / "avakill_callback.yaml"
         protected.write_text("test")
-        abs_path = str(protected.resolve())
+        abs_path = repr(str(protected.resolve()))
 
         result = subprocess.run(
             [
@@ -137,19 +137,19 @@ def callback(event_name, detail):
 
 from avakill.core.audit_hooks import AuditHookManager
 mgr = AuditHookManager(
-    protected_paths={{"{abs_path}"}},
+    protected_paths={{{abs_path}}},
     event_callback=callback,
 )
 mgr.install()
 
 try:
-    open("{abs_path}", "w")
+    open({abs_path}, "w")
 except PermissionError:
     pass
 
 if len(events) == 1:
     name, detail = events[0]
-    if name == "open" and "{abs_path}" in detail:
+    if name == "open" and {abs_path} in detail:
         print("CALLBACK_OK")
     else:
         print(f"WRONG_EVENT: {{name}} {{detail}}")

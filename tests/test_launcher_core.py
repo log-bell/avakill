@@ -57,7 +57,7 @@ class TestProcessLauncher:
     def test_launch_sets_avakill_socket_env(self) -> None:
         launcher = ProcessLauncher(policy=_allow_policy(), socket_path=Path("/tmp/test.sock"))
         env = launcher._build_env()
-        assert env["AVAKILL_SOCKET"] == "/tmp/test.sock"
+        assert env["AVAKILL_SOCKET"] == str(Path("/tmp/test.sock"))
 
     def test_launch_inherits_parent_env_by_default(self) -> None:
         launcher = ProcessLauncher(policy=_allow_policy())

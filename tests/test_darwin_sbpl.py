@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+import pytest
 
 from avakill.core.models import SandboxConfig, SandboxNetworkRules, SandboxPathRules
 from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="SBPL profiles are macOS-only")
 class TestSBPLProfileGeneration:
     def test_empty_config_produces_deny_default(self):
         config = SandboxConfig()

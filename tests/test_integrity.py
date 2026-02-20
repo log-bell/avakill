@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ class TestFileSnapshot:
         snap = FileSnapshot.from_path(str(p))
         assert snap.path == os.path.realpath(str(p))
         assert snap.size > 0
-        assert snap.sha256 == hashlib.sha256(b"version: '1.0'\n").hexdigest()
+        assert snap.sha256 == hashlib.sha256(p.read_bytes()).hexdigest()
 
     def test_stat_precheck_unchanged(self, tmp_path: Path) -> None:
         p = tmp_path / "test.yaml"
@@ -37,6 +38,7 @@ class TestFileSnapshot:
         ok, msg = snap.verify(str(p))
         assert ok is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="chmod is a no-op on Windows")
     def test_detects_permission_change(self, tmp_path: Path) -> None:
         p = tmp_path / "test.yaml"
         p.write_text("test")
@@ -56,6 +58,9 @@ class TestFileSnapshot:
         ok, msg = snap.verify(str(p))
         assert ok is False
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Symlink creation requires elevated privileges on Windows"
+    )
     def test_detects_symlink_redirect(self, tmp_path: Path) -> None:
         real = tmp_path / "real.yaml"
         real.write_text("real content")
