@@ -1,0 +1,71 @@
+"""Tests for avakill.cli.scanner module."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from avakill.cli.scanner import detect_sensitive_files
+
+
+class TestDetectSensitiveFiles:
+    def test_detects_dotenv(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("SECRET=abc")
+        result = detect_sensitive_files(tmp_path)
+        paths = [sf.path for sf in result]
+        assert ".env" in paths
+
+    def test_detects_dotenv_variants(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.local").write_text("X=1")
+        (tmp_path / ".env.production").write_text("Y=2")
+        result = detect_sensitive_files(tmp_path)
+        paths = [sf.path for sf in result]
+        assert ".env.local" in paths
+        assert ".env.production" in paths
+
+    def test_detects_pem_key_files(self, tmp_path: Path) -> None:
+        (tmp_path / "server.pem").write_text("---BEGIN---")
+        (tmp_path / "private.key").write_text("---KEY---")
+        result = detect_sensitive_files(tmp_path)
+        paths = [sf.path for sf in result]
+        assert "server.pem" in paths
+        assert "private.key" in paths
+
+    def test_detects_credential_files(self, tmp_path: Path) -> None:
+        (tmp_path / "credentials.json").write_text("{}")
+        result = detect_sensitive_files(tmp_path)
+        paths = [sf.path for sf in result]
+        assert "credentials.json" in paths
+
+    def test_detects_database_files(self, tmp_path: Path) -> None:
+        (tmp_path / "app.sqlite").write_text("")
+        (tmp_path / "data.db").write_text("")
+        result = detect_sensitive_files(tmp_path)
+        paths = [sf.path for sf in result]
+        assert "app.sqlite" in paths
+        assert "data.db" in paths
+
+    def test_detects_credential_directories(self, tmp_path: Path) -> None:
+        (tmp_path / ".aws").mkdir()
+        (tmp_path / ".aws" / "credentials").write_text("")
+        result = detect_sensitive_files(tmp_path)
+        paths = [sf.path for sf in result]
+        assert ".aws/" in paths
+
+    def test_empty_directory_returns_empty(self, tmp_path: Path) -> None:
+        result = detect_sensitive_files(tmp_path)
+        assert result == []
+
+    def test_ignores_node_modules(self, tmp_path: Path) -> None:
+        nm = tmp_path / "node_modules" / "pkg"
+        nm.mkdir(parents=True)
+        (nm / ".env").write_text("X=1")
+        result = detect_sensitive_files(tmp_path)
+        assert result == []
+
+    def test_category_is_set(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("X=1")
+        (tmp_path / "key.pem").write_text("---")
+        result = detect_sensitive_files(tmp_path)
+        categories = {sf.category for sf in result}
+        assert "env" in categories
+        assert "crypto" in categories
