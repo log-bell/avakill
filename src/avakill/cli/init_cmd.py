@@ -6,6 +6,7 @@ import contextlib
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 import yaml
@@ -164,7 +165,7 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
     shutil.copy2(src, output_path)
 
     # Scan project for sensitive files if requested
-    scan_results: list[object] = []
+    scan_results: list[Any] = []
     if scan:
         from avakill.cli.scanner import (
             detect_project_type,

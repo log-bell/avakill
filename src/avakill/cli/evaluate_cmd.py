@@ -147,6 +147,8 @@ def _run_burst_simulation(policy_path: str, agent: str, tool: str, args: dict, c
     runs: list[tuple[str, str, int, int]] = []
 
     for i in range(1, count + 1):
+        action: str
+        reason: str
         try:
             decision = guard.evaluate(tool=tool, args=args, agent_id=agent)
             action = decision.action

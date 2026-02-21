@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-20
+
 ## [0.2.0] - 2026-02-20
 
 ### Added
@@ -65,6 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Example scripts** — runnable demos for quickstart, OpenAI, Anthropic, LangChain/LangGraph, MCP proxy, and real-world disaster scenarios.
 - **CI pipeline** — GitHub Actions with Python 3.10/3.11/3.12 matrix, Ruff, mypy, pytest with coverage, Codecov upload.
 
-[Unreleased]: https://github.com/log-bell/avakill/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/log-bell/avakill/compare/v0.3.0...HEAD
 [0.2.0]: https://github.com/log-bell/avakill/compare/v0.1.0...v0.2.0
+[0.3.0]: https://github.com/log-bell/avakill/compare/v0.2.0...v0.3.0
 [0.1.0]: https://github.com/log-bell/avakill/releases/tag/v0.1.0
