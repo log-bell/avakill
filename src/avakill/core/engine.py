@@ -477,25 +477,22 @@ class Guard:
     ) -> Decision:
         """Check the approval store for a pre-approved request or create a pending one.
 
-        Uses the same sync/async bridge pattern as ``_log_async``.
+        Runs the async approval check in a thread-pool when called from
+        inside a running event loop, ensuring the result is always
+        returned synchronously to the caller.
         """
         assert self._approval_store is not None
 
         try:
-            loop = asyncio.get_running_loop()
-            # We're in an async context — schedule the coroutine
+            asyncio.get_running_loop()
+            # We're in an async context — run in a new thread with its own
+            # event loop so we can return the result synchronously without
+            # blocking the caller's loop.
             import concurrent.futures
 
-            future: concurrent.futures.Future[Decision] = concurrent.futures.Future()
-
-            async def _do() -> None:
-                result = await self._check_approval_async(tool_call, decision, elapsed_ms)
-                future.set_result(result)
-
-            loop.create_task(_do())
-            # Can't block the event loop; return the original decision.
-            # The pending request will be created asynchronously.
-            return decision
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(self._check_approval_sync, tool_call, decision, elapsed_ms)
+                return future.result(timeout=5.0)
         except RuntimeError:
             # No running event loop — run synchronously
             return self._check_approval_sync(tool_call, decision, elapsed_ms)
@@ -506,23 +503,18 @@ class Guard:
         """Async approval check: look for approved request or create pending."""
         assert self._approval_store is not None
         store = self._approval_store
+        agent = tool_call.agent_id or ""
 
         # Check for an existing approved request for this tool+agent
-        pending = await store.get_pending()
-        agent = tool_call.agent_id or ""
-        for req in pending:
-            if (
-                req.status == "approved"
-                and req.tool_call.tool_name == tool_call.tool_name
-                and req.agent == agent
-            ):
-                return Decision(
-                    allowed=True,
-                    action="allow",
-                    policy_name=decision.policy_name,
-                    reason=f"[approved] {decision.reason}",
-                    latency_ms=elapsed_ms,
-                )
+        approved = await store.get_approved_for_tool(tool_call.tool_name, agent)
+        if approved is not None:
+            return Decision(
+                allowed=True,
+                action="allow",
+                policy_name=decision.policy_name,
+                reason=f"[approved] {decision.reason}",
+                latency_ms=elapsed_ms,
+            )
 
         # No pre-approval found — create a pending request
         await store.create(tool_call, decision, agent=agent)

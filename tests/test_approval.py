@@ -86,3 +86,60 @@ class TestApprovalStore:
         async with ApprovalStore(db) as store:
             result = await store.get("unknown-id")
             assert result is None
+
+    async def test_get_approved_for_tool_returns_approved(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            req = await store.create(_make_tool_call(), _make_decision(), agent="claude-code")
+            await store.approve(req.id, approver="admin")
+
+            result = await store.get_approved_for_tool("file_write", "claude-code")
+            assert result is not None
+            assert result.status == "approved"
+            assert result.tool_call.tool_name == "file_write"
+
+    async def test_get_approved_for_tool_returns_none_when_pending(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            await store.create(_make_tool_call(), _make_decision(), agent="claude-code")
+            result = await store.get_approved_for_tool("file_write", "claude-code")
+            assert result is None
+
+    async def test_get_approved_for_tool_filters_by_agent(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            req = await store.create(_make_tool_call(), _make_decision(), agent="agent-a")
+            await store.approve(req.id, approver="admin")
+
+            result = await store.get_approved_for_tool("file_write", "agent-b")
+            assert result is None
+
+    async def test_resolve_id_full_uuid(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            req = await store.create(_make_tool_call(), _make_decision(), agent="a")
+            resolved = await store.resolve_id(req.id)
+            assert resolved == req.id
+
+    async def test_resolve_id_prefix(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            req = await store.create(_make_tool_call(), _make_decision(), agent="a")
+            resolved = await store.resolve_id(req.id[:12])
+            assert resolved == req.id
+
+    async def test_resolve_id_not_found(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            result = await store.resolve_id("nonexistent")
+            assert result is None
+
+    async def test_resolve_id_ambiguous_raises(self, tmp_path: Path) -> None:
+        db = tmp_path / "approvals.db"
+        async with ApprovalStore(db) as store:
+            # Create two requests and use a 1-char prefix (will match both)
+            await store.create(_make_tool_call(), _make_decision(), agent="a")
+            await store.create(_make_tool_call(), _make_decision(), agent="b")
+            # Use a very short prefix that matches both
+            with pytest.raises(KeyError, match="Ambiguous"):
+                await store.resolve_id("")

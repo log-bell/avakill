@@ -51,6 +51,7 @@ class EvaluateResponse(BaseModel):
     policy: str | None = None
     latency_ms: float = 0.0
     modified_args: dict[str, Any] | None = None
+    approval_request_id: str | None = None
 
 
 # ---------------------------------------------------------------------------

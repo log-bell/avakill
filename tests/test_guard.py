@@ -540,14 +540,11 @@ class TestGuardApprovalWorkflow:
             # Approve the request
             await store.approve(pending[0].id, approver="admin")
 
-            # Second call: the sync path should find the approved request
-            # Note: get_pending returns pending (not approved), so the
-            # current logic won't auto-allow. This tests the create path.
+            # Second call: should find the approved request and allow
             decision2 = guard.evaluate(tool="deploy", agent_id="bot")
-            # Still require_approval since approved requests aren't in
-            # get_pending() — the design creates pending requests for
-            # external approval workflows
-            assert decision2.action == "require_approval"
+            assert decision2.action == "allow"
+            assert decision2.allowed
+            assert "[approved]" in (decision2.reason or "")
 
 
 class TestGuardIntegrity:

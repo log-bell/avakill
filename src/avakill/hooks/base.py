@@ -184,18 +184,20 @@ class HookAdapter(ABC):
         """
         import time
 
+        from avakill.core.approval import ApprovalStore
         from avakill.core.engine import Guard
         from avakill.core.normalization import normalize_tool_name
 
         canonical_tool = normalize_tool_name(request.tool, request.agent)
 
-        guard = Guard(policy=policy_path)
+        store = ApprovalStore()
+        guard = Guard(policy=policy_path, approval_store=store)
         t0 = time.perf_counter()
         decision = guard.evaluate(tool=canonical_tool, args=request.args)
         latency = (time.perf_counter() - t0) * 1000
 
         return EvaluateResponse(
-            decision="allow" if decision.allowed else "deny",
+            decision=decision.action,
             reason=decision.reason,
             policy=decision.policy_name,
             latency_ms=round(latency, 2),

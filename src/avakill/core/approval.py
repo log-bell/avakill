@@ -198,6 +198,59 @@ class ApprovalStore:
             approved_by=approver,
         )
 
+    async def get_approved_for_tool(self, tool_name: str, agent: str) -> ApprovalRequest | None:
+        """Return the most recent approved request for a given tool and agent.
+
+        Args:
+            tool_name: The canonical tool name.
+            agent: The agent identifier.
+
+        Returns:
+            The matching :class:`ApprovalRequest`, or ``None``.
+        """
+        db = await self._ensure_db()
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = await db.execute(
+            "SELECT * FROM approvals "
+            "WHERE status = 'approved' AND tool_name = ? AND agent = ? "
+            "AND (expires_at IS NULL OR expires_at > ?) "
+            "ORDER BY timestamp DESC LIMIT 1",
+            (tool_name, agent, now),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return self._row_to_request(row)
+
+    async def resolve_id(self, request_id: str) -> str | None:
+        """Resolve a possibly-abbreviated request ID to its full UUID.
+
+        Args:
+            request_id: Full or prefix of a request UUID.
+
+        Returns:
+            The full UUID string, or ``None`` if no match is found.
+
+        Raises:
+            KeyError: If the prefix matches more than one request.
+        """
+        if len(request_id) >= 32:
+            # Looks like a full UUID — check existence directly
+            req = await self.get(request_id)
+            return req.id if req is not None else None
+
+        db = await self._ensure_db()
+        cursor = await db.execute(
+            "SELECT id FROM approvals WHERE id LIKE ?",
+            (request_id + "%",),
+        )
+        rows: list[Any] = list(await cursor.fetchall())
+        if len(rows) == 0:
+            return None
+        if len(rows) > 1:
+            raise KeyError(f"Ambiguous ID prefix '{request_id}' matches {len(rows)} requests")
+        return str(rows[0][0])
+
     async def get_pending(self) -> list[ApprovalRequest]:
         """Return all pending (non-expired) approval requests."""
         db = await self._ensure_db()

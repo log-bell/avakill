@@ -263,7 +263,7 @@ class _Dashboard:
         recent = await logger.query(limit=_MAX_LIVE_EVENTS)
         # Merge DB events with live events, deduplicate by id
         seen_ids = {e.id for e in self._events}
-        cleared_ids = getattr(self, "_cleared_ids", set())
+        cleared_ids: set[str] = getattr(self, "_cleared_ids", set())
         for event in recent:
             if event.id not in seen_ids and event.id not in cleared_ids:
                 self._events.append(event)

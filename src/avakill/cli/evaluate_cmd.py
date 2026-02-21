@@ -94,7 +94,7 @@ def evaluate(
         # and don't get duplicated by agent tool runners on non-zero exit.
         click.echo(f"{response.decision}: {response.reason or 'no reason'}", err=True)
 
-    if response.decision == "deny":
+    if response.decision in ("deny", "require_approval"):
         raise SystemExit(2)
 
 
@@ -111,9 +111,11 @@ def _evaluate_standalone(
         click.echo(f"Error: policy file not found: {policy_path}", err=True)
         return None
 
+    from avakill.core.approval import ApprovalStore
     from avakill.core.engine import Guard
 
-    guard = Guard(policy=str(path))
+    store = ApprovalStore()
+    guard = Guard(policy=str(path), approval_store=store)
     decision = guard.evaluate(tool=tool, args=args, agent_id=agent)
 
     return _EvaluateResponse(

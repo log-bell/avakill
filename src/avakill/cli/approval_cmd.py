@@ -81,7 +81,15 @@ def grant(request_id: str, db: str, approver: str) -> None:
     async def _grant() -> None:
         async with ApprovalStore(db_path) as store:
             try:
-                req = await store.approve(request_id, approver=approver)
+                full_id = await store.resolve_id(request_id)
+            except KeyError as exc:
+                console.print(f"[red]{exc}[/]")
+                raise SystemExit(1) from None
+            if full_id is None:
+                console.print(f"[red]Request not found:[/] {request_id}")
+                raise SystemExit(1)
+            try:
+                req = await store.approve(full_id, approver=approver)
                 console.print(
                     f"[green]Approved[/] request {req.id[:12]}... "
                     f"(tool={req.tool_call.tool_name}, approver={approver})"
@@ -107,7 +115,15 @@ def reject(request_id: str, db: str, approver: str) -> None:
     async def _reject() -> None:
         async with ApprovalStore(db_path) as store:
             try:
-                req = await store.deny(request_id, approver=approver)
+                full_id = await store.resolve_id(request_id)
+            except KeyError as exc:
+                console.print(f"[red]{exc}[/]")
+                raise SystemExit(1) from None
+            if full_id is None:
+                console.print(f"[red]Request not found:[/] {request_id}")
+                raise SystemExit(1)
+            try:
+                req = await store.deny(full_id, approver=approver)
                 console.print(
                     f"[red]Denied[/] request {req.id[:12]}... "
                     f"(tool={req.tool_call.tool_name}, denier={approver})"

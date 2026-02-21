@@ -19,6 +19,11 @@ def daemon() -> None:
 @click.option("--socket", default=None, help="Unix socket path (ignored on Windows).")
 @click.option("--tcp-port", default=None, type=int, help="TCP port for daemon.")
 @click.option("--log-db", default=None, help="SQLite audit log path.")
+@click.option(
+    "--approval-db",
+    default="~/.avakill/approvals.db",
+    help="Approval request database path.",
+)
 @click.option("--foreground", "-f", is_flag=True, help="Run in foreground (don't daemonize).")
 @click.option("--enforce", is_flag=True, help="Apply OS-level enforcement (Landlock/sandbox-exec).")
 def start(
@@ -26,6 +31,7 @@ def start(
     socket: str | None,
     tcp_port: int | None,
     log_db: str | None,
+    approval_db: str,
     foreground: bool,
     enforce: bool,
 ) -> None:
@@ -45,6 +51,7 @@ def start(
         click.echo(f"Daemon already running (PID {pid}).")
         raise SystemExit(1)
 
+    from avakill.core.approval import ApprovalStore
     from avakill.core.engine import Guard
 
     kwargs: dict = {"policy": str(policy_path)}
@@ -53,6 +60,7 @@ def start(
 
         kwargs["logger"] = SQLiteLogger(log_db)
 
+    kwargs["approval_store"] = ApprovalStore(approval_db)
     guard = Guard(**kwargs)
 
     server_kwargs: dict = {}
@@ -68,7 +76,7 @@ def start(
         asyncio.run(server.serve_forever())
     else:
         click.echo(f"Starting AvaKill daemon (policy: {policy})...")
-        _daemonize(policy, socket, tcp_port, log_db, enforce=enforce)
+        _daemonize(policy, socket, tcp_port, log_db, approval_db=approval_db, enforce=enforce)
 
 
 @daemon.command()
@@ -130,6 +138,7 @@ def _daemonize(
     tcp_port: int | None,
     log_db: str | None,
     *,
+    approval_db: str = "~/.avakill/approvals.db",
     enforce: bool = False,
 ) -> None:
     """Launch daemon as a detached background process."""
@@ -143,6 +152,7 @@ def _daemonize(
         cmd.extend(["--tcp-port", str(tcp_port)])
     if log_db:
         cmd.extend(["--log-db", log_db])
+    cmd.extend(["--approval-db", approval_db])
     if enforce:
         cmd.append("--enforce")
 
