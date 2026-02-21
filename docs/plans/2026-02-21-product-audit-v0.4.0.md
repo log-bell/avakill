@@ -35,6 +35,16 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **E2E test**: Fresh machine, `pipx install avakill`, `avakill quickstart`, verify policy + hooks installed, agent actually blocked on first dangerous call
 - **v1?**: YES — this is the front door
 
+### `avakill init`
+- **⏳ REVISIT LAST** — overlaps with quickstart; decide whether to merge or differentiate
+- **File**: `cli/init_cmd.py` (295 lines)
+- **Status**: PRODUCTION
+- **What it does**: Creates a new policy file with template selection, framework detection, mode selection
+- **Dependencies**: Policy templates, framework detection via dependency file scanning
+- **Concerns**: Overlaps with `quickstart`. Framework detection is basic (keyword search in requirements.txt). Never tested by a real user.
+- **E2E test**: Run in empty project, Python project, Node project — verify generated policy is valid
+- **v1?**: MAYBE — overlaps with quickstart. Could confuse users to have both `init` and `quickstart`.
+
 ### `avakill hook install / uninstall / list`
 - **File**: `cli/hook_cmd.py`
 - **Status**: BATTLE-TESTED
@@ -105,15 +115,6 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   avakill fix --json --db avakill_audit.db
   ```
 
-### `avakill init`
-- **File**: `cli/init_cmd.py` (295 lines)
-- **Status**: PRODUCTION
-- **What it does**: Creates a new policy file with template selection, framework detection, mode selection
-- **Dependencies**: Policy templates, framework detection via dependency file scanning
-- **Concerns**: Overlaps with `quickstart`. Framework detection is basic (keyword search in requirements.txt). Never tested by a real user.
-- **E2E test**: Run in empty project, Python project, Node project — verify generated policy is valid
-- **v1?**: MAYBE — overlaps with quickstart. Could confuse users to have both `init` and `quickstart`.
-
 ### Hook Binaries (`avakill-hook-claude-code`, etc.)
 - **Status**: BATTLE-TESTED (claude-code), PRODUCTION (others)
 - **What they do**: Pre-tool-use hook scripts that call `avakill evaluate`
@@ -125,40 +126,110 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 
 ## Tier 2: Operations (day 2+ features)
 
-### `avakill logs tail`
+### `avakill logs tail` ✅
 - **File**: `cli/logs_cmd.py` (233 lines)
-- **Status**: PRODUCTION
+- **Status**: BATTLE-TESTED
 - **What it does**: Query/display audit logs from SQLite. Supports filtering, time ranges, JSON export, live tail
 - **Dependencies**: `SQLiteLogger`
-- **Concerns**: Has anyone run `avakill logs tail` and watched events stream in? Does the DB actually get populated during hook evaluations?
-- **E2E test**: Install hook, trigger some tool calls, run `avakill logs tail`, verify events appear
+- **E2E test**: All cases tested live — query, filters, JSON, live tail with real-time event streaming
 - **v1?**: YES — observability
+- **Example use cases**:
+  ```bash
+  # View recent audit events
+  avakill logs --db avakill_audit.db
 
-### `avakill dashboard`
+  # Show only denied events
+  avakill logs --db avakill_audit.db --denied-only
+
+  # Filter by tool name
+  avakill logs --db avakill_audit.db --tool Bash
+
+  # Filter by time — events from last 5 minutes
+  avakill logs --db avakill_audit.db --since 5m
+
+  # JSON output for scripting (limit to 2 entries)
+  avakill logs --db avakill_audit.db --json --limit 2
+
+  # Live tail — watch events stream in real-time (Ctrl+C to stop)
+  avakill logs --db avakill_audit.db tail
+
+  # Combine filters with tail — watch only denials live
+  avakill logs --db avakill_audit.db --denied-only tail
+  ```
+
+### `avakill dashboard` ✅
 - **File**: `cli/dashboard_cmd.py` (350 lines)
-- **Status**: PRODUCTION
+- **Status**: BATTLE-TESTED
 - **What it does**: Rich TUI dashboard with live event streaming, stats, keyboard input
 - **Dependencies**: `SQLiteLogger`, `EventBus`, `Guard`, terminal raw mode
-- **Concerns**: Complex async + terminal code. Has anyone launched it? Does it render correctly on different terminal sizes?
-- **E2E test**: Start dashboard, trigger tool calls in another terminal, verify events appear in real-time
+- **E2E test**: Launched live, verified real-time event streaming, stats updating, denied bar chart, keyboard shortcuts (q/r/c). Fixed 'c' clear and 'r' reload during audit.
 - **v1?**: NICE-TO-HAVE — impressive demo but not essential
+- **Example use cases**:
+  ```bash
+  # Launch dashboard (requires daemon running with --log-db)
+  avakill dashboard --db avakill_audit.db
 
-### `avakill daemon start / stop / status`
+  # Launch with policy monitoring — 'r' reloads, --watch auto-reloads on file change
+  avakill dashboard --db avakill_audit.db --policy avakill.yaml --watch
+
+  # Custom refresh rate (default 0.5s)
+  avakill dashboard --db avakill_audit.db --refresh 1.0
+
+  # Keyboard shortcuts while dashboard is running:
+  #   q — quit
+  #   r — reload policy (shows [Policy reloaded] in footer)
+  #   c — clear event list (shows [Cleared], new events still appear)
+  ```
+
+### `avakill daemon start / stop / status` ✅
 - **File**: `cli/daemon_cmd.py`
-- **Status**: PRODUCTION
+- **Status**: BATTLE-TESTED
 - **What it does**: Manages the persistent evaluation daemon (Unix domain socket)
 - **Dependencies**: `daemon.server`, `daemon.transport`
-- **Concerns**: Has anyone started the daemon, sent it evaluate requests, and verified it responds correctly? Does `daemon stop` actually kill the process?
-- **E2E test**: `avakill daemon start`, send evaluate request via client, `avakill daemon status`, `avakill daemon stop`
+- **E2E test**: Full lifecycle tested — background start, status check, evaluate through daemon (allow + deny), double-start prevention, stop, stop-when-not-running, missing policy error
 - **v1?**: YES for performance — but the hookless mode works without it
+- **Example use cases**:
+  ```bash
+  # Start daemon in background
+  avakill daemon start --policy avakill.yaml
 
-### `avakill review`
+  # Start with audit logging
+  avakill daemon start --policy avakill.yaml --log-db avakill_audit.db
+
+  # Start in foreground (for debugging / development)
+  avakill daemon start --foreground --policy avakill.yaml
+
+  # Check if daemon is running
+  avakill daemon status
+
+  # Evaluate tool calls through the daemon (no --policy needed)
+  echo '{"tool": "Bash", "args": {"command": "ls"}}' | avakill evaluate
+
+  # Stop the daemon
+  avakill daemon stop
+  ```
+
+### `avakill review` ✅
 - **File**: `cli/review_cmd.py` (99 lines)
-- **Status**: FUNCTIONAL
-- **What it does**: Pretty-prints a proposed policy file for human review before approval
-- **Concerns**: Display-only, no diffing against current policy
-- **E2E test**: Create a `.proposed.yaml`, run `avakill review`, verify output is readable
+- **Status**: BATTLE-TESTED
+- **What it does**: Pretty-prints a proposed policy file for human review before approval. Shows syntax-highlighted YAML, rules table, summary, and next steps.
+- **E2E test**: Tested with valid proposed policy, invalid policy (clean error formatting), missing file, and active policy review
 - **v1?**: YES — part of the propose/review/approve workflow
+- **Example use cases**:
+  ```bash
+  # Review a proposed policy before activating
+  avakill review avakill.proposed.yaml
+
+  # Review your active policy
+  avakill review avakill.yaml
+
+  # Workflow: create proposed, review, then approve
+  # 1. Agent writes changes to a .proposed.yaml file
+  # 2. Human reviews:
+  avakill review avakill.proposed.yaml
+  # 3. Human activates:
+  avakill approve avakill.proposed.yaml
+  ```
 
 ### `avakill approve`
 - **File**: `cli/approve_cmd.py` (104 lines)
@@ -414,3 +485,11 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   2. Expand globs per-agent during `quickstart`/`init` based on detected agent
   3. Add a normalization step in the engine that maps real tool names to canonical names before matching (this exists in `core/normalization.py` but may not be wired into the default flow)
 - **Blocked commands**: `quickstart`, `init`, and any command that generates default policy templates
+
+### ISSUE-2: Agents can kill the daemon via `avakill daemon stop`
+- **Severity**: HIGH — defeats the entire protection model
+- **Found during**: `avakill daemon` E2E testing
+- **Details**: An AI agent can run `avakill daemon stop` through a shell tool and kill the evaluation daemon. Self-protection currently blocks `pipx uninstall avakill`, policy file modification, hook config tampering, and source file edits — but it does not block `avakill daemon stop`. An agent that wants to bypass protection can simply stop the daemon, then operate unguarded.
+- **Impact**: Any agent with shell access can disable avakill's daemon-based protection in one command. The hook-based path (which doesn't use the daemon) is unaffected, but users who rely on the daemon for centralized evaluation lose protection silently.
+- **Fix needed**: Self-protection should detect and block `avakill daemon stop` (and variants like `kill <pid>` targeting the daemon PID, `pkill avakill`, etc.) in shell arguments. The same pattern used for uninstall detection should be extended to daemon shutdown commands.
+- **Blocked commands**: None — this is a self-protection gap, not a CLI bug

@@ -144,7 +144,7 @@ def _make_denied_bar(stats: dict[str, Any]) -> Panel:
     )
 
 
-def _make_footer() -> Panel:
+def _make_footer(status_msg: str | None = None) -> Panel:
     """Build the keyboard shortcut footer."""
     keys = Text()
     keys.append("  q ", style="bold white on dark_green")
@@ -153,12 +153,15 @@ def _make_footer() -> Panel:
     keys.append(" reload policy  ", style="dim")
     keys.append("  c ", style="bold white on dark_green")
     keys.append(" clear  ", style="dim")
+    if status_msg:
+        keys.append(f"  [{status_msg}]", style="bold yellow")
     return Panel(keys, style="dim", padding=(0, 1))
 
 
 def _build_layout(
     stats: dict[str, Any],
     events: list[AuditEvent],
+    status_msg: str | None = None,
 ) -> Layout:
     """Assemble the full dashboard layout."""
     layout = Layout()
@@ -171,7 +174,7 @@ def _build_layout(
     layout["header"].update(_make_header(stats))
     layout["body"].update(_make_event_table(events))
     layout["denied"].update(_make_denied_bar(stats))
-    layout["footer"].update(_make_footer())
+    layout["footer"].update(_make_footer(status_msg))
     return layout
 
 
@@ -193,7 +196,8 @@ class _Dashboard:
         self._events: deque[AuditEvent] = deque(maxlen=_MAX_LIVE_EVENTS)
         self._stats: dict[str, Any] = {}
         self._running = True
-        self._should_clear = False
+        self._cleared = False
+        self._status_msg: str | None = None
 
         # Create a Guard if a policy path was given
         self._guard: Guard | None = None
@@ -248,11 +252,20 @@ class _Dashboard:
         """Poll the database for latest stats and events."""
         self._stats = await logger.stats()
 
+        if self._cleared:
+            # After a clear, record what's in the DB so we don't re-show it.
+            # Only new events arriving after the clear will appear.
+            recent = await logger.query(limit=_MAX_LIVE_EVENTS)
+            self._cleared_ids = {e.id for e in recent}
+            self._cleared = False
+            return
+
         recent = await logger.query(limit=_MAX_LIVE_EVENTS)
         # Merge DB events with live events, deduplicate by id
         seen_ids = {e.id for e in self._events}
+        cleared_ids = getattr(self, "_cleared_ids", set())
         for event in recent:
-            if event.id not in seen_ids:
+            if event.id not in seen_ids and event.id not in cleared_ids:
                 self._events.append(event)
                 seen_ids.add(event.id)
 
@@ -283,9 +296,12 @@ class _Dashboard:
                         self._reload_policy()
                     elif key == "c":
                         self._events.clear()
+                        self._cleared = True
+                        self._status_msg = "Cleared"
 
                 await self._refresh_data(logger)
-                live.update(_build_layout(self._stats, list(self._events)))
+                live.update(_build_layout(self._stats, list(self._events), self._status_msg))
+                self._status_msg = None
                 await asyncio.sleep(self._refresh)
         finally:
             if old_settings is not None:
@@ -306,11 +322,15 @@ class _Dashboard:
 
     def _reload_policy(self) -> None:
         """Reload policy via the Guard instance."""
-        if self._guard is not None:
-            try:
-                self._guard.reload_policy()
-            except Exception:
-                logging.getLogger(__name__).warning("Manual policy reload failed", exc_info=True)
+        if self._guard is None:
+            self._status_msg = "No policy loaded"
+            return
+        try:
+            self._guard.reload_policy()
+            self._status_msg = "Policy reloaded"
+        except Exception:
+            self._status_msg = "Reload failed"
+            logging.getLogger(__name__).warning("Manual policy reload failed", exc_info=True)
 
 
 @click.command()

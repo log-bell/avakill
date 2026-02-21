@@ -49,7 +49,25 @@ def review(proposed_file: str) -> None:
     try:
         engine = PolicyEngine.from_dict(data)
     except ConfigError as exc:
-        console.print(f"[red]Policy validation failed:[/red]\n{exc.message}")
+        console.print("[red]Policy validation failed:[/red]")
+        console.print()
+        cause = exc.__cause__
+        if cause is not None and hasattr(cause, "errors"):
+            for err in cause.errors():
+                parts = []
+                for p in err.get("loc", ()):
+                    if isinstance(p, int):
+                        parts.append(f"rule {p + 1}")
+                    else:
+                        parts.append(str(p))
+                loc = " -> ".join(parts) if parts else "policy"
+                msg = err.get("msg", str(err))
+                console.print(f"  [yellow]{loc}[/yellow]: {msg}")
+        else:
+            console.print(f"  {exc.message}")
+        console.print()
+        console.print("[dim]Fix the errors above, then run:[/dim]")
+        console.print(f"  [bold]avakill review {proposed_file}[/bold]")
         raise SystemExit(1) from exc
 
     config = engine.config
@@ -92,8 +110,17 @@ def review(proposed_file: str) -> None:
     console.print(Panel(summary, title="Policy Summary", border_style="green", padding=(0, 2)))
     console.print()
 
-    # Show approval command
+    # Show approval command and next steps
     console.print("[bold green]Policy is valid.[/bold green]")
     console.print()
-    console.print("To activate this policy, run:")
-    console.print(f"  [bold]avakill approve {proposed_file}[/bold]")
+    next_steps = Table.grid(padding=(0, 2))
+    next_steps.add_column(style="bold cyan", min_width=16)
+    next_steps.add_column()
+    next_steps.add_row("Activate", f"avakill approve {proposed_file}")
+    next_steps.add_row(
+        "Test a rule",
+        f'avakill evaluate --policy {proposed_file} --tool Bash --args \'{{"cmd": "ls"}}\'',
+    )
+    next_steps.add_row("Compare active", "avakill validate")
+    next_steps.add_row("Edit proposed", str(proposed_path.resolve()))
+    console.print(Panel(next_steps, title="What's next?", border_style="dim", padding=(1, 2)))
