@@ -519,12 +519,38 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 
 ### Testable now
 
-### `avakill schema`
+### `avakill schema` ✅
 - **File**: `cli/schema_cmd.py`
-- **Status**: PRODUCTION
-- **What it does**: Exports JSON Schema for policy files, generates LLM prompts
-- **E2E test**: Export schema, validate a policy against it, test `--llm-prompt`
+- **Status**: BATTLE-TESTED
+- **What it does**: Exports JSON Schema for policy files, generates LLM prompts with context-aware customization
+- **E2E test**: All flag combinations tested — default JSON, `--compact`, `--format=prompt`, `--tools`, `--use-case`, combined `--tools` + `--use-case`, file output (`-o`). Schema is valid JSON. Prompt includes evaluation rules, enforcement levels, self-protection docs, 3 example policies, and output instructions. `--tools` correctly injects "Available tools" context. `--use-case` correctly injects "Use case" context.
 - **v1?**: NICE-TO-HAVE
+- **Example use cases**:
+  ```bash
+  # Export JSON Schema (pretty-printed)
+  avakill schema
+
+  # Compact/minified JSON
+  avakill schema --compact
+
+  # Write to file
+  avakill schema -o schema.json
+
+  # Generate LLM prompt for policy creation
+  avakill schema --format=prompt
+
+  # Prompt with specific tools (injects tool context)
+  avakill schema --format=prompt --tools="Bash,Write,Read"
+
+  # Prompt with use case
+  avakill schema --format=prompt --use-case="code assistant"
+
+  # Prompt with both (most useful for agents)
+  avakill schema --format=prompt --tools="Bash,Write" --use-case="code review agent"
+
+  # Save prompt to file for embedding in agent system prompt
+  avakill schema --format=prompt -o avakill-prompt.txt
+  ```
 
 ### `avakill profile list / show`
 - **File**: `cli/profile_cmd.py` + `profiles/*`
