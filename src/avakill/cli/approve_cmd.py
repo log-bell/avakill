@@ -61,7 +61,25 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
     try:
         engine = PolicyEngine.from_dict(data)
     except ConfigError as exc:
-        console.print(f"[red]Policy validation failed:[/red]\n{exc.message}")
+        console.print("[red]Policy validation failed:[/red]")
+        console.print()
+        cause = exc.__cause__
+        if cause is not None and hasattr(cause, "errors"):
+            for err in cause.errors():
+                parts = []
+                for p in err.get("loc", ()):
+                    if isinstance(p, int):
+                        parts.append(f"rule {p + 1}")
+                    else:
+                        parts.append(str(p))
+                loc = " -> ".join(parts) if parts else "policy"
+                msg = err.get("msg", str(err))
+                console.print(f"  [yellow]{loc}[/yellow]: {msg}")
+        else:
+            console.print(f"  {exc.message}")
+        console.print()
+        console.print("[dim]Fix the errors, then run:[/dim]")
+        console.print(f"  [bold]avakill review {proposed_file}[/bold]")
         raise SystemExit(1) from exc
 
     config = engine.config
@@ -90,7 +108,16 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
     if proposed_path.resolve() == target_path.resolve():
         console.print(f"[bold green]Policy already in place:[/bold green] {target_path}")
     else:
-        shutil.copy2(str(proposed_path), str(target_path))
+        # Backup existing target if it exists
+        if target_path.exists():
+            bak_path = target_path.with_suffix(target_path.suffix + ".bak")
+            shutil.copy2(str(target_path), str(bak_path))
+            console.print(f"[dim]Backup saved:[/dim] {bak_path}")
+
+        # Atomic write: copy to temp file, then rename
+        tmp_path = target_path.with_suffix(target_path.suffix + ".tmp")
+        shutil.copy2(str(proposed_path), str(tmp_path))
+        os.replace(str(tmp_path), str(target_path))
         console.print(f"[bold green]Policy activated:[/bold green] {target_path}")
 
     # Auto-sign if signing key is available

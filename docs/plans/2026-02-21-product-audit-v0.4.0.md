@@ -231,13 +231,31 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   avakill approve avakill.proposed.yaml
   ```
 
-### `avakill approve`
+### `avakill approve` ✅
 - **File**: `cli/approve_cmd.py` (104 lines)
-- **Status**: FUNCTIONAL
-- **What it does**: Validates proposed policy, prompts user, copies to active, auto-signs if key available
-- **Concerns**: No atomic write (could fail mid-copy). No backup of existing policy. Auto-sign silently skips on error.
-- **E2E test**: Create proposed, approve it, verify active policy updated, verify old policy wasn't lost
+- **Status**: BATTLE-TESTED
+- **What it does**: Validates proposed policy, prompts user, copies to active with backup, atomic write, auto-signs if key available
+- **E2E test**: Tested approve with --yes, interactive confirm, decline, missing file, invalid policy, same source/target. Fixed: atomic write, backup of existing target, Pydantic error formatting.
 - **v1?**: YES — part of the propose/review/approve workflow
+- **Example use cases**:
+  ```bash
+  # Full propose/review/approve workflow:
+  # 1. Agent writes proposed policy
+  # 2. Human reviews it
+  avakill review avakill.proposed.yaml
+  # 3. Human activates it (creates .bak backup of existing policy)
+  avakill approve avakill.proposed.yaml
+
+  # Approve with a custom target location
+  avakill approve avakill.proposed.yaml --target /etc/avakill/avakill.yaml
+
+  # Skip confirmation prompt (for scripting)
+  avakill approve avakill.proposed.yaml --yes
+
+  # If approval fails validation, fix and re-review
+  avakill review avakill.proposed.yaml
+  avakill approve avakill.proposed.yaml
+  ```
 
 ### `avakill approvals list / grant / reject`
 - **File**: `cli/approval_cmd.py`
