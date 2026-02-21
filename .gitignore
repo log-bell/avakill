@@ -51,3 +51,6 @@ htmlcov/
 
 # Git worktrees
 .worktrees/
+
+# Project-local config
+CLAUDE.md
