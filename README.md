@@ -22,7 +22,7 @@ pipx install avakill    # Recommended
 # or: pip install avakill
 ```
 
-[Quickstart](#quickstart) · [Tutorial](docs/internal/tutorial-you-couldve-invented-avakill.md) · [Integrations](#framework-integrations) · [Policy Reference](#policy-configuration) · [Security](docs/internal/security-hardening.md) · [Deployment](docs/internal/deployment.md) · [CLI](docs/cli-reference.md) · [Cookbook](docs/cookbook.md) · [API](docs/api-reference.md) · [Contributing](CONTRIBUTING.md)
+[Quickstart](#quickstart) · [How It Works](#architecture) · [Integrations](#integrations) · [Policy Reference](#policy-configuration) · [CLI](#cli) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -43,30 +43,20 @@ These aren't edge cases. Research shows AI agents fail in **75% of real-world ta
 ## Quickstart
 
 ```bash
-pip install avakill
-avakill init
+pipx install avakill
+avakill guide          # Interactive setup — detects agents, generates policy, installs hooks
 ```
 
-> **Tip:** On macOS, use `pipx install avakill` or create a virtualenv first (`python3 -m venv .venv && source .venv/bin/activate`). System Python on macOS 14+ blocks global pip installs.
+> **Tip:** On macOS, use `pipx install avakill` (recommended). System Python on macOS 14+ blocks global pip installs.
 
-```python
-from avakill import Guard, protect
+That's it — two commands, zero code changes. AvaKill detects your AI agents, generates a safety policy, and installs hooks. Now when an agent tries something dangerous:
 
-guard = Guard()  # Auto-discovers avakill.yaml created by `avakill init`
-
-@protect(guard=guard)
-def search_users(query: str) -> str:
-    return db.execute("SELECT * FROM users WHERE name LIKE ?", (f"%{query}%",))
-
-@protect(guard=guard)
-def delete_user(user_id: str):
-    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
-
-search_users(query="active")   # ✅ Allowed — read operations pass through
-delete_user(user_id="123")     # ❌ Blocked — PolicyViolation raised
+```bash
+echo '{"tool": "Bash", "args": {"command": "rm -rf /"}}' | avakill evaluate --policy avakill.yaml
+# deny: Matched rule 'block-dangerous-shells'
 ```
 
-Two commands, four lines of code. Safe calls pass through, destructive calls are killed before they execute.
+Safe calls pass through. Destructive calls are killed before they execute.
 
 ## Features
 
@@ -75,7 +65,7 @@ Two commands, four lines of code. Safe calls pass through, destructive calls are
 <td width="50%">
 
 :lock: **Tool-Call Interception**<br>
-Block destructive operations before they execute. Works at the function level — no prompt engineering required.
+Block destructive operations before they execute. Works at the agent hook level — no prompt engineering required.
 
 </td>
 <td width="50%">
@@ -88,14 +78,14 @@ Simple, readable safety rules anyone can write. Glob patterns, argument matching
 <tr>
 <td>
 
-:electric_plug: **Framework Agnostic**<br>
-Drop-in support for OpenAI, Anthropic, LangChain, LangGraph, MCP, and any Python function via decorator.
+:satellite: **Native Agent Hooks**<br>
+Drop-in hooks for Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex. One command to install — no code changes to your agent.
 
 </td>
 <td>
 
 :bar_chart: **Audit Trail**<br>
-Complete SQLite log of every tool call and decision. Query with the CLI, export as JSON, or connect to your observability stack.
+Complete SQLite log of every tool call and decision. Query with the CLI, export as JSON, live tail in real-time.
 
 </td>
 </tr>
@@ -108,50 +98,50 @@ Complete SQLite log of every tool call and decision. Query with the CLI, export 
 </td>
 <td>
 
-:desktop_computer: **Live Dashboard**<br>
-Real-time Rich terminal UI. Watch tool calls flow through, see what's blocked, track denial rates — all from your terminal.
+:wrench: **Recovery UX**<br>
+`avakill fix` shows why a call was blocked and exactly how to unblock it — recovery hints, YAML snippets, and actionable steps.
 
 </td>
 </tr>
 <tr>
 <td>
 
-:link: **MCP Proxy**<br>
-Drop-in transparent proxy for any MCP server. One config change in Claude Desktop and every tool call is protected.
+:raised_hand: **Human-in-the-Loop Approvals**<br>
+`require_approval` policy action pauses execution until a human grants or rejects. Full approval workflow via CLI.
 
 </td>
 <td>
 
 :arrows_counterclockwise: **Hot Reload**<br>
-Update policies without restarting your agents. Call `guard.reload_policy()` or let the CLI handle it.
+Update policies without restarting your agents. The daemon reloads on SIGHUP, or use `avakill dashboard` to reload live.
 
 </td>
 </tr>
 <tr>
 <td>
 
-:satellite: **Native Agent Hooks**<br>
-Drop-in hooks for Claude Code, Gemini CLI, Cursor, and Windsurf. One command to install — no code changes to your agent.
+:shield: **Self-Protection**<br>
+Built-in anti-tampering rules prevent agents from disabling their own guardrails — hardcoded, not configurable.
 
 </td>
 <td>
 
 :gear: **Persistent Daemon**<br>
-Unix socket server with <5ms evaluation. Start once, protect every agent on your machine. SIGHUP to reload policies.
+Unix socket server with <5ms evaluation. Start once, protect every agent on your machine.
 
 </td>
 </tr>
 <tr>
 <td>
 
-:shield: **OS-Level Enforcement**<br>
-Landlock (Linux), sandbox-exec (macOS), and Tetragon (Kubernetes). Kernel-level restrictions that even root can't bypass.
+:key: **Policy Integrity**<br>
+Sign policies with HMAC-SHA256 or Ed25519. Verify signatures before enforcement. Detect tampering.
 
 </td>
 <td>
 
-:scroll: **Compliance Reporting**<br>
-Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate reports in table, JSON, or Markdown format.
+:page_facing_up: **Propose / Review / Approve**<br>
+Safe policy change workflow — propose changes, review diffs, approve with backup and optional auto-signing.
 
 </td>
 </tr>
@@ -162,17 +152,16 @@ Automated assessments for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001. Generate
 |  | No Protection | Prompt Guardrails | **AvaKill** |
 |---|:---:|:---:|:---:|
 | Stops destructive tool calls | :x: | :x: | :white_check_mark: |
-| Works across all frameworks | — | Partial | :white_check_mark: |
+| Works across all major agents | — | Partial | :white_check_mark: |
 | Deterministic (no LLM needed) | — | :x: | :white_check_mark: |
 | YAML-based policies | — | :x: | :white_check_mark: |
 | Full audit trail | :x: | :x: | :white_check_mark: |
-| MCP server support | — | :x: | :white_check_mark: |
+| Human-in-the-loop approvals | :x: | :x: | :white_check_mark: |
 | <1ms overhead | — | :x: (LLM round-trip) | :white_check_mark: |
 | Native agent hooks (no code changes) | — | :x: | :white_check_mark: |
-| OS-level kernel enforcement | — | :x: | :white_check_mark: |
 | Open source | — | Some | :white_check_mark: AGPL 3.0 |
 
-## Framework Integrations
+## Integrations
 
 ### Native Agent Hooks
 
@@ -180,69 +169,25 @@ Protect AI coding agents with zero code changes — just install the hook:
 
 ```bash
 avakill daemon start --policy avakill.yaml
-avakill hook install --agent claude-code  # or gemini-cli, cursor, windsurf, all
+avakill hook install --agent claude-code  # or gemini-cli, cursor, windsurf, openai-codex, all
 avakill hook list
 ```
 
 AvaKill intercepts every tool call at the agent level. Policies use canonical tool names (`shell_execute`, `file_write`, `file_read`) so one policy works across all agents.
 
-> See [`docs/internal/framework-integrations.md`](docs/internal/framework-integrations.md#native-agent-hooks) for per-agent details and the full tool normalization table.
+**Supported agents:**
 
-### OpenAI
+| Agent | Hook Status |
+|---|---|
+| Claude Code | Battle-tested |
+| Gemini CLI | Supported |
+| Cursor | Supported |
+| Windsurf | Supported |
+| OpenAI Codex | Supported |
 
-```python
-from openai import OpenAI
-from avakill.interceptors.openai_wrapper import GuardedOpenAIClient
+### Python SDK
 
-client = GuardedOpenAIClient(OpenAI(), policy="avakill.yaml")
-response = client.chat.completions.create(model="gpt-4o", tools=[...], messages=[...])
-# Denied tool_calls are automatically removed from the response
-# All decisions available at: response.avakill_decisions
-```
-
-### Anthropic
-
-```python
-from anthropic import Anthropic
-from avakill.interceptors.anthropic_wrapper import GuardedAnthropicClient
-
-client = GuardedAnthropicClient(Anthropic(), policy="avakill.yaml")
-response = client.messages.create(model="claude-sonnet-4-5-20250514", tools=[...], messages=[...])
-# Denied tool_use blocks are removed from response.content
-```
-
-### LangChain / LangGraph
-
-```python
-from avakill.interceptors.langchain_handler import AvaKillCallbackHandler
-
-handler = AvaKillCallbackHandler(policy="avakill.yaml")
-agent.invoke({"input": "..."}, config={"callbacks": [handler]})
-# Raises PolicyViolation before the tool executes
-```
-
-### MCP Proxy (Claude Desktop, Cursor, etc.)
-
-One config change — no code modifications to the MCP server:
-
-```jsonc
-// claude_desktop_config.json
-{
-  "mcpServers": {
-    "database": {
-      "command": "avakill",
-      "args": [
-        "mcp-proxy",
-        "--upstream-cmd", "python",
-        "--upstream-args", "db_server.py",
-        "--policy", "avakill.yaml"
-      ]
-    }
-  }
-}
-```
-
-### Decorator (any Python function)
+For programmatic integration, AvaKill's `Guard` is also available as a Python API:
 
 ```python
 from avakill import Guard, protect
@@ -252,6 +197,23 @@ guard = Guard(policy="avakill.yaml")
 @protect(guard=guard, on_deny="return_none")  # or "raise" (default), "callback"
 def execute_sql(query: str) -> str:
     return db.execute(query)
+```
+
+**Framework wrappers:**
+
+```python
+# OpenAI
+from avakill.interceptors.openai_wrapper import GuardedOpenAIClient
+client = GuardedOpenAIClient(OpenAI(), policy="avakill.yaml")
+
+# Anthropic
+from avakill.interceptors.anthropic_wrapper import GuardedAnthropicClient
+client = GuardedAnthropicClient(Anthropic(), policy="avakill.yaml")
+
+# LangChain / LangGraph
+from avakill.interceptors.langchain_handler import AvaKillCallbackHandler
+handler = AvaKillCallbackHandler(policy="avakill.yaml")
+agent.invoke({"input": "..."}, config={"callbacks": [handler]})
 ```
 
 > See [`examples/`](examples/) for complete runnable demos of every integration.
@@ -298,6 +260,12 @@ policies:
     tools: ["shell_execute", "run_command"]
     action: allow
 
+  # Require human approval for file writes
+  - name: "approve-writes"
+    tools: ["file_write"]
+    action: require_approval
+    message: "File writes require human approval."
+
   # Rate limit API calls
   - name: "rate-limit-search"
     tools: ["web_search"]
@@ -317,6 +285,7 @@ policies:
 - **Glob patterns** — `*`, `delete_*`, `*_execute` match tool names
 - **Argument matching** — `args_match` / `args_not_match` inspect arguments (case-insensitive substring)
 - **Rate limiting** — sliding window (`10s`, `5m`, `1h`)
+- **Approval gates** — `require_approval` pauses until a human grants or rejects
 - **Environment variables** — `${VAR_NAME}` substitution in YAML
 - **First-match-wins** — order matters, put specific rules before general ones
 
@@ -346,143 +315,147 @@ schema = get_json_schema()          # For structured output / validation
 prompt = generate_prompt()           # Self-contained LLM prompt
 ```
 
-> See [`docs/internal/llm-policy-prompt.md`](docs/internal/llm-policy-prompt.md) for a paste-ready prompt.
-
 ## CLI
 
+### Core Commands
+
 ```bash
-# Initialize a new policy file (auto-detects your framework)
-avakill init
+# Interactive setup — detects agents, generates policy, installs hooks
+avakill guide
 
 # Validate your policy file
 avakill validate avakill.yaml
 
-# Launch the real-time terminal dashboard
-avakill dashboard
+# Evaluate a tool call against policy
+echo '{"tool": "Bash", "args": {"command": "rm -rf /"}}' | avakill evaluate --policy avakill.yaml
 
-# Query audit logs
-avakill logs --denied-only --since 1h
-avakill logs --tool "execute_sql" --json
-avakill logs tail  # Follow in real-time
-
-# Start the MCP proxy
-avakill mcp-proxy --upstream-cmd python --upstream-args server.py --policy avakill.yaml
-
-# Export JSON Schema for the policy format
-avakill schema
-
-# Generate an LLM prompt for policy creation
-avakill schema --format=prompt
-avakill schema --format=prompt --tools="file_read,shell_exec" --use-case="code assistant"
-
-# Start the persistent daemon
-avakill daemon start --policy avakill.yaml
-
-# Evaluate a tool call via the daemon
-echo '{"tool": "shell_execute", "args": {"command": "rm -rf /"}}' | avakill evaluate --agent cli
+# See why a call was blocked and how to fix it
+avakill fix --db avakill_audit.db
 
 # Install hooks for all detected agents
 avakill hook install --agent all
 avakill hook list
 
-# Generate OS-level enforcement
-avakill enforce landlock --policy avakill.yaml --dry-run
-avakill enforce sandbox --policy avakill.yaml --output avakill.sb
+# Query audit logs
+avakill logs --db avakill_audit.db --denied-only --since 1h
+avakill logs --db avakill_audit.db --tool Bash --json
+avakill logs --db avakill_audit.db tail  # Live tail
 
-# Run compliance assessment
-avakill compliance report --framework soc2 --policy avakill.yaml
-avakill compliance gaps --policy avakill.yaml
+# Review and approve policy changes
+avakill review avakill.proposed.yaml
+avakill approve avakill.proposed.yaml
 
-# Manage approval workflows
+# Start the persistent daemon
+avakill daemon start --policy avakill.yaml --log-db avakill_audit.db
+avakill daemon status
+avakill daemon stop
+
+# Manage human-in-the-loop approvals
 avakill approvals list
 avakill approvals grant REQUEST_ID
+avakill approvals reject REQUEST_ID
 ```
 
-## Dashboard
+### Advanced Commands
 
-The dashboard shows:
-- **Safety overview** — total, allowed, denied, and pending counts with percentages
-- **Live tool calls** — real-time stream with tool name, action, policy, and argument previews
-- **Top denied tools** — bar chart of the most frequently blocked tools
-- **Keyboard shortcuts** — `q` quit, `r` reload policy, `c` clear
+```bash
+# Policy signing (HMAC-SHA256 or Ed25519)
+avakill keygen                           # Generate Ed25519 keypair
+avakill sign avakill.yaml                # Sign policy
+avakill verify avakill.yaml              # Verify signature
+
+# OS-level file protection
+avakill harden avakill.yaml              # Set immutable flags (requires sudo)
+avakill check-hardening avakill.yaml     # Report hardening status
+
+# Export JSON Schema / LLM prompt
+avakill schema
+avakill schema --format=prompt --tools="Bash,Write" --use-case="code assistant"
+
+# Agent containment profiles
+avakill profile list
+avakill profile show openclaw
+
+# Real-time terminal dashboard
+avakill dashboard --db avakill_audit.db --policy avakill.yaml --watch
+```
 
 ## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────────────────────────────────────┐     ┌──────────┐
-│                  │     │              AvaKill                            │     │          │
-│  AI Agent        │     │                                                 │     │   Tool   │
-│  (Claude Code,   │────>│  Native Hook ──> Daemon ──> Policy ──> Log     │────>│          │
-│   Gemini CLI,    │     │       │              │           │               │     │          │
-│   Cursor, etc.)  │     │       │         ┌────┴────┐     │               │     └──────────┘
-│                  │     │       │      Allow      Deny    │               │
-└─────────────────┘     │       │         │         │ ──> Audit Log       │
-                        │       │         v         v      │               │
-                        │       │   Forward to    Block &  │               │
-                        │       │     Tool       Return    │               │
-                        │       │                Error     │               │
-                        │       v                          v               │
-                        │  ┌─ OS Enforcement ──────────────────────────┐   │
-                        │  │ Landlock · sandbox-exec · Tetragon        │   │
-                        │  └───────────────────────────────────────────┘   │
-                        └─────────────────────────────────────────────────┘
+┌─────────────────┐     ┌──────────────────────────────────────────────┐     ┌──────────┐
+│                  │     │              AvaKill                         │     │          │
+│  AI Agent        │     │                                              │     │   Tool   │
+│  (Claude Code,   │────>│  Hook ──> Daemon ──> Guard ──> Policy ──> Log│────>│          │
+│   Gemini CLI,    │     │                        │           │         │     │          │
+│   Cursor, etc.)  │     │                   ┌────┴────┐      │         │     └──────────┘
+│                  │     │                Allow    Deny/     │         │
+└─────────────────┘     │                  │     Approve     │         │
+                        │                  v       │         │         │
+                        │            Forward to   Block &   Audit     │
+                        │              Tool      Return     Log      │
+                        │                        Error               │
+                        └──────────────────────────────────────────────┘
 ```
 
-AvaKill protects your agents at multiple levels: **native hooks** intercept tool calls at the agent level, a **persistent daemon** provides sub-5ms evaluation over a Unix socket, **policy rules** enforce first-match-wins logic with glob patterns and rate limiting, and **OS-level enforcement** (Landlock, sandbox-exec, Tetragon) provides kernel-level restrictions.
+AvaKill protects your agents at multiple levels: **native hooks** intercept tool calls at the agent level, a **persistent daemon** provides sub-5ms evaluation over a Unix socket, and **policy rules** enforce first-match-wins logic with glob patterns, rate limiting, and human-in-the-loop approval gates.
 
 **Core components:**
-- **`Guard`** — the main entry point. Wraps a `PolicyEngine`, records audit events.
+- **`Guard`** — the main entry point. Wraps a `PolicyEngine`, records audit events. Also available as a Python API via `Guard.evaluate(tool, args)`.
 - **`PolicyEngine`** — parses YAML, evaluates tool calls against rules with first-match-wins logic.
-- **Interceptors** — framework-specific wrappers (OpenAI, Anthropic, LangChain, decorator).
-- **MCP Proxy** — transparent stdio proxy that sits in front of any MCP server.
-- **Audit Logger** — async SQLite logger with batched writes and WAL mode.
-- **Event Bus** — in-process pub/sub for real-time dashboard and monitoring.
+- **`Audit Logger`** — async SQLite logger with batched writes and WAL mode.
+- **`Event Bus`** — in-process pub/sub for real-time dashboard and monitoring.
 - **`DaemonServer`** — persistent Unix socket server for <5ms evaluation without in-process integration.
-- **`Hook Adapters`** — native integrations for Claude Code, Gemini CLI, Cursor, and Windsurf.
+- **`Hook Adapters`** — native integrations for Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex.
 - **`ToolNormalizer`** — translates agent-specific tool names to canonical names for universal policies.
 - **`PolicyCascade`** — discovers and merges policies from system, global, project, and local levels.
-- **`Enforcement Backends`** — Landlock (Linux), sandbox-exec (macOS), and Tetragon (Kubernetes) for OS-level restrictions.
-- **`ComplianceAssessor`** — automated compliance checks for SOC 2, NIST AI RMF, EU AI Act, and ISO 42001.
+- **`ApprovalStore`** — SQLite-backed human-in-the-loop approval workflow.
+- **`PolicyIntegrity`** — HMAC-SHA256 + Ed25519 policy signing and verification.
 
 ## Roadmap
 
 ### Stable
 
-Core features with extensive test coverage, ready for production use.
+Core features, battle-tested and ready for production use.
 
 - [x] Core policy engine with glob patterns, argument matching, rate limiting
-- [x] OpenAI, Anthropic, LangChain/LangGraph interceptors
-- [x] `@protect` decorator for any Python function
-- [x] MCP transparent proxy (stdio transport)
-- [x] SQLite audit logging with async batched writes
-- [x] Rich terminal dashboard with live event stream
-- [x] CLI: `init`, `validate`, `logs`, `dashboard`, `mcp-proxy`, `schema`
-- [x] Hot-reload with file watcher
+- [x] Interactive setup wizard (`avakill guide`)
+- [x] Native agent hooks (Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex)
 - [x] Persistent daemon with Unix socket (<5ms evaluation)
-- [x] Agent hook adapters (Claude Code, Gemini CLI, Cursor, Windsurf)
+- [x] SQLite audit logging with async batched writes
 - [x] Tool name normalization across agents
 - [x] Multi-level policy cascade (system/global/project/local)
+- [x] Human-in-the-loop approval workflows
+- [x] Policy propose / review / approve workflow
+- [x] Recovery UX (`avakill fix`)
+- [x] Self-protection (hardcoded anti-tampering rules)
 
-### Shipped (beta)
+### Advanced
 
-Implemented and tested. Maturing toward stable in upcoming releases.
+Shipped and tested. Available for security-conscious and enterprise users.
 
 - [x] Policy signing (HMAC-SHA256 + Ed25519)
-- [x] Self-protection (hardcoded anti-tampering rules)
-- [x] OS-level hardening (chattr/schg, SELinux, AppArmor, seccomp)
-- [x] C-level audit hooks (optional hardened extension)
-- [x] OpenTelemetry + Prometheus observability
-- [x] Enforcement levels (hard/soft/advisory)
-- [x] OS-level enforcement (Landlock, macOS sandbox-exec, Tetragon)
+- [x] OS-level file hardening (chattr/schg immutable flags)
+- [x] Agent containment profiles
+- [x] JSON Schema export + LLM prompt generation
+- [x] Rich terminal dashboard with live event stream
+- [x] `@protect` decorator for any Python function
+- [x] Framework wrappers (OpenAI, Anthropic, LangChain/LangGraph)
+
+### Shipped (untested)
+
+Code complete with unit tests, but not yet validated on real infrastructure.
+
+- [x] OS-level enforcement — Landlock (Linux), sandbox-exec (macOS), Tetragon (Kubernetes), Windows AppContainer
+- [x] MCP transparent proxy (stdio transport)
 - [x] Compliance reports (SOC 2, NIST AI RMF, EU AI Act, ISO 42001)
-- [x] Human-in-the-loop approval workflows
-- [x] Audit analytics engine
+- [x] OpenTelemetry + Prometheus observability
 
 ### Planned
 
+- [ ] MCP HTTP transport proxy (Streamable HTTP)
 - [ ] Web dashboard (Next.js)
 - [ ] Slack / webhook / PagerDuty notifications
-- [ ] MCP HTTP transport proxy (Streamable HTTP)
 - [ ] CrewAI / AutoGen / custom framework interceptors
 
 ## Contributing
