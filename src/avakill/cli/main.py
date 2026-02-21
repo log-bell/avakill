@@ -17,15 +17,14 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "enforce": ("avakill.cli.enforce_cmd", "enforce"),
     "evaluate": ("avakill.cli.evaluate_cmd", "evaluate"),
     "fix": ("avakill.cli.fix_cmd", "fix"),
+    "guide": ("avakill.cli.guide_cmd", "guide"),
     "harden": ("avakill.cli.harden_cmd", "harden"),
     "hook": ("avakill.cli.hook_cmd", "hook"),
     "launch": ("avakill.cli.launch_cmd", "launch"),
-    "init": ("avakill.cli.init_cmd", "init"),
     "keygen": ("avakill.cli.keygen_cmd", "keygen"),
     "logs": ("avakill.cli.logs_cmd", "logs"),
     "mcp-proxy": ("avakill.cli.mcp_proxy_cmd", "mcp_proxy"),
     "profile": ("avakill.cli.profile_cmd", "profile"),
-    "quickstart": ("avakill.cli.quickstart_cmd", "quickstart"),
     "mcp-unwrap": ("avakill.cli.mcp_wrap_cmd", "mcp_unwrap"),
     "mcp-wrap": ("avakill.cli.mcp_wrap_cmd", "mcp_wrap"),
     "metrics": ("avakill.cli.metrics_cmd", "metrics"),
@@ -37,7 +36,7 @@ _COMMANDS: dict[str, tuple[str, str]] = {
 }
 
 _COMMAND_GROUPS: list[tuple[str, list[str]]] = [
-    ("Getting Started", ["quickstart", "init", "guide", "validate", "dashboard", "logs"]),
+    ("Getting Started", ["guide", "validate", "dashboard", "logs"]),
     (
         "Integrations",
         ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "daemon", "hook", "evaluate", "launch", "profile"],

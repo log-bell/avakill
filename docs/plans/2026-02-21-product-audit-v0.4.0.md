@@ -45,6 +45,15 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **E2E test**: Run in empty project, Python project, Node project — verify generated policy is valid
 - **v1?**: MAYBE — overlaps with quickstart. Could confuse users to have both `init` and `quickstart`.
 
+### `avakill guide`
+- **⏳ REVISIT LAST** — overlaps with quickstart and init; decide whether to merge, differentiate, or remove
+- **File**: `cli/guide_cmd.py` (543+ lines)
+- **Status**: PRODUCTION
+- **What it does**: Interactive wizard for protection modes and policy creation
+- **Concerns**: Large interactive flow. Never tested by a real user. Overlaps with quickstart.
+- **E2E test**: Walk through each wizard path, verify generated config is valid
+- **v1?**: MAYBE — overlaps with quickstart
+
 ### `avakill hook install / uninstall / list`
 - **File**: `cli/hook_cmd.py`
 - **Status**: BATTLE-TESTED
@@ -609,21 +618,44 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   avakill compliance gaps
   ```
 
-### `avakill mcp-wrap / mcp-unwrap`
-- **File**: `cli/mcp_wrap_cmd.py` + `mcp/wrapper.py`
-- **Status**: PRODUCTION
-- **What it does**: Rewrites MCP server configs to route through avakill proxy
-- **Concerns**: Modifies real agent configs (Claude Desktop, Cursor). One wrong JSON write breaks the agent. Has backup/restore.
-- **E2E test**: Wrap a test config, verify original backed up, unwrap, verify restored
-- **v1?**: MAYBE — pairs with mcp-proxy
+### `avakill mcp-wrap / mcp-unwrap` ✅
+- **File**: `cli/mcp_wrap_cmd.py` + `mcp/wrapper.py` + `mcp/config.py`
+- **Status**: BATTLE-TESTED
+- **What it does**: Discovers MCP server configs from installed AI agents and rewrites them so every MCP tool call routes through `avakill mcp-proxy` for policy evaluation. `mcp-unwrap` reverses the process. Creates `.bak` backup before writing. Idempotent — wrapping twice shows "already wrapped".
+- **E2E test**: Auto-discovery found real Claude Desktop config (2 servers). Synthetic Cursor config tested end-to-end: dry-run preview, wrap (verified rewritten JSON + .bak backup), idempotent re-wrap ("already wrapped"), unwrap (verified restored to original). Error paths: no configs found, invalid agent choice.
+- **v1?**: MAYBE — pairs with mcp-proxy (which is FUTURE RELEASE)
+- **How it works**: If you have an AI agent with MCP servers configured (Claude Desktop, Cursor, Windsurf, Cline, Continue), `mcp-wrap` finds those configs automatically and rewrites each server's command from e.g. `"npx" ["-y", "@modelcontextprotocol/server-filesystem"]` to `"avakill" ["mcp-proxy", "--policy", "avakill.yaml", "--upstream-cmd", "npx", "--upstream-args", "-y @modelcontextprotocol/server-filesystem"]`. This means every tool call passes through AvaKill's policy engine before reaching the real MCP server.
+- **Config paths searched**:
+  | Agent | macOS | Linux |
+  |-------|-------|-------|
+  | claude-desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | `~/.config/claude/claude_desktop_config.json` |
+  | cursor | `.cursor/mcp.json` (CWD or `~/`) | same |
+  | windsurf | `.windsurf/mcp.json` or `~/.codeium/windsurf/mcp.json` | same |
+  | cline | `.vscode/cline_mcp_settings.json` | same |
+  | continue | `.continue/config.json` | same |
+- **Example use cases**:
+  ```bash
+  # See which agents have MCP configs on your machine (safe, no writes)
+  avakill mcp-wrap --dry-run
 
-### `avakill guide`
-- **File**: `cli/guide_cmd.py` (543+ lines)
-- **Status**: PRODUCTION
-- **What it does**: Interactive wizard for protection modes and policy creation
-- **Concerns**: Large interactive flow. Never tested by a real user. Overlaps with quickstart.
-- **E2E test**: Walk through each wizard path, verify generated config is valid
-- **v1?**: MAYBE — overlaps with quickstart
+  # Wrap all detected agents (creates .bak backup automatically)
+  avakill mcp-wrap --policy avakill.yaml
+
+  # Wrap a specific agent only
+  avakill mcp-wrap --agent claude-desktop --policy avakill.yaml
+
+  # Use daemon mode instead of embedded policy (requires avakill daemon running)
+  avakill mcp-wrap --agent cursor --daemon
+
+  # Verify — wrap again, should say "already wrapped" (idempotent)
+  avakill mcp-wrap --dry-run
+
+  # Undo — restore original configs from .bak
+  avakill mcp-unwrap
+  avakill mcp-unwrap --agent claude-desktop
+
+  # Supported agents: claude-desktop, cursor, windsurf, cline, continue, all
+  ```
 
 ---
 
@@ -638,12 +670,12 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 | `core/cascade.py` | PRODUCTION | Multi-level policy discovery + merge. 2 pre-existing test failures. |
 | `core/normalization.py` | PRODUCTION | Agent-specific tool name mappings |
 | `core/approval.py` | BATTLE-TESTED | SQLite-backed approval store. Fixed 6 bugs: wired into Guard, prefix ID resolution, get_approved_for_tool query |
-| `core/recovery.py` | PRODUCTION | Denial → recovery hint mapping |
-| `core/integrity.py` | PRODUCTION | HMAC + Ed25519 policy signing |
+| `core/recovery.py` | BATTLE-TESTED | Denial → recovery hint mapping. Tested via `fix` command E2E |
+| `core/integrity.py` | BATTLE-TESTED | HMAC + Ed25519 policy signing. Both algorithms tested E2E |
 | `core/watcher.py` | PRODUCTION | File watching with watchfiles + polling fallback |
-| `daemon/server.py` | PRODUCTION | Async Unix socket server |
-| `daemon/client.py` | PRODUCTION | Sync client, fail-closed |
-| `daemon/transport.py` | PRODUCTION | Unix socket + TCP |
+| `daemon/server.py` | BATTLE-TESTED | Async Unix socket server. Full lifecycle tested E2E |
+| `daemon/client.py` | BATTLE-TESTED | Sync client, fail-closed. Tested via daemon evaluate |
+| `daemon/transport.py` | BATTLE-TESTED | Unix socket tested via daemon start/stop/evaluate |
 | `hooks/installer.py` | BATTLE-TESTED | Agent detection + hook install |
 | `hooks/claude_code.py` | BATTLE-TESTED | Pre-tool-use hook adapter |
 | `hooks/gemini_cli.py` | PRODUCTION | Untested with real Gemini CLI |
@@ -654,11 +686,11 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 | `enforcement/sandbox_exec.py` | PRODUCTION | SBPL generation, never run on real macOS sandbox |
 | `enforcement/tetragon.py` | PRODUCTION | YAML generation only |
 | `enforcement/windows.py` | PRODUCTION | Never run on Windows |
-| `compliance/*` | PRODUCTION | Framework mappings, untested by domain expert |
+| `compliance/*` | BATTLE-TESTED | All 4 frameworks tested E2E (SOC 2, NIST, EU AI Act, ISO 42001), all output formats |
 | `mcp/proxy.py` | PRODUCTION | 23KB, never tested with real MCP server |
-| `mcp/config.py` | PRODUCTION | Config discovery + parsing |
-| `mcp/wrapper.py` | PRODUCTION | Config wrapping + backup |
-| `profiles/*` | PRODUCTION | YAML profiles for agents |
+| `mcp/config.py` | BATTLE-TESTED | Config discovery + parsing |
+| `mcp/wrapper.py` | BATTLE-TESTED | Config wrapping + backup |
+| `profiles/*` | BATTLE-TESTED | All 5 profiles tested E2E (openclaw, cline, continue, swe-agent, aider) |
 | `launcher/*` | PRODUCTION | Process launcher + PTY relay |
 
 ---

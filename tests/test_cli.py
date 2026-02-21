@@ -89,7 +89,7 @@ class TestCLIBasics:
         assert result.exit_code == 0
         assert "AvaKill" in result.output
         assert "approve" in result.output
-        assert "init" in result.output
+        assert "guide" in result.output
         assert "dashboard" in result.output
         assert "logs" in result.output
         assert "mcp-proxy" in result.output
@@ -150,102 +150,120 @@ class TestLazyGroup:
 
 
 class TestInitCommand:
-    def test_init_default_template(self, runner: CliRunner, tmp_path: Path) -> None:
+    """Tests for the init command (no longer registered in CLI, but module still exists)."""
+
+    @pytest.fixture()
+    def init_cmd(self):
+        from avakill.cli.init_cmd import init
+
+        return init
+
+    def test_init_default_template(self, runner: CliRunner, tmp_path: Path, init_cmd) -> None:
         output = tmp_path / "avakill.yaml"
-        result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        result = runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
         assert result.exit_code == 0
         assert output.exists()
         content = output.read_text()
         assert "version" in content
         assert "default_action" in content
 
-    def test_init_strict_template(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_strict_template(self, runner: CliRunner, tmp_path: Path, init_cmd) -> None:
         output = tmp_path / "avakill.yaml"
-        result = runner.invoke(cli, ["init", "--template", "strict", "--output", str(output)])
+        result = runner.invoke(init_cmd, ["--template", "strict", "--output", str(output)])
         assert result.exit_code == 0
         assert output.exists()
         content = output.read_text()
         assert "strict" in content.lower() or "deny" in content
 
-    def test_init_permissive_template(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_permissive_template(self, runner: CliRunner, tmp_path: Path, init_cmd) -> None:
         output = tmp_path / "avakill.yaml"
-        result = runner.invoke(cli, ["init", "--template", "permissive", "--output", str(output)])
+        result = runner.invoke(init_cmd, ["--template", "permissive", "--output", str(output)])
         assert result.exit_code == 0
         assert output.exists()
         content = output.read_text()
         assert "default_action: allow" in content
 
-    def test_init_generates_valid_policy(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_generates_valid_policy(self, runner: CliRunner, tmp_path: Path, init_cmd) -> None:
         """The generated file should be loadable by the policy engine."""
         from avakill.core.policy import PolicyEngine
 
         output = tmp_path / "avakill.yaml"
-        runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
         engine = PolicyEngine.from_yaml(output)
         assert engine.config.version == "1.0"
         assert len(engine.config.policies) > 0
 
-    def test_init_detects_frameworks(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_detects_frameworks(self, runner: CliRunner, tmp_path: Path, init_cmd) -> None:
         """When pyproject.toml mentions openai, init should detect it."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\ndependencies = ["openai>=1.0"]\n')
         output = tmp_path / "avakill.yaml"
 
         with patch("avakill.cli.init_cmd.Path.cwd", return_value=tmp_path):
-            result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+            result = runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
 
         assert result.exit_code == 0
         assert "openai" in result.output.lower()
 
-    def test_init_no_overwrite_without_confirm(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_no_overwrite_without_confirm(
+        self,
+        runner: CliRunner,
+        tmp_path: Path,
+        init_cmd,
+    ) -> None:
         output = tmp_path / "avakill.yaml"
         output.write_text("existing content")
 
         result = runner.invoke(
-            cli,
-            ["init", "--template", "default", "--output", str(output)],
+            init_cmd,
+            ["--template", "default", "--output", str(output)],
             input="n\n",
         )
         assert result.exit_code == 0
         assert output.read_text() == "existing content"
 
-    def test_init_next_steps_uses_output_filename(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_next_steps_uses_output_filename(
+        self,
+        runner: CliRunner,
+        tmp_path: Path,
+        init_cmd,
+    ) -> None:
         """Step 1 should reflect the --output filename, not hardcode avakill.yaml."""
         output = tmp_path / "custom.yaml"
-        result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        result = runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
         assert result.exit_code == 0
         assert "custom.yaml" in result.output
         # Should NOT reference the default name when a custom one is given
         assert "avakill.yaml" not in result.output.split("Next steps")[1]
 
     def test_init_no_snippet_reference_without_frameworks(
-        self, runner: CliRunner, tmp_path: Path
+        self, runner: CliRunner, tmp_path: Path, init_cmd
     ) -> None:
         """When no frameworks are detected, 'see snippet above' must not appear."""
         output = tmp_path / "avakill.yaml"
         with patch("avakill.cli.init_cmd.Path.cwd", return_value=tmp_path):
-            result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+            result = runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
         assert result.exit_code == 0
         assert "see snippet above" not in result.output
 
     def test_init_snippet_reference_with_frameworks(
-        self, runner: CliRunner, tmp_path: Path
+        self, runner: CliRunner, tmp_path: Path, init_cmd
     ) -> None:
         """When frameworks are detected, 'see snippet above' should appear."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\ndependencies = ["openai>=1.0"]\n')
         output = tmp_path / "avakill.yaml"
         with patch("avakill.cli.init_cmd.Path.cwd", return_value=tmp_path):
-            result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+            result = runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
         assert result.exit_code == 0
         assert "see snippet above" in result.output
 
     def test_init_mentions_audit_logging_before_dashboard(
-        self, runner: CliRunner, tmp_path: Path
+        self, runner: CliRunner, tmp_path: Path, init_cmd
     ) -> None:
         """Audit logging step should appear before dashboard step."""
         output = tmp_path / "avakill.yaml"
-        result = runner.invoke(cli, ["init", "--template", "default", "--output", str(output)])
+        result = runner.invoke(init_cmd, ["--template", "default", "--output", str(output)])
         assert result.exit_code == 0
         out = result.output.lower()
         audit_pos = out.find("audit logging")
