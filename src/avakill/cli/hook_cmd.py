@@ -37,8 +37,14 @@ def install(agent: str) -> None:
                 f"[green]Installed[/green] hook for [bold]{a}[/bold] -> {result.config_path}"
             )
             console.print(f"  Command: [cyan]{result.command}[/cyan]")
-            if result.smoke_test_passed:
+            if result.smoke_test_passed is True:
                 console.print("  Smoke test: [green]passed[/green]")
+            elif result.smoke_test_passed is False:
+                console.print("  Smoke test: [bold red]FAILED[/bold red]")
+                console.print(
+                    "  [bold red]The hook will NOT work.[/bold red] "
+                    f"Verify that '{result.command}' is on PATH or reinstall avakill."
+                )
             for warning in result.warnings:
                 console.print(f"  [yellow]Warning:[/yellow] {warning}")
         except Exception as exc:  # noqa: BLE001

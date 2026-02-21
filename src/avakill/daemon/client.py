@@ -2,7 +2,8 @@
 
 Uses stdlib :mod:`socket` (no asyncio) so that hook scripts — which are
 short-lived processes — can evaluate a tool call with minimal overhead.
-Falls back to a deny decision if the daemon is unreachable (fail-closed).
+Falls back to a deny decision if the daemon is unreachable (fail-closed),
+or returns ``None`` via :meth:`~DaemonClient.try_evaluate` for soft fallback.
 """
 
 from __future__ import annotations
@@ -73,6 +74,18 @@ class DaemonClient:
                 decision="deny",
                 reason=f"daemon unavailable: {exc}",
             )
+
+    def try_evaluate(self, request: EvaluateRequest) -> EvaluateResponse | None:
+        """Send an evaluation request, returning ``None`` if the daemon is unreachable.
+
+        Unlike :meth:`evaluate`, this does **not** synthesize a deny response
+        on connection failure — it returns ``None`` so the caller can fall
+        through to the next evaluation strategy.
+        """
+        try:
+            return self._send(request)
+        except Exception:  # noqa: BLE001
+            return None
 
     def ping(self) -> bool:
         """Check if the daemon is reachable by sending a minimal request."""

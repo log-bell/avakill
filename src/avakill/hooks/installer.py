@@ -131,8 +131,10 @@ def _hook_command(agent: str) -> str:
     if found:
         return found
 
-    # 2. Try sibling of sys.executable (same venv)
-    bin_dir = Path(sys.executable).resolve().parent
+    # 2. Try sibling of sys.executable (same venv).
+    # Use .parent (not .resolve().parent) so symlinked venvs stay in
+    # the venv bin/ dir instead of following into e.g. Homebrew Cellar.
+    bin_dir = Path(sys.executable).parent
     candidate = bin_dir / bare
     if candidate.is_file():
         return str(candidate)

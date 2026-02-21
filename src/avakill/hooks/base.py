@@ -2,6 +2,14 @@
 
 Each adapter translates between an agent's native hook payload
 (received on stdin) and the AvaKill daemon wire protocol.
+
+Evaluation order (fallback chain):
+
+1. Self-protection (always, no policy needed)
+2. ``AVAKILL_POLICY`` env var → standalone eval
+3. Running daemon → ``try_evaluate()``
+4. Auto-discover ``avakill.yaml`` / ``avakill.yml`` in cwd → standalone eval
+5. No policy source → allow with stderr warning
 """
 
 from __future__ import annotations
@@ -10,9 +18,9 @@ import json
 import os
 import sys
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import NoReturn
 
-from avakill.daemon.client import DaemonClient
 from avakill.daemon.protocol import EvaluateRequest, EvaluateResponse
 
 
@@ -61,10 +69,15 @@ class HookAdapter(ABC):
         return exit_code
 
     def run(self, stdin_data: str | None = None) -> NoReturn:
-        """Read stdin, evaluate via daemon, format output, and exit.
+        """Read stdin, evaluate via the fallback chain, format output, and exit.
 
-        If *stdin_data* is ``None``, reads from :data:`sys.stdin`.
-        Falls back to standalone mode when ``AVAKILL_POLICY`` is set.
+        Fallback chain:
+
+        1. Self-protection (always, no policy needed)
+        2. ``AVAKILL_POLICY`` env var → standalone eval
+        3. Running daemon → ``try_evaluate()``
+        4. Auto-discover ``avakill.yaml`` / ``avakill.yml`` in cwd
+        5. No policy source → allow with stderr warning
         """
         raw = stdin_data if stdin_data is not None else sys.stdin.read()
 
@@ -75,15 +88,88 @@ class HookAdapter(ABC):
             print(f"avakill: failed to parse stdin: {exc}", file=sys.stderr)
             sys.exit(2)
 
+        # --- Fallback chain ---
+
+        # 1. Self-protection (hardcoded, no policy needed)
+        response = self._check_self_protection(request)
+        if response is not None:
+            exit_code = self.output_response(response)
+            sys.exit(exit_code)
+
+        # 2. AVAKILL_POLICY env var → standalone eval
         policy_path = os.environ.get("AVAKILL_POLICY")
         if policy_path:
             response = self._evaluate_standalone(request, policy_path)
-        else:
-            client = DaemonClient()
-            response = client.evaluate(request)
+            exit_code = self.output_response(response)
+            sys.exit(exit_code)
 
+        # 3. Running daemon → try_evaluate (returns None if unreachable)
+        response = self._try_daemon(request)
+        if response is not None:
+            exit_code = self.output_response(response)
+            sys.exit(exit_code)
+
+        # 4. Auto-discover avakill.yaml / avakill.yml in cwd
+        response = self._try_local_policy(request)
+        if response is not None:
+            exit_code = self.output_response(response)
+            sys.exit(exit_code)
+
+        # 5. No policy source → allow with warning
+        print(
+            "avakill: no policy source found (no AVAKILL_POLICY, no daemon, "
+            "no avakill.yaml in cwd). Allowing tool call. "
+            "Run `avakill init --template hooks` to create a policy.",
+            file=sys.stderr,
+        )
+        response = EvaluateResponse(decision="allow", reason="no policy source")
         exit_code = self.output_response(response)
         sys.exit(exit_code)
+
+    # ------------------------------------------------------------------
+    # Fallback chain helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _check_self_protection(request: EvaluateRequest) -> EvaluateResponse | None:
+        """Run hardcoded self-protection checks before any policy.
+
+        Returns a deny :class:`EvaluateResponse` if the tool call is
+        blocked, or ``None`` to continue the fallback chain.
+        """
+        from avakill.core.models import ToolCall
+        from avakill.core.normalization import normalize_tool_name
+        from avakill.core.self_protection import SelfProtection
+
+        canonical_tool = normalize_tool_name(request.tool, request.agent)
+        tool_call = ToolCall(tool_name=canonical_tool, arguments=request.args or {})
+
+        decision = SelfProtection().check(tool_call)
+        if decision is not None:
+            return EvaluateResponse(
+                decision="deny",
+                reason=decision.reason,
+                policy="self-protection",
+            )
+        return None
+
+    @staticmethod
+    def _try_daemon(request: EvaluateRequest) -> EvaluateResponse | None:
+        """Try the daemon, returning ``None`` if unreachable."""
+        from avakill.daemon.client import DaemonClient
+
+        client = DaemonClient()
+        return client.try_evaluate(request)
+
+    @staticmethod
+    def _try_local_policy(request: EvaluateRequest) -> EvaluateResponse | None:
+        """Look for ``avakill.yaml`` or ``avakill.yml`` in the cwd."""
+        cwd = Path.cwd()
+        for name in ("avakill.yaml", "avakill.yml"):
+            candidate = cwd / name
+            if candidate.is_file():
+                return HookAdapter._evaluate_standalone(request, str(candidate))
+        return None
 
     # ------------------------------------------------------------------
     # Internal

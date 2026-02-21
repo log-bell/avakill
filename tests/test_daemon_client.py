@@ -114,3 +114,45 @@ class TestDaemonClient:
             assert resp.policy == "deny-delete"
         finally:
             await server.stop()
+
+
+class TestDaemonClientTryEvaluate:
+    """Tests for DaemonClient.try_evaluate() soft-fallback method."""
+
+    def test_connection_refused_returns_none(self, socket_path: Path) -> None:
+        """Unlike evaluate(), try_evaluate() returns None when daemon is unreachable."""
+        client = DaemonClient(socket_path=socket_path, timeout=0.5)
+        result = client.try_evaluate(EvaluateRequest(agent="test", tool="file_read"))
+        assert result is None
+
+    async def test_try_evaluate_allowed(
+        self, guard: Guard, socket_path: Path, pid_path: Path
+    ) -> None:
+        """When daemon is running, try_evaluate returns a normal response."""
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
+        await server.start()
+        try:
+            client = DaemonClient(socket_path=socket_path)
+            resp = await asyncio.to_thread(
+                client.try_evaluate, EvaluateRequest(agent="test", tool="file_read")
+            )
+            assert resp is not None
+            assert resp.decision == "allow"
+        finally:
+            await server.stop()
+
+    async def test_try_evaluate_denied(
+        self, guard: Guard, socket_path: Path, pid_path: Path
+    ) -> None:
+        """When daemon is running, try_evaluate returns deny responses normally."""
+        server = DaemonServer(guard, socket_path=socket_path, pid_file=pid_path)
+        await server.start()
+        try:
+            client = DaemonClient(socket_path=socket_path)
+            resp = await asyncio.to_thread(
+                client.try_evaluate, EvaluateRequest(agent="test", tool="file_delete")
+            )
+            assert resp is not None
+            assert resp.decision == "deny"
+        finally:
+            await server.stop()
