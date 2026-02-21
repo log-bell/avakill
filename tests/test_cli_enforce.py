@@ -469,9 +469,9 @@ class TestSandboxExecEnforcer:
         # Balanced parentheses
         open_count = profile.count("(")
         close_count = profile.count(")")
-        assert (
-            open_count == close_count
-        ), f"Unbalanced parens: {open_count} open vs {close_count} close"
+        assert open_count == close_count, (
+            f"Unbalanced parens: {open_count} open vs {close_count} close"
+        )
 
         # All three categories present
         assert "file-write" in profile
