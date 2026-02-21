@@ -44,31 +44,66 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **E2E test**: Already tested live. Needs testing on other agents (Gemini, Cursor, Windsurf, Codex).
 - **v1?**: YES — critical path
 
-### `avakill validate`
+### `avakill validate` ✅
 - **File**: `cli/validate_cmd.py` (209 lines)
-- **Status**: PRODUCTION
+- **Status**: BATTLE-TESTED
 - **What it does**: Validates YAML syntax, schema, shows rules table, detects shadowed rules
 - **Dependencies**: `PolicyEngine.from_dict()`, `ConfigError`
 - **Concerns**: Likely used during development but needs explicit E2E verification
 - **E2E test**: Feed it valid, invalid, and edge-case YAML files, verify output
 - **v1?**: YES
+- **Example use cases**:
+  ```bash
+  # Check your policy is valid after editing
+  avakill validate
 
-### `avakill evaluate`
+  # Validate a specific policy file
+  avakill validate /path/to/custom-policy.yaml
+
+  # CI gate — exits 1 on invalid policy, 0 on valid
+  avakill validate avakill.yaml || echo "Policy is broken!"
+  ```
+
+### `avakill evaluate` ✅
 - **File**: `cli/evaluate_cmd.py` (225 lines)
 - **Status**: BATTLE-TESTED
 - **What it does**: Evaluates a tool call against policy. Dual-mode: daemon or standalone. Reads JSON from stdin.
 - **Evidence**: This is what the hook binaries call. Working in production right now.
 - **E2E test**: Already tested live via hooks
 - **v1?**: YES — the engine
+- **Example use cases**:
+  ```bash
+  # Test if a specific tool call would be blocked
+  echo '{"tool": "Bash", "args": {"cmd": "rm -rf /"}}' | avakill evaluate --policy avakill.yaml
 
-### `avakill fix`
+  # Get machine-readable JSON output for scripting
+  echo '{"tool": "Write", "args": {"path": "/etc/passwd"}}' | avakill evaluate --policy avakill.yaml --json
+
+  # Test rate limiting — simulate 50 rapid calls
+  echo '{"tool": "Bash", "args": {"cmd": "curl api.example.com"}}' | avakill evaluate --policy avakill.yaml --simulate-burst 50
+
+  # Evaluate via running daemon (no --policy needed)
+  echo '{"tool": "Bash", "args": {"cmd": "ls"}}' | avakill evaluate
+  ```
+
+### `avakill fix` ✅
 - **File**: `cli/fix_cmd.py` (159 lines)
-- **Status**: PRODUCTION
-- **What it does**: Queries audit DB, maps denials to recovery hints, renders rich cards
+- **Status**: BATTLE-TESTED
+- **What it does**: Queries audit DB, maps denials to recovery hints, renders rich cards with steps, commands, and YAML snippets
 - **Dependencies**: `SQLiteLogger`, `recovery_hint_for()`
-- **Concerns**: Referenced in denial messages but has anyone actually run it after a denial and gotten useful output?
-- **E2E test**: Trigger a denial, run `avakill fix`, verify the hint is actionable
+- **E2E test**: Triggered denial via daemon, verified fix card renders with actionable guidance
 - **v1?**: YES — recovery UX
+- **Example use cases**:
+  ```bash
+  # See why your last tool call was blocked and how to fix it
+  avakill fix --db avakill_audit.db
+
+  # See all recent denials (up to 20)
+  avakill fix --all --db avakill_audit.db
+
+  # Machine-readable output for dashboards or scripts
+  avakill fix --json --db avakill_audit.db
+  ```
 
 ### `avakill init`
 - **File**: `cli/init_cmd.py` (295 lines)
@@ -361,3 +396,21 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 3. Do we need to test hook adapters for agents other than Claude Code before v1?
 4. Is the daemon required for v1 or is hookless mode sufficient?
 5. What does the v1 release look like — PyPI only? GitHub release? Landing page?
+
+---
+
+## Issues Found During Audit
+
+### ISSUE-1: Default policy tool patterns don't match real agent tool names
+- **Severity**: HIGH — the out-of-the-box policy silently fails to protect
+- **Found during**: `avakill evaluate` E2E testing
+- **Details**: The default policy rules use generic glob patterns like `shell_*`, `bash_*`, `command_*`, `database_*`, `sql_*`. But real agents send specific tool names that don't match these patterns:
+  - Claude Code sends `Bash`, not `bash_exec` or `shell_run`
+  - Claude Code sends `Write`, `Edit`, `Read`, not `file_write`, `file_edit`
+  - Other agents have their own names (see `core/normalization.py`)
+- **Impact**: A user who installs avakill, runs `avakill validate` (which says "Policy is valid"), and trusts the default policy is **not actually protected** by the deny rules. Every tool call falls through to the catch-all `log-everything` allow rule. Self-protection and the hook layer are doing the real work — the policy rules are decorative.
+- **Fix needed**: Default policy templates must include the actual tool names each agent uses. Either:
+  1. Use concrete names alongside globs: `tools: ["Bash", "shell_*", "bash_*", "command_*"]`
+  2. Expand globs per-agent during `quickstart`/`init` based on detected agent
+  3. Add a normalization step in the engine that maps real tool names to canonical names before matching (this exists in `core/normalization.py` but may not be wired into the default flow)
+- **Blocked commands**: `quickstart`, `init`, and any command that generates default policy templates

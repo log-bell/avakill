@@ -71,6 +71,12 @@ def _render_fix_card(event: AuditEvent, hint: RecoveryHint | None, console: Cons
     body.append("\n")
     body.append(hint.summary + "\n", style="bold yellow")
 
+    # Steps
+    if hint.steps:
+        body.append("\n")
+        for step in hint.steps:
+            body.append(f"  {step}\n")
+
     # Commands
     if hint.commands:
         body.append("\nRun:\n", style="bold green")

@@ -103,10 +103,11 @@ def recovery_hint_for(
                 source="self-protection-uninstall",
                 summary="Blocked package uninstall",
                 steps=(
-                    "A human administrator must uninstall avakill manually.",
-                    "Agents cannot remove their own guardrails.",
+                    "AI agents cannot remove their own safety guardrails.",
+                    "To uninstall, a human must run the command directly in a terminal:",
                 ),
                 hint_type="blocked",
+                commands=("pipx uninstall avakill",),
             )
         if "approve" in reason_lower:
             return RecoveryHint(
