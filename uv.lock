@@ -222,6 +222,7 @@ dependencies = [
     { name = "click" },
     { name = "pydantic" },
     { name = "pyfiglet" },
+    { name = "pynacl" },
     { name = "pyyaml" },
     { name = "rich" },
 ]
@@ -234,7 +235,6 @@ all = [
     { name = "openai" },
     { name = "opentelemetry-api" },
     { name = "prometheus-client" },
-    { name = "pynacl" },
     { name = "watchfiles" },
 ]
 anthropic = [
@@ -271,9 +271,6 @@ openai = [
 otel = [
     { name = "opentelemetry-api" },
 ]
-signed-policies = [
-    { name = "pynacl" },
-]
 watch = [
     { name = "watchfiles" },
 ]
@@ -305,7 +302,7 @@ requires-dist = [
     { name = "prometheus-client", marker = "extra == 'metrics'", specifier = ">=0.20.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pyfiglet", specifier = ">=1.0" },
-    { name = "pynacl", marker = "extra == 'signed-policies'", specifier = ">=1.5.0" },
+    { name = "pynacl", specifier = ">=1.5.0" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },

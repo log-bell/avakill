@@ -20,7 +20,7 @@ def keygen() -> None:
     except ImportError as exc:
         console.print(
             "[red]Error:[/red] PyNaCl is required for Ed25519 key generation.\n"
-            'Install with: [bold]pip install "avakill[signed-policies]"[/bold]'
+            "Install with: [bold]pipx inject avakill PyNaCl[/bold]"
         )
         raise SystemExit(1) from exc
 

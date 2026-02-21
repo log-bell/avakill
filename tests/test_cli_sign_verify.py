@@ -172,6 +172,65 @@ class TestApproveAutoSign:
         sig = Path(str(target) + ".sig")
         assert sig.exists()
 
+    def test_approve_auto_signs_ed25519_when_signing_key_set(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        nacl_signing = pytest.importorskip("nacl.signing")
+        sk = nacl_signing.SigningKey.generate()
+        private_hex = sk.encode().hex()
+
+        proposed = tmp_path / "avakill.proposed.yaml"
+        proposed.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: test\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        result = runner.invoke(
+            cli,
+            ["approve", str(proposed), "--yes"],
+            env={"AVAKILL_SIGNING_KEY": private_hex},
+        )
+        assert result.exit_code == 0
+        target = tmp_path / "avakill.yaml"
+        assert target.exists()
+        sig = Path(str(target) + ".sig")
+        assert sig.exists()
+        assert sig.read_text().startswith("ed25519:")
+
+    def test_approve_prefers_hmac_when_both_keys_set(
+        self, runner: CliRunner, tmp_path: Path, key_hex: str
+    ) -> None:
+        nacl_signing = pytest.importorskip("nacl.signing")
+        sk = nacl_signing.SigningKey.generate()
+        private_hex = sk.encode().hex()
+
+        proposed = tmp_path / "avakill.proposed.yaml"
+        proposed.write_text(
+            "version: '1.0'\n"
+            "default_action: deny\n"
+            "policies:\n"
+            "  - name: test\n"
+            "    tools: [file_read]\n"
+            "    action: allow\n"
+        )
+        result = runner.invoke(
+            cli,
+            ["approve", str(proposed), "--yes"],
+            env={
+                "AVAKILL_POLICY_KEY": key_hex,
+                "AVAKILL_SIGNING_KEY": private_hex,
+            },
+        )
+        assert result.exit_code == 0
+        target = tmp_path / "avakill.yaml"
+        assert target.exists()
+        sig = Path(str(target) + ".sig")
+        assert sig.exists()
+        assert not sig.read_text().startswith("ed25519:")
+
 
 # --- Ed25519 CLI tests (require PyNaCl) ---
 

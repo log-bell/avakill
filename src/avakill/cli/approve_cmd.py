@@ -126,6 +126,16 @@ def approve(proposed_file: str, target: str | None, yes: bool) -> None:
         try:
             key_bytes = bytes.fromhex(key_hex)
             sig_path = PolicyIntegrity.sign_file(target_path, key_bytes)
-            console.print(f"[bold green]Auto-signed:[/bold green] {sig_path}")
+            console.print(f"[bold green]Auto-signed (HMAC):[/bold green] {sig_path}")
         except (ValueError, OSError) as exc:
             console.print(f"[yellow]Warning: could not auto-sign:[/yellow] {exc}")
+    else:
+        # Try Ed25519 if HMAC key not set
+        ed25519_key_hex = os.environ.get("AVAKILL_SIGNING_KEY")
+        if ed25519_key_hex:
+            try:
+                key_bytes = bytes.fromhex(ed25519_key_hex)
+                sig_path = PolicyIntegrity.sign_file_ed25519(target_path, key_bytes)
+                console.print(f"[bold green]Auto-signed (Ed25519):[/bold green] {sig_path}")
+            except (ValueError, OSError, RuntimeError) as exc:
+                console.print(f"[yellow]Warning: could not auto-sign (Ed25519):[/yellow] {exc}")

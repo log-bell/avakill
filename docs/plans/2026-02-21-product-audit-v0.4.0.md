@@ -257,41 +257,151 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   avakill approve avakill.proposed.yaml
   ```
 
-### `avakill approvals list / grant / reject`
+### `avakill approvals list / grant / reject` ✅
 - **File**: `cli/approval_cmd.py`
-- **Status**: FUNCTIONAL
+- **Status**: BATTLE-TESTED
 - **What it does**: Manages pending approval requests (for `require_approval` policy action)
 - **Dependencies**: `approval.ApprovalStore` (SQLite)
-- **Concerns**: Async pattern is rough. Has this workflow ever been triggered end-to-end?
-- **E2E test**: Set a policy rule to `require_approval`, trigger a tool call, verify it shows in `approvals list`, grant it, verify tool call proceeds
-- **v1?**: MAYBE — `require_approval` is a powerful feature but adds complexity
+- **E2E test**: Full workflow tested — policy with `require_approval`, evaluate exits 2, pending request appears in list with 12-char ID, grant with prefix resolves and approves, re-evaluate exits 0 with `[approved]` reason. Reject flow also verified. Fixed 6 interrelated bugs to connect the entire pipeline.
+- **v1?**: YES — human-in-the-loop approval is a core safety primitive
+- **Example use cases**:
+  ```bash
+  # 1. Policy with require_approval action
+  # policies:
+  #   - name: approve-writes
+  #     tools: [Write]
+  #     action: require_approval
+
+  # 2. Tool call triggers pending request (exits 2, same as deny)
+  echo '{"tool":"Write","args":{"path":"/tmp/test.txt"}}' | avakill evaluate --policy avakill.yaml --agent claude-code
+  # require_approval: Matched rule 'approve-writes'
+  # Exit code: 2
+
+  # 3. List pending requests — shows 12-char ID prefix
+  avakill approvals list
+  # ┌──────────────┬─────────────┬───────┬────────────┬────────────────┬─────────────────────┐
+  # │ ID           │ Agent       │ Tool  │ Arguments  │ Policy         │ Timestamp           │
+  # ├──────────────┼─────────────┼───────┼────────────┼────────────────┼─────────────────────┤
+  # │ 81e01fc7-304 │ claude-code │ Write │ {'path':…} │ approve-writes │ 2026-02-21 15:43:46 │
+  # └──────────────┴─────────────┴───────┴────────────┴────────────────┴─────────────────────┘
+
+  # 4. Grant using the 12-char prefix (no need for full UUID)
+  avakill approvals grant 81e01fc7-304
+  # Approved request 81e01fc7-304... (tool=Write, approver=cli-user)
+
+  # 5. Re-evaluate — now auto-allowed
+  echo '{"tool":"Write","args":{"path":"/tmp/test.txt"}}' | avakill evaluate --policy avakill.yaml --agent claude-code
+  # allow: [approved] Matched rule 'approve-writes'
+  # Exit code: 0
+
+  # Reject a request instead
+  avakill approvals reject 81e01fc7-304
+
+  # Custom approver name and DB path
+  avakill approvals grant abc123 --approver security-team --db /path/to/approvals.db
+  ```
 
 ---
 
 ## Tier 3: Security Hardening
 
-### `avakill sign`
+### `avakill sign` ✅
 - **File**: `cli/sign_cmd.py` (125 lines)
-- **Status**: PRODUCTION
-- **What it does**: Signs policy file with HMAC-SHA256 or Ed25519
-- **Dependencies**: `integrity.PolicyIntegrity`, optional PyNaCl for Ed25519
-- **Concerns**: Crypto code is sensitive. Has the HMAC path been tested? Has the Ed25519 path been tested with real keys?
-- **E2E test**: `avakill keygen`, `avakill sign --ed25519`, `avakill verify`, round-trip
+- **Status**: BATTLE-TESTED
+- **What it does**: Signs policy file with HMAC-SHA256 or Ed25519, creating a `.sig` sidecar file
+- **Dependencies**: `integrity.PolicyIntegrity`, PyNaCl (now a core dependency) for Ed25519
+- **E2E test**: Full round-trip tested — HMAC sign/verify, Ed25519 sign/verify, tamper detection, env var paths, approve auto-sign for both algorithms
 - **v1?**: NICE-TO-HAVE — important for enterprise but most users won't sign policies
+- **Example use cases**:
+  ```bash
+  # --- HMAC-SHA256 signing ---
 
-### `avakill verify`
+  # Generate an HMAC key (one-time)
+  avakill sign --generate-key
+  # → export AVAKILL_POLICY_KEY=<64-char hex>
+
+  # Sign a policy with --key flag
+  avakill sign avakill.yaml --key <hex>
+  # → Creates avakill.yaml.sig
+
+  # Sign using env var (no --key needed)
+  export AVAKILL_POLICY_KEY=<hex>
+  avakill sign avakill.yaml
+
+  # --- Ed25519 signing ---
+
+  # Generate an Ed25519 keypair (one-time)
+  avakill keygen
+  # → export AVAKILL_SIGNING_KEY=<private_hex>
+  # → export AVAKILL_VERIFY_KEY=<public_hex>
+
+  # Sign with Ed25519
+  avakill sign --ed25519 avakill.yaml --key <private_hex>
+  # → Creates avakill.yaml.sig (prefixed with "ed25519:")
+
+  # Sign using env var
+  export AVAKILL_SIGNING_KEY=<private_hex>
+  avakill sign --ed25519 avakill.yaml
+  ```
+
+### `avakill verify` ✅
 - **File**: `cli/verify_cmd.py` (89 lines)
-- **Status**: PRODUCTION
-- **What it does**: Verifies policy signature, auto-detects algorithm
-- **E2E test**: Sign then verify, tamper with file, verify rejection
+- **Status**: BATTLE-TESTED
+- **What it does**: Verifies policy signature, auto-detects algorithm (HMAC vs Ed25519) from `.sig` file format
+- **E2E test**: Verified both HMAC and Ed25519 round-trips, tamper detection (both algorithms correctly reject modified files)
 - **v1?**: NICE-TO-HAVE — pairs with sign
+- **Example use cases**:
+  ```bash
+  # Verify HMAC signature (--key or AVAKILL_POLICY_KEY env var)
+  avakill verify avakill.yaml --key <hmac_hex>
+  # → "Valid HMAC-SHA256 signature: avakill.yaml"
 
-### `avakill keygen`
+  # Verify Ed25519 signature (auto-detected from .sig prefix)
+  avakill verify avakill.yaml --key <public_hex>
+  # → "Valid Ed25519 signature: avakill.yaml"
+
+  # Verify using env vars
+  export AVAKILL_POLICY_KEY=<hmac_hex>       # for HMAC
+  export AVAKILL_VERIFY_KEY=<public_hex>     # for Ed25519
+  avakill verify avakill.yaml
+
+  # Verbose mode — shows algorithm, hash details
+  avakill verify avakill.yaml --key <hex> --verbose
+
+  # Tampered file detection
+  echo "# tampered" >> avakill.yaml
+  avakill verify avakill.yaml --key <hex>
+  # → "Invalid ... signature: avakill.yaml"
+  # → "The policy file or signature has been tampered with."
+  # → Exit code 1
+  ```
+
+### `avakill keygen` ✅
 - **File**: `cli/keygen_cmd.py` (40 lines)
-- **Status**: FUNCTIONAL
-- **What it does**: Generates Ed25519 keypair, prints to stdout
-- **Concerns**: Minimal — just calls PyNaCl. No key storage. User must manage env vars.
+- **Status**: BATTLE-TESTED
+- **What it does**: Generates Ed25519 keypair, prints export commands to stdout
+- **Dependencies**: PyNaCl (now a core dependency — installed automatically with avakill)
+- **E2E test**: Generated keypair, used to sign and verify successfully
 - **v1?**: NICE-TO-HAVE
+- **Troubleshooting**: If `avakill keygen` errors with "PyNaCl is required", PyNaCl may have been removed from the environment. Fix with: `pipx inject avakill PyNaCl`
+- **Example use cases**:
+  ```bash
+  # Generate keypair
+  avakill keygen
+  # → export AVAKILL_SIGNING_KEY=<private_hex>  (keep secret)
+  # → export AVAKILL_VERIFY_KEY=<public_hex>    (deploy with agent)
+
+  # Typical workflow: generate once, add to shell profile
+  avakill keygen >> ~/.zshrc  # or ~/.bashrc
+  source ~/.zshrc
+
+  # Then sign policies
+  avakill sign --ed25519 avakill.yaml
+
+  # approve auto-signs when AVAKILL_SIGNING_KEY is set
+  avakill approve avakill.proposed.yaml --yes
+  # → "Auto-signed (Ed25519): avakill.yaml.sig"
+  ```
 
 ### `avakill harden`
 - **File**: `cli/harden_cmd.py` (154 lines)
@@ -419,7 +529,7 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 | `core/shell_analysis.py` | PRODUCTION | Regex-based metachar detection, tested via shell_safe |
 | `core/cascade.py` | PRODUCTION | Multi-level policy discovery + merge. 2 pre-existing test failures. |
 | `core/normalization.py` | PRODUCTION | Agent-specific tool name mappings |
-| `core/approval.py` | PRODUCTION | SQLite-backed approval store |
+| `core/approval.py` | BATTLE-TESTED | SQLite-backed approval store. Fixed 6 bugs: wired into Guard, prefix ID resolution, get_approved_for_tool query |
 | `core/recovery.py` | PRODUCTION | Denial → recovery hint mapping |
 | `core/integrity.py` | PRODUCTION | HMAC + Ed25519 policy signing |
 | `core/watcher.py` | PRODUCTION | File watching with watchfiles + polling fallback |
@@ -458,22 +568,22 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 8. `avakill approve`
 9. `avakill daemon start / stop / status`
 10. All `avakill-hook-*` binaries
+11. `avakill approvals list / grant / reject`
 
 ### Ship but mark as advanced
-11. `avakill init`
-12. `avakill sign / verify / keygen`
-13. `avakill harden / check-hardening`
-14. `avakill schema`
-15. `avakill guide`
+12. `avakill init`
+13. `avakill sign / verify / keygen`
+14. `avakill harden / check-hardening`
+15. `avakill schema`
+16. `avakill guide`
 
 ### Defer or gate behind feature flag
-16. `avakill enforce *` (landlock, sandbox, windows, tetragon)
-17. `avakill launch`
-18. `avakill mcp-proxy / mcp-wrap / mcp-unwrap`
-19. `avakill compliance *`
-20. `avakill metrics`
-21. `avakill profile *`
-22. `avakill approvals *`
+17. `avakill enforce *` (landlock, sandbox, windows, tetragon)
+18. `avakill launch`
+19. `avakill mcp-proxy / mcp-wrap / mcp-unwrap`
+20. `avakill compliance *`
+21. `avakill metrics`
+22. `avakill profile *`
 23. `avakill dashboard`
 
 ---
