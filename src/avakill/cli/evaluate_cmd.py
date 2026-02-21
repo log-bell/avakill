@@ -115,7 +115,7 @@ def _evaluate_standalone(
     from avakill.core.engine import Guard
 
     store = ApprovalStore()
-    guard = Guard(policy=str(path), approval_store=store)
+    guard = Guard(policy=str(path), approval_store=store, normalize_tools=True)
     decision = guard.evaluate(tool=tool, args=args, agent_id=agent)
 
     return _EvaluateResponse(
@@ -141,7 +141,7 @@ def _run_burst_simulation(policy_path: str, agent: str, tool: str, args: dict, c
         click.echo(f"Error: policy file not found: {policy_path}", err=True)
         raise SystemExit(1)
 
-    guard = Guard(policy=str(path), self_protection=False)
+    guard = Guard(policy=str(path), self_protection=False, normalize_tools=True)
     console = Console(stderr=True)
 
     # Track runs of consecutive identical outcomes

@@ -1,6 +1,6 @@
 # AvaKill Hooks Policy
 # Designed for use with agent hooks (Claude Code, Gemini CLI, Cursor, Windsurf).
-# Uses canonical tool names — AvaKill normalizes agent-native names automatically.
+# Includes native tool names so policies match even without normalization.
 #
 # This template blocks genuinely dangerous operations while allowing
 # the full range of tools that AI coding agents need to function.
@@ -12,7 +12,22 @@ policies:
   # --- Block catastrophic shell commands ---
   - name: block-dangerous-shell
     tools:
+      # Canonical
       - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
     action: deny
     conditions:
       args_match:
@@ -22,7 +37,22 @@ policies:
   # --- Block destructive database operations ---
   - name: block-destructive-sql
     tools:
+      # Canonical
       - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
     action: deny
     conditions:
       args_match:
@@ -32,7 +62,22 @@ policies:
   # --- Require approval for package management ---
   - name: approve-package-installs
     tools:
+      # Canonical
       - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
     action: require_approval
     conditions:
       args_match:
@@ -43,6 +88,8 @@ policies:
   - name: rate-limit-agents
     tools:
       - "agent_spawn"
+      # Claude Code
+      - "Task"
     action: allow
     rate_limit:
       max_calls: 20

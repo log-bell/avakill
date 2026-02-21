@@ -1,5 +1,8 @@
 # AvaKill Strict Policy
 # Maximum safety — deny by default, explicit allowlist only
+#
+# Includes native tool names from popular AI coding agents:
+#   Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex
 
 version: "1.0"
 default_action: deny
@@ -8,6 +11,20 @@ policies:
   # --- Only allow explicit read operations ---
   - name: allow-reads-only
     tools:
+      # Claude Code
+      - "Read"
+      - "Glob"
+      - "Grep"
+      - "LS"
+      - "WebFetch"
+      # Gemini CLI / Cursor / OpenAI Codex
+      - "read_file"
+      # Windsurf
+      - "read_code"
+      # OpenAI Codex
+      - "list_dir"
+      - "grep_files"
+      # Generic globs (match canonical names like file_read, file_list)
       - "*_read"
       - "*_get"
       - "*_list"
@@ -20,9 +37,22 @@ policies:
   # --- All write operations require approval ---
   - name: writes-require-approval
     tools:
+      # Claude Code
+      - "Write"
+      - "Edit"
+      - "MultiEdit"
+      # Gemini CLI
+      - "write_file"
+      - "edit_file"
+      # Windsurf
+      - "write_code"
+      # OpenAI Codex
+      - "apply_patch"
+      # Generic globs (match canonical names like file_write, file_edit)
       - "*_write"
       - "*_create"
       - "*_update"
+      - "*_edit"
       - "*_put"
       - "*_post"
     action: require_approval
@@ -34,6 +64,19 @@ policies:
   # --- All execution requires approval (with shell safety) ---
   - name: execution-requires-approval
     tools:
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
       - "*_execute"
       - "shell_*"
       - "bash_*"

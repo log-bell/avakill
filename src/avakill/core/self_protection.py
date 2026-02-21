@@ -2,8 +2,8 @@
 
 Prevents agents from weakening their own guardrails by detecting tool calls
 that target the policy file, uninstall the avakill package, run the approve
-command, modify avakill source code, disable hook binaries, or tamper with
-agent hook configuration files.
+command, modify avakill source code, disable hook binaries, tamper with
+agent hook configuration files, or shut down the evaluation daemon.
 """
 
 from __future__ import annotations
@@ -42,6 +42,29 @@ _UNINSTALL_PATTERN = re.compile(
 
 _APPROVE_PATTERN = re.compile(
     r"avakill\s+approve\b",
+    re.IGNORECASE,
+)
+
+_DAEMON_SHUTDOWN_PATTERN = re.compile(
+    r"(?:"
+    # avakill daemon stop [--force]
+    r"avakill\s+daemon\s+stop"
+    r"|"
+    # pkill/killall targeting avakill (with optional flags, full paths)
+    r"\b(?:pkill|killall)\b.*avakill"
+    r"|"
+    # kill with pgrep/pidof to find avakill PID (subshells, backticks)
+    r"\bkill\b.*\b(?:pgrep|pidof)\b.*avakill"
+    r"|"
+    # kill referencing avakill PID file
+    r"\bkill\b.*avakill[\w.]*\.pid"
+    r"|"
+    # systemctl stop/kill/disable avakill
+    r"\bsystemctl\s+(?:stop|kill|disable)\s+avakill"
+    r"|"
+    # service avakill stop
+    r"\bservice\s+avakill\s+stop"
+    r")",
     re.IGNORECASE,
 )
 
@@ -293,6 +316,10 @@ class SelfProtection:
         # Check for approve command (only humans should run this)
         if _APPROVE_PATTERN.search(scan_text):
             return "Self-protection: blocked 'avakill approve' — only humans may activate policies."
+
+        # Check for daemon shutdown commands
+        if _DAEMON_SHUTDOWN_PATTERN.search(scan_text):
+            return "Self-protection: blocking daemon shutdown."
 
         # Check for writes to avakill source
         if _SOURCE_WRITE_PATTERN.search(scan_text):

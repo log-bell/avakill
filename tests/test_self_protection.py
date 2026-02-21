@@ -801,6 +801,250 @@ class TestSourceFalsePositiveFix:
 
 
 # -------------------------------------------------------------------
+# Daemon shutdown protection (ISSUE-2)
+# -------------------------------------------------------------------
+
+
+class TestDaemonShutdownProtection:
+    """Self-protection blocks commands that would shut down the avakill daemon."""
+
+    # --- Direct CLI ---
+
+    def test_blocks_avakill_daemon_stop(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "avakill daemon stop"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "daemon shutdown" in d.reason.lower()
+
+    def test_blocks_avakill_daemon_stop_force(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill daemon stop --force"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- pkill / killall ---
+
+    def test_blocks_pkill_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pkill avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_pkill_f_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pkill -f avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_pkill_9_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pkill -9 avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_killall_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "killall avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_killall_9_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "killall -9 avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- kill with pgrep / pidof ---
+
+    def test_blocks_kill_pgrep_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "kill $(pgrep avakill)"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_kill_9_pgrep_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "kill -9 $(pgrep avakill)"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_kill_backtick_pgrep(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "kill `pgrep avakill`"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_kill_pidof_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "kill $(pidof avakill)"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- kill with PID file ---
+
+    def test_blocks_kill_cat_pid_file(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "kill -9 $(cat /var/run/avakill.pid)"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- Full paths ---
+
+    def test_blocks_full_path_kill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "/usr/bin/kill -9 $(pgrep avakill)"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_full_path_pkill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "/usr/bin/pkill avakill"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- Service management ---
+
+    def test_blocks_systemctl_stop(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "systemctl stop avakill"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_systemctl_kill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "systemctl kill avakill"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_systemctl_disable(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "systemctl disable avakill"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_service_stop(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "service avakill stop"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- Bash tool name (Claude Code uses "Bash") ---
+
+    def test_blocks_bash_tool_daemon_stop(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="Bash",
+            arguments={"command": "avakill daemon stop"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_bash_tool_pkill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="Bash",
+            arguments={"command": "pkill avakill"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    # --- Allowed commands (no false positives) ---
+
+    def test_allows_avakill_daemon_start(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill daemon start"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_avakill_daemon_status(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill daemon status"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_avakill_validate(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill validate"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_avakill_schema(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill schema"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_kill_unrelated_process(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "kill 12345"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_pkill_unrelated(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "pkill nginx"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_killall_unrelated(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "killall python"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+
+# -------------------------------------------------------------------
 # Guard integration
 # -------------------------------------------------------------------
 
@@ -839,6 +1083,12 @@ class TestGuardIntegration:
         guard = Guard(policy=permissive_policy)
         decision = guard.evaluate(tool="file_write", args={"path": "avakill.yaml", "content": "x"})
         assert decision.latency_ms >= 0
+
+    def test_self_protection_blocks_daemon_shutdown(self, permissive_policy: PolicyConfig) -> None:
+        guard = Guard(policy=permissive_policy)
+        decision = guard.evaluate(tool="shell_exec", args={"cmd": "pkill avakill"})
+        assert decision.allowed is False
+        assert decision.policy_name == "self-protection"
 
     def test_normal_evaluation_still_works_with_self_protection(
         self, permissive_policy: PolicyConfig

@@ -1,5 +1,8 @@
 # AvaKill Permissive Policy
 # Log everything, block almost nothing — for development and audit
+#
+# Includes native tool names from popular AI coding agents:
+#   Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex
 
 version: "1.0"
 default_action: allow
@@ -19,13 +22,26 @@ policies:
   # --- Block catastrophic filesystem operations ---
   - name: block-rm-rf-root
     tools:
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
       - "shell_*"
       - "bash_*"
       - "command_*"
     action: deny
     conditions:
       args_match:
-        cmd: ["rm -rf /"]
+        command: ["rm -rf /"]
     message: "rm -rf / is blocked even in permissive mode"
 
   # --- Log all other tool calls (allow, with logging enabled) ---

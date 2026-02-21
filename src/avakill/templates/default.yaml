@@ -1,6 +1,9 @@
 # AvaKill Default Policy
 # Balanced security with common-sense defaults.
 # Works out-of-the-box with the quickstart examples.
+#
+# Includes native tool names from popular AI coding agents:
+#   Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex
 
 version: "1.0"
 default_action: deny
@@ -36,10 +39,22 @@ policies:
   # --- Block dangerous shell commands ---
   - name: block-dangerous-shell
     tools:
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
       - "shell_*"
       - "bash_*"
       - "command_*"
-      - "run_command"
     action: deny
     conditions:
       args_match:
@@ -50,6 +65,8 @@ policies:
   - name: rate-limit-web-search
     tools:
       - "web_search"
+      # Claude Code
+      - "WebSearch"
     action: allow
     rate_limit:
       max_calls: 30
@@ -58,6 +75,15 @@ policies:
   # --- Allow read-only operations (prefix and suffix patterns) ---
   - name: allow-read-operations
     tools:
+      # Claude Code
+      - "Read"
+      - "Glob"
+      - "Grep"
+      - "LS"
+      - "WebFetch"
+      # OpenAI Codex
+      - "grep_files"
+      # Generic globs (match canonical names and others)
       - "search_*"
       - "get_*"
       - "list_*"
@@ -88,7 +114,19 @@ policies:
   # --- Allow safe shell (shell_safe + command_allowlist) ---
   - name: allow-safe-shell
     tools:
+      # Canonical
       - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
       - "shell_*"
       - "bash_*"
       - "command_*"
