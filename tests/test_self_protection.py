@@ -540,6 +540,267 @@ class TestHookConfigProtection:
 
 
 # -------------------------------------------------------------------
+# pipx uninstall (Fix #1)
+# -------------------------------------------------------------------
+
+
+class TestPipxUninstall:
+    """Self-protection blocks pipx uninstall/remove avakill."""
+
+    def test_blocks_pipx_uninstall(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pipx uninstall avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "uninstall" in d.reason.lower()
+
+    def test_blocks_pipx_remove(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pipx remove avakill"})
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+
+# -------------------------------------------------------------------
+# File edit protection (Fix #2)
+# -------------------------------------------------------------------
+
+
+class TestFileEditProtection:
+    """Self-protection blocks edit-named tools targeting policy/hook files."""
+
+    def test_blocks_file_edit_avakill_yaml(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_edit",
+            arguments={"path": "avakill.yaml", "old_string": "deny", "new_string": "allow"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "policy file" in d.reason.lower()
+
+    def test_blocks_file_edit_avakill_yml(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_edit",
+            arguments={"path": "avakill.yml", "old_string": "x", "new_string": "y"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_file_edit_other_yaml(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_edit",
+            arguments={"path": "config.yaml", "old_string": "x", "new_string": "y"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_blocks_file_edit_hook_config(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_edit",
+            arguments={
+                "path": "/home/user/.claude/settings.json",
+                "old_string": "x",
+                "new_string": "y",
+            },
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+
+# -------------------------------------------------------------------
+# Shell bypass prevention (Fixes #3, #5, #6, #7)
+# -------------------------------------------------------------------
+
+
+class TestShellBypassPrevention:
+    """Shell commands with write intent targeting policy files are blocked."""
+
+    def test_blocks_python_c_write_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "python3 -c \"open('avakill.yaml','w').write('x')\""},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "policy file" in d.reason.lower()
+
+    def test_blocks_perl_e_write_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": 'perl -e \'open(F,">avakill.yaml");print F "x"\''},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_cp_dev_null_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "cp /dev/null avakill.yaml"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_ln_sf_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "ln -sf /dev/null avakill.yaml"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_truncate_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "truncate -s 0 avakill.yaml"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_tee_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "echo 'x' | tee avakill.yaml"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_cat_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "cat avakill.yaml"})
+        d = sp.check(tc)
+        assert d is None
+
+    def test_blocks_cat_pipe_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "cat avakill.yaml | something"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+
+# -------------------------------------------------------------------
+# Shell hook config bypass (Fix #4)
+# -------------------------------------------------------------------
+
+
+class TestShellHookConfigBypass:
+    """Shell commands targeting hook config files are blocked."""
+
+    def test_blocks_python_rewrite_settings_json(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="Bash",
+            arguments={
+                "command": 'python3 -c "import json; '
+                "json.dump({}, open('/home/user/.claude/settings.json','w'))\""
+            },
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "hook config" in d.reason.lower()
+
+    def test_blocks_node_rewrite_settings_json(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={
+                "cmd": "node -e \"require('fs').writeFileSync("
+                "'/home/user/.claude/settings.json', '{}')\""
+            },
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_cat_settings_json(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "cat /home/user/.claude/settings.json"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+
+# -------------------------------------------------------------------
+# Main binary protection (Fix #8)
+# -------------------------------------------------------------------
+
+
+class TestMainBinaryProtection:
+    """Self-protection blocks destructive commands targeting the main avakill binary."""
+
+    def test_blocks_rm_avakill_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "rm ~/.local/bin/avakill"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "hook binary" in d.reason.lower()
+
+    def test_blocks_mv_avakill_binary(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "mv ~/.local/bin/avakill /tmp/gone"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_rm_avakill_unrelated(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "rm avakill-unrelated-file.txt"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+
+# -------------------------------------------------------------------
+# Source false positive fix (Fix #9)
+# -------------------------------------------------------------------
+
+
+class TestSourceFalsePositiveFix:
+    """Word boundaries prevent false positives on 'rm' inside words."""
+
+    def test_allows_read_normalization_py(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_read",
+            arguments={"path": "src/avakill/core/normalization.py"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_allows_read_format_py(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_read",
+            arguments={"path": "src/avakill/core/format.py"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+    def test_still_blocks_rm_src_avakill(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "rm -rf src/avakill/"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+
+# -------------------------------------------------------------------
 # Guard integration
 # -------------------------------------------------------------------
 

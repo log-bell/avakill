@@ -19,6 +19,7 @@ from avakill.core.models import Decision, ToolCall
 # Tool name patterns that indicate write/delete/modify intent
 _WRITE_TOOL_PATTERNS = [
     "*write*",
+    "*edit*",
     "*delete*",
     "*remove*",
     "*create*",
@@ -34,7 +35,8 @@ _POLICY_FILES = ("avakill.yaml", "avakill.yml")
 
 # Patterns for dangerous commands in argument content
 _UNINSTALL_PATTERN = re.compile(
-    r"(?:pip3?|python3?\s+-m\s+pip|uv|poetry)\s+" r"(?:uninstall|remove)\s+avakill",
+    r"(?:pipx?|pip3|python3?\s+-m\s+pip|uv|poetry)\s+"
+    r"(?:uninstall|remove)\s+avakill",
     re.IGNORECASE,
 )
 
@@ -43,26 +45,21 @@ _APPROVE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Shell commands that delete/overwrite the policy file
-# Matches both "rm avakill.yaml" and "avakill.yaml" after "> " or "mv "
-_SHELL_POLICY_PATTERN = re.compile(
-    r"(?:"
-    # rm/del targeting policy file
-    r"(?:rm|del|unlink)\s+(?:.*\s)?(?:avakill\.ya?ml)"
-    r"|"
-    # truncate via redirect
-    r">\s*(?:avakill\.ya?ml)"
-    r"|"
-    # sed -i modifying policy file
-    r"sed\s+.*(?:avakill\.ya?ml)"
-    r"|"
-    # mv policy file away
-    r"mv\s+(?:.*\s)?(?:avakill\.ya?ml)"
-    r")"
-    # Negative lookahead: allow .proposed.yaml
-    r"(?!.*\.proposed\.ya?ml)",
+# ---------------------------------------------------------------------------
+# Shell target-based protection (replaces verb-based _SHELL_POLICY_PATTERN)
+# ---------------------------------------------------------------------------
+
+# Tool name patterns that indicate shell/exec context
+_SHELL_TOOL_PATTERNS = ["*shell*", "*bash*", "*exec*", "*terminal*", "*command*"]
+
+# Commands known to be destructive (don't need pipe/redirect to cause damage)
+_SHELL_DESTRUCTIVE_CMD = re.compile(
+    r"\b(?:rm|mv|cp|ln|truncate|tee|dd|sed|del|unlink|python3?|perl|ruby|node)\b",
     re.IGNORECASE,
 )
+
+# Indicators of write intent in shell (pipes, redirects, chaining, subshells)
+_SHELL_WRITE_INDICATOR = re.compile(r"[|;&]|>{1,2}|`|\$\(")
 
 # Writes to avakill source directories
 _SOURCE_WRITE_PATTERN = re.compile(
@@ -71,7 +68,7 @@ _SOURCE_WRITE_PATTERN = re.compile(
 )
 
 _SOURCE_ACTION_PATTERN = re.compile(
-    r"(?:write|delete|remove|overwrite|modify|patch|rm|unlink|mv|sed|>" r"|create|truncate)",
+    r"\b(?:write|delete|remove|overwrite|modify|patch|rm|unlink|mv|sed|create|truncate)\b|>",
     re.IGNORECASE,
 )
 
@@ -98,8 +95,8 @@ def _discover_hook_binaries() -> list[str]:
 
 _HOOK_BINARIES: list[str] = _discover_hook_binaries()
 
-# Regex: shell command targeting any avakill-hook-* binary
-_HOOK_BINARY_PATTERN = re.compile(r"avakill-hook-\w+", re.IGNORECASE)
+# Regex: shell command targeting any avakill-hook-* binary or the main avakill binary
+_HOOK_BINARY_PATTERN = re.compile(r"(?:avakill-hook-\w+|/avakill(?:\s|$))", re.IGNORECASE)
 
 # Regex: extract redirect target path (> /path or >> /path)
 _REDIRECT_TO_PATH_PATTERN = re.compile(r">{1,2}\s*(\S+)")
@@ -128,9 +125,9 @@ _HOOK_CONFIG_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Shell commands that indicate destructive intent toward hook binaries
+# Shell commands that indicate destructive intent toward hook binaries or main binary
 _HOOK_SHELL_DESTRUCTIVE = re.compile(
-    r"(?:rm|del|unlink|mv|truncate|chmod)\s+.*avakill-hook-",
+    r"(?:rm|del|unlink|mv|truncate|chmod)\s+.*(?:avakill-hook-|/avakill(?:\s|$))",
     re.IGNORECASE,
 )
 
@@ -149,22 +146,27 @@ class SelfProtection:
         Returns:
             A deny ``Decision`` if the call is blocked, or ``None`` to proceed.
         """
-        # Layer 1: tool name + path check (policy file)
+        # Layer 1: tool name + path check (write-named tools targeting policy files)
         reason = self._check_tool_name_and_path(tool_call)
         if reason:
             return self._deny(reason)
 
-        # Layer 2: hook binary protection
+        # Layer 2: shell commands referencing protected paths (policy + hook config)
+        reason = self._check_shell_targets_protected(tool_call)
+        if reason:
+            return self._deny(reason)
+
+        # Layer 3: hook binary protection
         reason = self._check_hook_binary(tool_call)
         if reason:
             return self._deny(reason)
 
-        # Layer 3: hook config file protection
+        # Layer 4: hook config file protection (write-named tools)
         reason = self._check_hook_config(tool_call)
         if reason:
             return self._deny(reason)
 
-        # Layer 4: argument content scanning
+        # Layer 5: argument content scanning (uninstall, approve, source writes)
         reason = self._scan_arguments(tool_call)
         if reason:
             return self._deny(reason)
@@ -188,6 +190,49 @@ class SelfProtection:
                         f"policy file '{policy_file}'. Use .proposed.yaml for staging."
                     )
         return None
+
+    def _check_shell_targets_protected(self, tool_call: ToolCall) -> str | None:
+        """Block shell commands with write intent targeting protected files.
+
+        Instead of enumerating dangerous shell verbs, check whether the command
+        references a protected path and shows write intent (destructive command
+        or shell write indicator like pipes/redirects).
+        """
+        tool_lower = tool_call.tool_name.lower()
+        is_shell = any(fnmatch(tool_lower, pat) for pat in _SHELL_TOOL_PATTERNS)
+        if not is_shell:
+            return None
+
+        scan_text = self._build_scan_text(tool_call)
+        scan_lower = scan_text.lower()
+
+        # Check if args reference a protected policy file
+        targets_policy = any(pf in scan_lower for pf in _POLICY_FILES)
+
+        # Check if args reference a protected hook config path
+        targets_hook_config = _HOOK_CONFIG_PATTERN.search(scan_text) is not None
+
+        if not targets_policy and not targets_hook_config:
+            return None
+
+        # Check for write indicators or destructive commands
+        has_write_intent = (
+            _SHELL_DESTRUCTIVE_CMD.search(scan_text) is not None
+            or _SHELL_WRITE_INDICATOR.search(scan_text) is not None
+        )
+
+        if not has_write_intent:
+            return None
+
+        if targets_policy:
+            return (
+                "Self-protection: blocked shell command targeting policy file. "
+                "Use .proposed.yaml for staging."
+            )
+        return (
+            "Self-protection: blocked shell command targeting hook config. "
+            "Modifying hook settings would weaken the firewall."
+        )
 
     def _check_hook_binary(self, tool_call: ToolCall) -> str | None:
         """Block shell commands and write tools targeting hook binaries."""
@@ -249,16 +294,12 @@ class SelfProtection:
         if _APPROVE_PATTERN.search(scan_text):
             return "Self-protection: blocked 'avakill approve' — only humans may activate policies."
 
-        # Check for shell commands targeting policy file
-        if _SHELL_POLICY_PATTERN.search(scan_text):
-            return (
-                "Self-protection: blocked shell command targeting policy file. "
-                "Use .proposed.yaml for staging."
-            )
-
         # Check for writes to avakill source
-        if _SOURCE_WRITE_PATTERN.search(scan_text) and _SOURCE_ACTION_PATTERN.search(scan_text):
-            return "Self-protection: blocked modification of avakill source files."
+        if _SOURCE_WRITE_PATTERN.search(scan_text):
+            tool_lower = tool_call.tool_name.lower()
+            is_write_tool = any(fnmatch(tool_lower, pat) for pat in _WRITE_TOOL_PATTERNS)
+            if is_write_tool or _SOURCE_ACTION_PATTERN.search(scan_text):
+                return "Self-protection: blocked modification of avakill source files."
 
         return None
 

@@ -588,3 +588,60 @@ class TestDefenseLayerVerification:
         )
         assert d.allowed is False
         assert d.policy_name == "self-protection"
+
+
+# ===================================================================
+# CATEGORY 8: New bypass scenarios (discovered in live hook testing)
+# ===================================================================
+
+
+class TestNewBypassScenarios:
+    """Bypass vectors discovered in live hook testing — all must be blocked."""
+
+    def test_51_pipx_uninstall(self, hardened_guard: Guard) -> None:
+        """Attack: pipx uninstall avakill (bypassed old pip-only pattern)."""
+        d = hardened_guard.evaluate(tool="shell_exec", args={"cmd": "pipx uninstall avakill"})
+        assert d.allowed is False
+        assert d.policy_name == "self-protection"
+
+    def test_52_file_edit_policy(self, hardened_guard: Guard) -> None:
+        """Attack: file_edit tool modifies avakill.yaml (bypassed write-only check)."""
+        d = hardened_guard.evaluate(
+            tool="file_edit",
+            args={"path": "avakill.yaml", "old_string": "deny", "new_string": "allow"},
+        )
+        assert d.allowed is False
+        assert d.policy_name == "self-protection"
+
+    def test_53_python_c_write_policy(self, hardened_guard: Guard) -> None:
+        """Attack: python3 -c to write policy file (bypassed verb-based shell check)."""
+        d = hardened_guard.evaluate(
+            tool="shell_exec",
+            args={"cmd": "python3 -c \"open('avakill.yaml','w').write('x')\""},
+        )
+        assert d.allowed is False
+        assert d.policy_name == "self-protection"
+
+    def test_54_cp_dev_null_policy(self, hardened_guard: Guard) -> None:
+        """Attack: cp /dev/null avakill.yaml (bypassed old verb list)."""
+        d = hardened_guard.evaluate(tool="shell_exec", args={"cmd": "cp /dev/null avakill.yaml"})
+        assert d.allowed is False
+        assert d.policy_name == "self-protection"
+
+    def test_55_python_rewrite_settings_json(self, hardened_guard: Guard) -> None:
+        """Attack: python3 rewrites hook config via shell (bypassed write-tool check)."""
+        d = hardened_guard.evaluate(
+            tool="Bash",
+            args={
+                "command": 'python3 -c "import json; '
+                "json.dump({}, open('/home/user/.claude/settings.json','w'))\""
+            },
+        )
+        assert d.allowed is False
+        assert d.policy_name == "self-protection"
+
+    def test_56_rm_main_binary(self, hardened_guard: Guard) -> None:
+        """Attack: rm the main avakill binary (only hook binaries were protected)."""
+        d = hardened_guard.evaluate(tool="shell_exec", args={"cmd": "rm ~/.local/bin/avakill"})
+        assert d.allowed is False
+        assert d.policy_name == "self-protection"
