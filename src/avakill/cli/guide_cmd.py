@@ -267,6 +267,30 @@ policies:
     con.print(Syntax(example, "yaml", theme="monokai", padding=(0, 4)))
     con.print()
     con.print(_muted("Rules are evaluated top-to-bottom. First match wins."))
+    con.print()
+
+    con.print("    [bold]Testing policies:[/bold]")
+    con.print(
+        _cmd(
+            "echo '{...}' | avakill evaluate",
+            "Test a tool call",
+            pad=42,
+        ),
+    )
+    con.print(
+        _muted('echo \'{"tool":"Bash","args":{"command":"rm -rf /"}}\' \\'),
+    )
+    con.print(_muted("  | avakill evaluate --policy avakill.yaml"))
+    con.print()
+    con.print(
+        _cmd("  --json", "Machine-readable output", pad=42),
+    )
+    con.print(
+        _cmd("  --simulate-burst 50", "Test rate limiting", pad=42),
+    )
+    con.print(
+        _muted("Without --policy, evaluates through running daemon."),
+    )
 
     _wait_for_back(con)
 
@@ -307,6 +331,15 @@ def _section_hooks(con: Console) -> None:
     con.print(_muted("policy, blocks or allows in <1ms. Full audit trail."))
     con.print()
 
+    con.print("    [bold]Agent containment profiles:[/bold]")
+    con.print(_cmd("avakill profile list", "Show all profiles"))
+    con.print(_cmd("avakill profile list -v", "With descriptions"))
+    con.print(_cmd("avakill profile show openclaw", "Profile details"))
+    con.print(
+        _muted("Profiles: openclaw, cline, continue, swe-agent, aider"),
+    )
+    con.print()
+
     con.print("    [bold]Self-protection:[/bold]")
     con.print(_muted("Agents cannot uninstall avakill, modify the policy,"))
     con.print(_muted("tamper with hook configs, or kill the daemon."))
@@ -330,10 +363,27 @@ def _section_signing(con: Console) -> None:
     con.print(_cmd("avakill check-hardening avakill.yaml", "Status report"))
     con.print()
 
+    con.print("    [bold]Env vars (recommended for production):[/bold]")
+    con.print()
+    con.print(_cmd("export AVAKILL_SIGNING_KEY=<priv>", "Ed25519 private"))
+    con.print(_cmd("export AVAKILL_VERIFY_KEY=<pub>", "Ed25519 public"))
+    con.print(_cmd("export AVAKILL_POLICY_KEY=<hex>", "HMAC key"))
+    con.print(
+        _muted("With env vars set, sign/verify work without --key."),
+    )
+    con.print(_muted("Tip: avakill keygen >> ~/.zshrc"))
+    con.print()
+
     con.print("    [bold]HMAC signing (simpler, single key):[/bold]")
     con.print()
     con.print(_cmd("avakill sign --generate-key", "Generate HMAC key"))
     con.print(_cmd("avakill sign avakill.yaml --key <hex>", "Sign"))
+    con.print()
+
+    con.print("    [bold]Auto-sign on approve:[/bold]")
+    con.print(
+        _muted("When AVAKILL_SIGNING_KEY is set, approve auto-signs."),
+    )
     con.print()
 
     con.print("    [bold]Harden to prevent modification:[/bold]")
@@ -341,12 +391,17 @@ def _section_signing(con: Console) -> None:
     con.print(_cmd("sudo avakill harden avakill.yaml", "Immutable flag"))
     con.print(_muted("macOS: chflags schg / Linux: chattr +i / needs root"))
     con.print()
+    con.print("    [bold]Undo harden:[/bold]")
+    con.print(_cmd("sudo chflags noschg avakill.yaml", "macOS"))
+    con.print(_cmd("sudo chattr -i avakill.yaml", "Linux"))
+    con.print()
 
     con.print("    [bold]Security templates (no root needed):[/bold]")
     con.print()
     con.print(_cmd("avakill harden --selinux", "SELinux policy"))
     con.print(_cmd("avakill harden --apparmor", "AppArmor profile"))
     con.print(_cmd("avakill harden --seccomp", "seccomp-bpf JSON"))
+    con.print(_cmd("avakill harden --seccomp -o filter.json", "Write to file"))
     con.print()
 
     con.print(_muted("Signing detects tampering. Hardening prevents it."))
@@ -364,8 +419,15 @@ def _section_monitoring(con: Console) -> None:
 
     con.print("    [bold]Dashboard (live TUI):[/bold]")
     con.print(_cmd("avakill dashboard --db avakill_audit.db", "Launch"))
-    con.print(_cmd("avakill dashboard --db audit.db --watch", "Auto-reload"))
+    con.print(
+        _cmd("avakill dashboard --db audit.db --policy p.yaml", "With reload"),
+    )
+    con.print(
+        _cmd("avakill dashboard --db audit.db --watch", "Auto-reload on change"),
+    )
+    con.print(_cmd("avakill dashboard --db audit.db --refresh 1.0", "Custom rate"))
     con.print(_muted("Keyboard: q=quit  r=reload policy  c=clear events"))
+    con.print(_muted("Note: r requires --policy flag to be set."))
     con.print()
 
     con.print("    [bold]Logs:[/bold]")
@@ -373,8 +435,11 @@ def _section_monitoring(con: Console) -> None:
     con.print(_cmd("avakill logs --db audit.db --denied-only", "Only denials"))
     con.print(_cmd("avakill logs --db audit.db --tool Bash", "Filter by tool"))
     con.print(_cmd("avakill logs --db audit.db --since 5m", "Last 5 minutes"))
-    con.print(_cmd("avakill logs --db audit.db --json", "JSON output"))
+    con.print(_cmd("avakill logs --db audit.db --json --limit 2", "JSON (limited)"))
     con.print(_cmd("avakill logs --db avakill_audit.db tail", "Live stream"))
+    con.print(
+        _cmd("avakill logs --db audit.db --denied-only tail", "Filter + tail"),
+    )
     con.print()
 
     con.print("    [bold]Fix (recovery hints):[/bold]")
@@ -425,16 +490,20 @@ def _advanced_compliance(con: Console) -> None:
 
     con.print("    [bold]Assess policy against frameworks:[/bold]")
     con.print()
-    con.print(_cmd("avakill compliance report --policy p.yaml", "All"))
+    con.print(_cmd("avakill compliance report", "All (auto-finds policy)"))
+    con.print(_cmd("avakill compliance report --policy p.yaml", "Explicit policy"))
     con.print(_cmd("avakill compliance report --framework soc2", "SOC 2"))
     con.print(_cmd("avakill compliance report --framework nist-ai-rmf", "NIST"))
     con.print(_cmd("avakill compliance report --framework eu-ai-act", "EU AI"))
     con.print(_cmd("avakill compliance report --framework iso-42001", "ISO"))
     con.print()
     con.print(_cmd("avakill compliance report --format json", "JSON"))
-    con.print(_cmd("avakill compliance report --format markdown", "Markdown"))
+    con.print(
+        _cmd("avakill compliance report --format markdown -o r.md", "Markdown file"),
+    )
     con.print()
-    con.print(_cmd("avakill compliance gaps --policy avakill.yaml", "Gaps only"))
+    con.print(_cmd("avakill compliance gaps", "Gaps only (auto-finds)"))
+    con.print(_cmd("avakill compliance gaps --policy avakill.yaml", "Explicit"))
 
     _wait_for_back(con)
 
@@ -444,15 +513,8 @@ def _advanced_approvals(con: Console) -> None:
 
     con.print("    [bold]Human-in-the-loop approval workflow:[/bold]")
     con.print()
-    con.print(_muted("Policy rules with action: require_approval trigger"))
-    con.print(_muted("a pending request. Human grants/rejects via CLI."))
-    con.print()
-    con.print(_cmd("avakill approvals list", "Show pending requests"))
-    con.print(_cmd("avakill approvals grant <id-prefix>", "Approve"))
-    con.print(_cmd("avakill approvals reject <id-prefix>", "Reject"))
-    con.print()
 
-    con.print("    [bold]Policy example:[/bold]")
+    con.print("    [bold]1.[/bold] Policy with require_approval action:")
     con.print()
     example = """\
 policies:
@@ -460,6 +522,33 @@ policies:
     tools: [Write]
     action: require_approval"""
     con.print(Syntax(example, "yaml", theme="monokai", padding=(0, 4)))
+    con.print()
+
+    con.print("    [bold]2.[/bold] Tool call triggers pending request (exits 2):")
+    con.print(
+        _muted('echo \'{"tool":"Write",...}\' | avakill evaluate \\'),
+    )
+    con.print(_muted("  --policy avakill.yaml --agent claude-code"))
+    con.print()
+
+    con.print("    [bold]3.[/bold] List pending — shows 12-char ID prefix:")
+    con.print(_cmd("avakill approvals list", "Show pending"))
+    con.print()
+
+    con.print("    [bold]4.[/bold] Grant using the prefix (no full UUID):")
+    con.print(_cmd("avakill approvals grant 81e01fc7-304", "Approve"))
+    con.print()
+
+    con.print("    [bold]5.[/bold] Re-evaluate — now exits 0 with [approved]:")
+    con.print(
+        _muted("Same evaluate command now returns allow."),
+    )
+    con.print()
+
+    con.print(_cmd("avakill approvals reject <id-prefix>", "Reject instead"))
+    con.print(
+        _cmd("avakill approvals grant abc --approver team", "Custom approver"),
+    )
 
     _wait_for_back(con)
 
@@ -474,13 +563,18 @@ def _advanced_mcp(con: Console) -> None:
     con.print()
     con.print(_cmd("avakill mcp-wrap --dry-run", "Preview (no writes)"))
     con.print(_cmd("avakill mcp-wrap --policy avakill.yaml", "Wrap all"))
-    con.print(_cmd("avakill mcp-wrap --agent claude-desktop", "Wrap one"))
-    con.print(_cmd("avakill mcp-unwrap", "Restore originals"))
+    con.print(
+        _cmd("avakill mcp-wrap --agent claude-desktop", "Wrap one agent"),
+    )
+    con.print(_cmd("avakill mcp-wrap --agent cursor --daemon", "Use daemon"))
+    con.print(_cmd("avakill mcp-unwrap", "Restore all originals"))
+    con.print(
+        _cmd("avakill mcp-unwrap --agent claude-desktop", "Restore one"),
+    )
     con.print()
     con.print(_muted("Creates .bak backup before writing. Idempotent."))
-    con.print()
     con.print(
-        _muted("Agents: claude-desktop, cursor, windsurf, cline, continue"),
+        _muted("Agents: claude-desktop, cursor, windsurf, cline, continue, all"),
     )
 
     _wait_for_back(con)
@@ -492,10 +586,18 @@ def _advanced_daemon(con: Console) -> None:
     con.print("    [bold]Persistent evaluation daemon:[/bold]")
     con.print()
     con.print(_cmd("avakill daemon start --policy avakill.yaml", "Start"))
-    con.print(_cmd("avakill daemon start --log-db audit.db", "With logging"))
-    con.print(_cmd("avakill daemon start --foreground", "Foreground"))
+    con.print(
+        _cmd("avakill daemon start --log-db audit.db", "With audit logging"),
+    )
+    con.print(_cmd("avakill daemon start --foreground", "Foreground/debug"))
     con.print(_cmd("avakill daemon status", "Check if running"))
     con.print(_cmd("avakill daemon stop", "Stop"))
+    con.print()
+    con.print("    [bold]Evaluate through daemon (no --policy needed):[/bold]")
+    con.print(
+        _muted('echo \'{"tool":"Bash","args":{"command":"ls"}}\' \\'),
+    )
+    con.print(_muted("  | avakill evaluate"))
     con.print()
     con.print(_muted("When running, hooks evaluate through it (faster,"))
     con.print(_muted("centralized). Without it, hooks use embedded Guard."))
@@ -508,15 +610,28 @@ def _advanced_schema(con: Console) -> None:
 
     con.print("    [bold]Export JSON Schema or generate LLM prompts:[/bold]")
     con.print()
-    con.print(_cmd("avakill schema", "JSON Schema"))
-    con.print(_cmd("avakill schema --compact", "Minified"))
-    con.print(_cmd("avakill schema --format=prompt", "LLM prompt"))
-    con.print(_cmd('avakill schema --format=prompt --tools="Bash"', "With tools"))
-    con.print(_cmd('avakill schema --format=prompt --use-case="X"', "With use case"))
+    con.print(_cmd("avakill schema", "JSON Schema (pretty)"))
+    con.print(_cmd("avakill schema --compact", "Minified JSON"))
     con.print(_cmd("avakill schema -o schema.json", "Write to file"))
     con.print()
-    con.print(_muted("The LLM prompt includes evaluation rules,"))
-    con.print(_muted("self-protection docs, and example policies."))
+    con.print("    [bold]LLM prompt generation:[/bold]")
+    con.print()
+    con.print(_cmd("avakill schema --format=prompt", "Base prompt"))
+    con.print(
+        _cmd('avakill schema --format=prompt --tools="Bash,Write"', "With tools"),
+    )
+    con.print(
+        _cmd('avakill schema --format=prompt --use-case="review"', "With use case"),
+    )
+    con.print(
+        _muted('Combine both: --tools="Bash" --use-case="code agent"'),
+    )
+    con.print(
+        _cmd("avakill schema --format=prompt -o prompt.txt", "Save for embedding"),
+    )
+    con.print()
+    con.print(_muted("Includes evaluation rules, self-protection docs,"))
+    con.print(_muted("and 3 example policies."))
 
     _wait_for_back(con)
 
@@ -547,13 +662,17 @@ def _section_quick_ref(con: Console) -> None:
     con.print("    [bold]Day-to-day:[/bold]")
     con.print(_cmd("avakill hook install --agent <name>", "Register hooks"))
     con.print(_cmd("avakill logs --db audit.db", "View audit log"))
+    con.print(_cmd("avakill logs --db audit.db tail", "Live stream"))
     con.print(_cmd("avakill fix --db audit.db", "Why was I blocked?"))
-    con.print(_cmd("avakill evaluate --policy avakill.yaml", "Test a call"))
+    con.print(
+        _cmd("echo '{...}' | avakill evaluate", "Test a tool call"),
+    )
     con.print()
 
     con.print("    [bold]Policy workflow:[/bold]")
     con.print(_cmd("avakill review avakill.yaml", "Pretty-print"))
     con.print(_cmd("avakill approve proposed.yaml", "Activate proposed"))
+    con.print(_cmd("avakill approve proposed.yaml --yes", "Skip confirm"))
     con.print()
 
     con.print("    [bold]Security:[/bold]")
@@ -566,9 +685,11 @@ def _section_quick_ref(con: Console) -> None:
 
     con.print("    [bold]Advanced:[/bold]")
     con.print(_cmd("avakill daemon start --policy p.yaml", "Start daemon"))
-    con.print(_cmd("avakill compliance report --policy p.yaml", "Compliance"))
+    con.print(_cmd("avakill compliance report", "Compliance assessment"))
     con.print(_cmd("avakill approvals list", "Pending approvals"))
-    con.print(_cmd("avakill mcp-wrap --dry-run", "MCP wrapping"))
+    con.print(_cmd("avakill profile list", "Agent profiles"))
+    con.print(_cmd("avakill mcp-wrap --dry-run", "MCP wrapping preview"))
+    con.print(_cmd("avakill mcp-unwrap", "Undo MCP wrapping"))
     con.print(_cmd("avakill schema --format=prompt", "LLM prompt"))
 
     _wait_for_back(con)

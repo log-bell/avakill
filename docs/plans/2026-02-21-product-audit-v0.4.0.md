@@ -45,14 +45,12 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **E2E test**: Run in empty project, Python project, Node project — verify generated policy is valid
 - **v1?**: MAYBE — overlaps with quickstart. Could confuse users to have both `init` and `quickstart`.
 
-### `avakill guide`
-- **⏳ REVISIT LAST** — overlaps with quickstart and init; decide whether to merge, differentiate, or remove
-- **File**: `cli/guide_cmd.py` (543+ lines)
-- **Status**: PRODUCTION
-- **What it does**: Interactive wizard for protection modes and policy creation
-- **Concerns**: Large interactive flow. Never tested by a real user. Overlaps with quickstart.
-- **E2E test**: Walk through each wizard path, verify generated config is valid
-- **v1?**: MAYBE — overlaps with quickstart
+### `avakill guide` ✅
+- **File**: `cli/guide_cmd.py` (700+ lines)
+- **Status**: BATTLE-TESTED
+- **What it does**: Unified interactive menu — setup wizard, learning tool, and quick reference. Replaces `init` and `quickstart` (which are no longer registered as CLI commands but source files are kept for logic reuse).
+- **E2E test**: Full menu navigation tested — all 7 sections, advanced sub-menu with 5 topics, back navigation, quit. Setup wizard: agent detection, template selection, policy generation, validation, hook install.
+- **v1?**: YES — this is the front door. Users see `avakill guide` in the banner on first install.
 
 ### `avakill hook install / uninstall / list`
 - **File**: `cli/hook_cmd.py`
@@ -698,7 +696,7 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 ## Proposed v1 Surface Area
 
 ### Ship (must work flawlessly)
-1. `avakill quickstart`
+1. `avakill guide` (unified entry point — replaces quickstart/init)
 2. `avakill hook install / uninstall / list`
 3. `avakill validate`
 4. `avakill evaluate`
@@ -711,11 +709,10 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 11. `avakill approvals list / grant / reject`
 
 ### Ship but mark as advanced
-12. `avakill init`
-13. `avakill sign / verify / keygen`
-14. `avakill harden / check-hardening`
-15. `avakill schema`
-16. `avakill guide`
+12. `avakill sign / verify / keygen`
+13. `avakill harden / check-hardening`
+14. `avakill schema`
+15. `avakill profile list / show`
 
 ### FUTURE RELEASE (deferred — needs infrastructure)
 17. `avakill enforce *` (landlock, sandbox, windows, tetragon) — needs Linux/Windows
@@ -727,7 +724,7 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 
 ## Open Questions
 
-1. Should `init` and `quickstart` be merged into one command?
+1. ~~Should `init` and `quickstart` be merged into one command?~~ **DONE** — merged into `avakill guide`
 2. Should deferred commands be hidden from `--help` or just documented as experimental?
 3. Do we need to test hook adapters for agents other than Claude Code before v1?
 4. Is the daemon required for v1 or is hookless mode sufficient?
