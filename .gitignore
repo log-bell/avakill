@@ -54,3 +54,5 @@ htmlcov/
 
 # Project-local config
 CLAUDE.md
+.claude/plans/
+docs/plans/
