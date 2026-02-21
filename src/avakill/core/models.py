@@ -275,6 +275,6 @@ class PolicyConfig(BaseModel):
     @field_validator("version")
     @classmethod
     def _version_must_be_1_0(cls, v: str) -> str:
-        if v != "1.0":
-            raise ValueError(f"Unsupported policy version '{v}': only '1.0' is supported")
-        return v
+        if v in ("1", "1.0"):
+            return "1.0"
+        raise ValueError(f"Unsupported policy version '{v}': only '1.0' is supported")

@@ -50,19 +50,36 @@ def validate(policy_file: str) -> None:
     try:
         engine = PolicyEngine.from_dict(data)
     except ConfigError as exc:
-        console.print(f"[red]Policy validation failed:[/red]\n{exc.message}")
+        console.print("[red]Policy validation failed:[/red]")
+        console.print()
+        cause = exc.__cause__
+        if cause is not None and hasattr(cause, "errors"):
+            for err in cause.errors():
+                parts = []
+                for p in err.get("loc", ()):
+                    if isinstance(p, int):
+                        parts.append(f"rule {p + 1}")
+                    else:
+                        parts.append(str(p))
+                loc = " -> ".join(parts) if parts else "policy"
+                msg = err.get("msg", str(err))
+                console.print(f"  [yellow]{loc}[/yellow]: {msg}")
+        else:
+            console.print(f"  {exc.message}")
+        console.print()
+        console.print("[dim]See 'avakill schema' for valid policy fields.[/dim]")
         raise SystemExit(1) from exc
 
     config = engine.config
 
     # Build summary table
-    table = Table(title="Policy Rules", expand=True, show_lines=True)
-    table.add_column("#", style="dim", width=4, justify="right")
-    table.add_column("Name", style="cyan", min_width=20)
-    table.add_column("Tools", min_width=20)
-    table.add_column("Action", width=18)
-    table.add_column("Conditions", min_width=14)
-    table.add_column("Rate Limit", width=14)
+    table = Table(title="Policy Rules", show_lines=True)
+    table.add_column("#", style="dim", width=3, justify="right")
+    table.add_column("Name", style="cyan")
+    table.add_column("Tools")
+    table.add_column("Action", width=10)
+    table.add_column("Conditions")
+    table.add_column("Rate", width=6)
 
     warnings: list[str] = []
 
@@ -142,6 +159,21 @@ def validate(policy_file: str) -> None:
                     console.print("[yellow]Signature: unsigned[/yellow]")
         except (ValueError, OSError):
             pass
+
+    # What's next guidance
+    console.print()
+    next_steps = Table.grid(padding=(0, 2))
+    next_steps.add_column(style="bold cyan", min_width=16)
+    next_steps.add_column()
+    next_steps.add_row(
+        "Test a rule",
+        'avakill evaluate --tool Bash --args \'{"cmd": "rm -rf /"}\'',
+    )
+    next_steps.add_row("Add more rules", "avakill init")
+    next_steps.add_row("View options", "avakill schema")
+    next_steps.add_row("Activate", "avakill hook install")
+    next_steps.add_row("Edit policy", str(policy_path.resolve()))
+    console.print(Panel(next_steps, title="What's next?", border_style="dim", padding=(1, 2)))
 
 
 def _detect_shadowed_rules(rules: list[PolicyRule]) -> list[str]:
