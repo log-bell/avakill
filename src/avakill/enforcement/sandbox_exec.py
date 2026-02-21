@@ -173,12 +173,12 @@ class SandboxExecEnforcer:
             if allowed:
                 lines.append(f"(deny {op}")
                 if len(allowed) == 1:
-                    expanded = str(Path(allowed[0]).expanduser())
+                    expanded = Path(allowed[0]).expanduser().as_posix()
                     lines.append(f'  (require-not (subpath "{expanded}")))')
                 else:
                     lines.append("  (require-not (require-any")
                     for path in allowed:
-                        expanded = str(Path(path).expanduser())
+                        expanded = Path(path).expanduser().as_posix()
                         lines.append(f'    (subpath "{expanded}")')
                     lines.append("  )))")
             else:

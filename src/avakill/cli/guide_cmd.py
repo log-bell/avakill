@@ -98,9 +98,7 @@ def _show_hooks_only(con: Console, tw: int, agent_hint: str) -> None:
 
     con.print("    For coding assistants, hooks are all you need:")
     con.print()
-    con.print(
-        f"    [{_GOLD}]Hooks[/{_GOLD}]  \u00b7  " f"[{_DIM_MUTED}]security camera[/{_DIM_MUTED}]"
-    )
+    con.print(f"    [{_GOLD}]Hooks[/{_GOLD}]  \u00b7  [{_DIM_MUTED}]security camera[/{_DIM_MUTED}]")
     con.print(_tree_branch("mid") + "Intercepts every tool call before it executes")
     con.print(_tree_branch("mid") + "Blocks rm -rf, DROP TABLE, etc. in <1ms")
     con.print(_tree_branch("mid") + "Full audit trail of everything your agent does")
@@ -109,15 +107,15 @@ def _show_hooks_only(con: Console, tw: int, agent_hint: str) -> None:
 
     _section_header(con, "want more?", tw)
 
-    con.print("    You can add OS-level sandboxing on top " "for defense in depth:")
+    con.print("    You can add OS-level sandboxing on top for defense in depth:")
     con.print(_tree_branch("end") + f"[cyan]avakill launch --agent {agent_hint}[/cyan]")
-    con.print(f"    [{_DIM_MUTED}]    " f"See: docs/upgrade-to-launch-mode.md[/{_DIM_MUTED}]")
+    con.print(f"    [{_DIM_MUTED}]    See: docs/upgrade-to-launch-mode.md[/{_DIM_MUTED}]")
     con.print()
 
     _section_header(con, "ready?", tw)
 
     con.print(_num(1) + "[bold]avakill init --template hooks[/bold]")
-    con.print(_num(2) + f"[bold]avakill hook install --agent {agent_hint}" "[/bold]")
+    con.print(_num(2) + f"[bold]avakill hook install --agent {agent_hint}[/bold]")
     con.print(_num(3) + "[bold]avakill dashboard[/bold]")
     con.print()
 
@@ -126,7 +124,7 @@ def _show_layered(con: Console, tw: int, agent_hint: str) -> None:
     """Show layered hooks+launch for persistent agents."""
     _section_header(con, "recommendation", tw)
 
-    con.print("    For a persistent agent with shell access, " "use both layers:")
+    con.print("    For a persistent agent with shell access, use both layers:")
     con.print()
     con.print(
         f"    [{_GOLD}]Layer 1: Hooks[/{_GOLD}]  \u00b7  "
@@ -141,30 +139,28 @@ def _show_layered(con: Console, tw: int, agent_hint: str) -> None:
         f"  \u00b7  [{_DIM_MUTED}]locked room[/{_DIM_MUTED}]"
     )
     con.print(_tree_branch("mid") + "Sandboxes the entire process at the OS level")
-    con.print(_tree_branch("mid") + "Even if the agent bypasses hooks, " "the kernel blocks it")
+    con.print(_tree_branch("mid") + "Even if the agent bypasses hooks, the kernel blocks it")
     con.print(_tree_branch("end") + f"[cyan]avakill launch --agent {agent_hint}[/cyan]")
     con.print()
 
     _section_header(con, "why both?", tw)
 
-    con.print("    Hooks alone are [bold]cooperative[/bold] \u2014 " "the agent reports its tool")
-    con.print("    calls and AvaKill evaluates them. " "If the agent doesn't")
+    con.print("    Hooks alone are [bold]cooperative[/bold] \u2014 the agent reports its tool")
+    con.print("    calls and AvaKill evaluates them. If the agent doesn't")
     con.print("    report a call, hooks can't stop it.")
     con.print()
-    con.print(
-        "    Launch mode is [bold]mandatory[/bold] \u2014 " "Landlock (Linux) or sandbox-exec"
-    )
-    con.print("    (macOS) restricts what the process can do " "at the kernel level.")
+    con.print("    Launch mode is [bold]mandatory[/bold] \u2014 Landlock (Linux) or sandbox-exec")
+    con.print("    (macOS) restricts what the process can do at the kernel level.")
     con.print("    No report needed. No bypass possible.")
     con.print()
-    con.print("    Together: hooks give you the audit trail " "and policy control.")
+    con.print("    Together: hooks give you the audit trail and policy control.")
     con.print("    Launch mode gives you the hard boundary.")
     con.print()
 
     _section_header(con, "ready?", tw)
 
     con.print(_num(1) + "[bold]avakill init --template hooks[/bold]")
-    con.print(_num(2) + f"[bold]avakill hook install --agent {agent_hint}" "[/bold]")
+    con.print(_num(2) + f"[bold]avakill hook install --agent {agent_hint}[/bold]")
     con.print(_num(3) + f"[bold]avakill launch --agent {agent_hint}[/bold]")
     con.print(_num(4) + "[bold]avakill dashboard[/bold]")
     con.print()
@@ -174,11 +170,10 @@ def _show_decorator(con: Console, tw: int) -> None:
     """Show decorator/wrapper recommendation for custom agents."""
     _section_header(con, "recommendation", tw)
 
-    con.print("    For custom agents, " "wrap your tool functions directly:")
+    con.print("    For custom agents, wrap your tool functions directly:")
     con.print()
     con.print(
-        f"    [{_GOLD}]Option A: Decorator[/{_GOLD}]  \u00b7  "
-        f"[{_DIM_MUTED}]simplest[/{_DIM_MUTED}]"
+        f"    [{_GOLD}]Option A: Decorator[/{_GOLD}]  \u00b7  [{_DIM_MUTED}]simplest[/{_DIM_MUTED}]"
     )
     con.print(_tree_branch("mid") + "Add @protect to any Python function")
     con.print(_tree_branch("end") + "[cyan]from avakill import Guard, protect[/cyan]")
@@ -188,9 +183,7 @@ def _show_decorator(con: Console, tw: int) -> None:
         f"  \u00b7  [{_DIM_MUTED}]for OpenAI / Anthropic "
         f"/ LangChain[/{_DIM_MUTED}]"
     )
-    con.print(
-        _tree_branch("mid") + "Drop-in client wrappers, " "no code changes to your agent logic"
-    )
+    con.print(_tree_branch("mid") + "Drop-in client wrappers, no code changes to your agent logic")
     con.print(_tree_branch("end") + "[cyan]See: docs/framework-integrations.md[/cyan]")
     con.print()
     con.print(
@@ -246,12 +239,12 @@ def run_protection_guide(con: Console | None = None) -> None:
                 f"installed, you likely want hooks."
                 f"[/{_DIM_MUTED}]"
             )
-            con.print(f"    [{_DIM_MUTED}]Picking: " f"AI coding assistant.[/{_DIM_MUTED}]")
+            con.print(f"    [{_DIM_MUTED}]Picking: AI coding assistant.[/{_DIM_MUTED}]")
             con.print()
             agent_type = 0
         else:
             con.print(
-                f"    [{_DIM_MUTED}]No agents detected." f" Picking: custom agent.[/{_DIM_MUTED}]"
+                f"    [{_DIM_MUTED}]No agents detected. Picking: custom agent.[/{_DIM_MUTED}]"
             )
             con.print()
             agent_type = 2
@@ -295,7 +288,7 @@ def run_protection_guide(con: Console | None = None) -> None:
 
 _POLICY_METHODS = [
     "Start from a template (quickest)",
-    ("Have your AI agent write one " "(generates a prompt for any LLM)"),
+    ("Have your AI agent write one (generates a prompt for any LLM)"),
     "Write it by hand (YAML reference)",
 ]
 
@@ -303,22 +296,22 @@ _TEMPLATES_INFO = [
     (
         "hooks",
         "Agent hooks",
-        "Blocks catastrophic ops, allows most else. " "Best for AI coding agents.",
+        "Blocks catastrophic ops, allows most else. Best for AI coding agents.",
     ),
     (
         "default",
         "Balanced",
-        "Denies by default. Blocks destructive ops, " "allows reads, rate-limits.",
+        "Denies by default. Blocks destructive ops, allows reads, rate-limits.",
     ),
     (
         "strict",
         "Maximum safety",
-        "Explicit allowlist only. " "Writes and execution require approval.",
+        "Explicit allowlist only. Writes and execution require approval.",
     ),
     (
         "permissive",
         "Audit mode",
-        "Allows everything. Blocks only catastrophic ops. " "Logs all calls.",
+        "Allows everything. Blocks only catastrophic ops. Logs all calls.",
     ),
 ]
 
@@ -383,7 +376,7 @@ def _guide_template(con: Console, tw: int) -> None:
 
 def _guide_llm(con: Console, tw: int) -> None:
     """Generate a tailored LLM prompt for policy creation."""
-    con.print("  [bold]What does your agent do?[/bold] " f"[{_DIM_MUTED}](one line)[/{_DIM_MUTED}]")
+    con.print(f"  [bold]What does your agent do?[/bold] [{_DIM_MUTED}](one line)[/{_DIM_MUTED}]")
     use_case = Prompt.ask("    \u276f", console=con)
     con.print()
 
@@ -403,8 +396,8 @@ def _guide_llm(con: Console, tw: int) -> None:
 
     _section_header(con, "prompt for your LLM", tw)
 
-    con.print("    Copy everything between the lines into " "Claude, ChatGPT,")
-    con.print("    or any LLM. It will generate " "a complete avakill.yaml.")
+    con.print("    Copy everything between the lines into Claude, ChatGPT,")
+    con.print("    or any LLM. It will generate a complete avakill.yaml.")
     con.print()
     con.print(
         "  " + "\u2500" * min(60, tw - 4),
@@ -470,18 +463,16 @@ policies:
     con.print()
 
     con.print(
-        f"    [{_DIM_MUTED}]Rules are evaluated top-to-bottom." f" First match wins.[/{_DIM_MUTED}]"
+        f"    [{_DIM_MUTED}]Rules are evaluated top-to-bottom. First match wins.[/{_DIM_MUTED}]"
     )
     con.print(
-        f"    [{_DIM_MUTED}]Full reference: "
-        f"[bold]docs/policy-reference.md[/bold]"
-        f"[/{_DIM_MUTED}]"
+        f"    [{_DIM_MUTED}]Full reference: [bold]docs/policy-reference.md[/bold][/{_DIM_MUTED}]"
     )
     con.print()
 
     _section_header(con, "ready?", tw)
 
-    con.print(_num(1) + "[bold]Create avakill.yaml[/bold] " "with the structure above")
+    con.print(_num(1) + "[bold]Create avakill.yaml[/bold] with the structure above")
     con.print(
         _num(2) + "[bold]avakill validate avakill.yaml[/bold]"
         f"    [{_DIM_MUTED}]check syntax[/{_DIM_MUTED}]"
@@ -506,7 +497,7 @@ def _try_clipboard(con: Console, text: str) -> None:
             timeout=3,
             capture_output=True,
         )
-        con.print("    [bold #22C55E]Copied to clipboard " "\u2713[/bold #22C55E]")
+        con.print("    [bold #22C55E]Copied to clipboard \u2713[/bold #22C55E]")
         con.print()
         return
     except (FileNotFoundError, subprocess.SubprocessError):
@@ -520,7 +511,7 @@ def _try_clipboard(con: Console, text: str) -> None:
             timeout=3,
             capture_output=True,
         )
-        con.print("    [bold #22C55E]Copied to clipboard " "\u2713[/bold #22C55E]")
+        con.print("    [bold #22C55E]Copied to clipboard \u2713[/bold #22C55E]")
         con.print()
         return
     except (FileNotFoundError, subprocess.SubprocessError):

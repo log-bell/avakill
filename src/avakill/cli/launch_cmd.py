@@ -154,15 +154,14 @@ def launch(
         )
     elif result.exit_code == 127:
         click.echo(
-            "Error: command not found inside sandbox. "
-            "The sandbox may be blocking the executable.",
+            "Error: command not found inside sandbox. The sandbox may be blocking the executable.",
             err=True,
         )
     elif result.exit_code < 0:
         signum = -result.exit_code
         if signum == 9:  # SIGKILL
             click.echo(
-                "Process was killed (SIGKILL). " "The sandbox may have blocked an operation.",
+                "Process was killed (SIGKILL). The sandbox may have blocked an operation.",
                 err=True,
             )
 

@@ -418,7 +418,7 @@ class TestCodexRulesGeneration:
         from avakill.hooks.openai_codex import generate_codex_rules
 
         policy_path = tmp_path / "avakill.yaml"
-        policy_path.write_text('version: "1.0"\n' "default_action: allow\n" "policies: []\n")
+        policy_path.write_text('version: "1.0"\ndefault_action: allow\npolicies: []\n')
         output_path = tmp_path / "avakill.rules"
         generate_codex_rules(policy_path, output_path)
 

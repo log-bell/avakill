@@ -188,7 +188,7 @@ def _run_burst_simulation(policy_path: str, agent: str, tool: str, args: dict, c
                 if rule.name == probe.policy_name:
                     if not rule.rate_limit:
                         console.print(
-                            f"[dim]No rate limit configured on " f"matched rule '{rule.name}'[/dim]"
+                            f"[dim]No rate limit configured on matched rule '{rule.name}'[/dim]"
                         )
                     break
         except Exception:
