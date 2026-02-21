@@ -25,26 +25,6 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 
 ## Tier 1: Core (what users need on day 1)
 
-### `avakill quickstart`
-- **⏳ REVISIT LAST** — integration layer; audit underlying pieces first
-- **File**: `cli/quickstart_cmd.py` (182 lines)
-- **Status**: PRODUCTION
-- **What it does**: Guided setup — detects agents, selects protection level, scans for sensitive files, generates policy YAML, installs hooks
-- **Dependencies**: `hooks.installer.detect_agents()`, `hooks.installer.install_hook()`, policy templates
-- **Concerns**: Never tested by a real first-time user. Interactive prompts assume terminal. No fallback if agent detection fails. Doesn't guide daemon startup.
-- **E2E test**: Fresh machine, `pipx install avakill`, `avakill quickstart`, verify policy + hooks installed, agent actually blocked on first dangerous call
-- **v1?**: YES — this is the front door
-
-### `avakill init`
-- **⏳ REVISIT LAST** — overlaps with quickstart; decide whether to merge or differentiate
-- **File**: `cli/init_cmd.py` (295 lines)
-- **Status**: PRODUCTION
-- **What it does**: Creates a new policy file with template selection, framework detection, mode selection
-- **Dependencies**: Policy templates, framework detection via dependency file scanning
-- **Concerns**: Overlaps with `quickstart`. Framework detection is basic (keyword search in requirements.txt). Never tested by a real user.
-- **E2E test**: Run in empty project, Python project, Node project — verify generated policy is valid
-- **v1?**: MAYBE — overlaps with quickstart. Could confuse users to have both `init` and `quickstart`.
-
 ### `avakill guide` ✅
 - **File**: `cli/guide_cmd.py` (700+ lines)
 - **Status**: BATTLE-TESTED
