@@ -473,85 +473,63 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 
 ## Tier 4: Advanced / Enterprise
 
-### `avakill enforce landlock`
+### `avakill enforce landlock` — FUTURE RELEASE
 - **File**: `cli/enforce_cmd.py` + `enforcement/landlock.py`
 - **Status**: PRODUCTION (code complete, never human-tested)
 - **What it does**: Applies Linux Landlock LSM restrictions via raw ctypes syscalls
-- **Concerns**: **HIGH RISK** — Uses `ctypes.CDLL("libc.so.6")` with raw syscall numbers. One wrong flag crashes the process or silently fails. Requires Linux 5.13+. Has this EVER been run on a real Linux box?
-- **E2E test**: Needs a Linux VM/container. Apply landlock, verify file writes blocked, verify reads allowed.
-- **v1?**: NO — requires Linux, untested, high risk
+- **Why deferred**: Requires Linux 5.13+, uses raw `ctypes.CDLL("libc.so.6")` with syscall numbers. High risk, needs a Linux VM/container to test. Unit tests pass (mocked).
 
-### `avakill enforce sandbox`
+### `avakill enforce sandbox` — FUTURE RELEASE
 - **File**: `cli/enforce_cmd.py` + `enforcement/sandbox_exec.py`
 - **Status**: PRODUCTION (code complete, never human-tested)
 - **What it does**: Generates macOS sandbox-exec SBPL profiles
-- **Concerns**: SBPL is Apple-internal format with no public documentation. Has anyone run a process inside a generated sandbox and verified enforcement?
-- **E2E test**: Generate profile, launch sandboxed process, verify writes blocked
-- **v1?**: NO — undocumented Apple API, untested
+- **Why deferred**: SBPL is an undocumented Apple-internal format. Needs real sandbox-exec testing to verify enforcement.
 
-### `avakill enforce windows`
+### `avakill enforce windows` — FUTURE RELEASE
 - **File**: `cli/enforce_cmd.py` + `enforcement/windows.py`
 - **Status**: PRODUCTION (code complete, never tested on Windows)
 - **What it does**: Job Objects + privilege removal via ctypes
-- **Concerns**: Do you even have a Windows machine to test this?
-- **E2E test**: Needs Windows. Create job object, verify privilege removal, verify process limits.
-- **v1?**: NO
+- **Why deferred**: Requires Windows to test.
 
-### `avakill enforce tetragon`
+### `avakill enforce tetragon` — FUTURE RELEASE
 - **File**: `cli/enforce_cmd.py` + `enforcement/tetragon.py`
 - **Status**: PRODUCTION (generates YAML only)
 - **What it does**: Generates Cilium Tetragon TracingPolicy YAML
-- **Concerns**: Output-only — doesn't apply anything. Needs a Kubernetes cluster with Cilium to verify the YAML works.
-- **E2E test**: Needs k8s cluster with Tetragon
-- **v1?**: NO — enterprise/k8s only
+- **Why deferred**: Output-only, needs a Kubernetes cluster with Cilium to verify.
 
-### `avakill launch`
+### `avakill launch` — FUTURE RELEASE
 - **File**: `cli/launch_cmd.py` (168 lines)
-- **Status**: SCAFFOLD (by our standards)
+- **Status**: SCAFFOLD
 - **What it does**: Loads agent profile, resolves sandbox config, launches process in OS sandbox with PTY relay
-- **Concerns**: Complex integration of profiles + sandbox backends + PTY. Each backend (landlock, sandbox-exec, windows) is untested. Profile YAML files are thin.
-- **E2E test**: `avakill launch --profile openclaw -- python agent.py`, verify sandbox applied
-- **v1?**: NO — depends on untested backends
+- **Why deferred**: Depends on untested enforce backends (landlock, sandbox-exec, windows).
 
-### `avakill mcp-proxy`
+### `avakill mcp-proxy` — FUTURE RELEASE
 - **File**: `cli/mcp_proxy_cmd.py` + `mcp/proxy.py` (23KB)
-- **Status**: PRODUCTION (code is substantial, never tested with real MCP server)
+- **Status**: PRODUCTION (substantial code, never tested with real MCP server)
 - **What it does**: Transparent MCP proxy — intercepts tools/call JSON-RPC messages, evaluates against policy
-- **Concerns**: MCP protocol is evolving. Has this been tested with a real MCP server (e.g., Claude Desktop connecting to a filesystem MCP server through the proxy)?
-- **E2E test**: Configure MCP server, route through proxy, verify tool calls intercepted and policy applied
-- **v1?**: MAYBE — high value if it works, but untested
+- **Why deferred**: Needs a real MCP server to test. MCP protocol is evolving. High value if it works but can't verify without infrastructure.
 
-### `avakill mcp-wrap / mcp-unwrap`
+### `avakill mcp-wrap / mcp-unwrap` — FUTURE RELEASE
 - **File**: `cli/mcp_wrap_cmd.py` + `mcp/wrapper.py`
 - **Status**: PRODUCTION
 - **What it does**: Rewrites MCP server configs to route through avakill proxy
-- **Concerns**: Modifies real agent configs (Claude Desktop, Cursor). One wrong JSON write breaks the agent.
-- **E2E test**: Wrap a config, verify original backed up, unwrap, verify restored
-- **v1?**: MAYBE — pairs with mcp-proxy
+- **Why deferred**: Pairs with mcp-proxy. Modifies real agent configs — risky without proxy verification first.
 
-### `avakill compliance report / gaps`
-- **File**: `cli/compliance_cmd.py` + `compliance/*`
-- **Status**: PRODUCTION
-- **What it does**: Assesses policy against SOC 2, NIST AI RMF, EU AI Act, ISO 42001
-- **Concerns**: Is the output actually useful to a compliance officer? Are the control mappings accurate?
-- **E2E test**: Run against a real policy, have someone with compliance knowledge review output
-- **v1?**: NO — enterprise feature, needs domain expert review
-
-### `avakill profile list / show`
-- **File**: `cli/profile_cmd.py` + `profiles/*`
-- **Status**: PRODUCTION
-- **What it does**: Lists/shows agent containment profiles (openclaw, cline, aider, swe-agent, continue)
-- **Concerns**: Profiles are YAML files with metadata. Are the sandbox configs in them accurate for each agent?
-- **E2E test**: `avakill profile list`, `avakill profile show openclaw`, verify output makes sense
-- **v1?**: MAYBE — useful for `launch` command but `launch` itself isn't v1
-
-### `avakill metrics`
+### `avakill metrics` — FUTURE RELEASE
 - **File**: `cli/metrics_cmd.py`
 - **Status**: PRODUCTION
 - **What it does**: Starts Prometheus metrics HTTP server
-- **Dependencies**: Optional `prometheus-client` package
-- **E2E test**: Start server, trigger evaluations, scrape /metrics endpoint
-- **v1?**: NO — enterprise/observability
+- **Why deferred**: Enterprise observability feature. Needs prometheus-client and a scraper to test.
+
+### `avakill guide` — FUTURE RELEASE
+- **File**: `cli/guide_cmd.py` (543+ lines)
+- **Status**: PRODUCTION
+- **What it does**: Interactive wizard for protection modes and policy creation
+- **Why deferred**: Overlaps with quickstart. Large interactive flow, never tested by a real user. Decide whether to merge with quickstart or differentiate before investing E2E time.
+
+---
+
+### Testable now (low-hanging fruit)
 
 ### `avakill schema`
 - **File**: `cli/schema_cmd.py`
@@ -560,13 +538,19 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **E2E test**: Export schema, validate a policy against it
 - **v1?**: NICE-TO-HAVE
 
-### `avakill guide`
-- **File**: `cli/guide_cmd.py` (543+ lines)
+### `avakill profile list / show`
+- **File**: `cli/profile_cmd.py` + `profiles/*`
 - **Status**: PRODUCTION
-- **What it does**: Interactive wizard for protection modes and policy creation
-- **Concerns**: Large interactive flow. Never tested by a real user.
-- **E2E test**: Run through each wizard path, verify generated config is valid
-- **v1?**: MAYBE — overlaps with quickstart
+- **What it does**: Lists/shows agent containment profiles (openclaw, cline, aider, swe-agent, continue)
+- **E2E test**: `avakill profile list`, `avakill profile show openclaw`, verify output makes sense
+- **v1?**: MAYBE — useful for `launch` command but `launch` itself isn't v1
+
+### `avakill compliance report / gaps`
+- **File**: `cli/compliance_cmd.py` + `compliance/*`
+- **Status**: PRODUCTION
+- **What it does**: Assesses policy against SOC 2, NIST AI RMF, EU AI Act, ISO 42001
+- **E2E test**: Run against a real policy, review output for usefulness
+- **v1?**: NO — enterprise feature, needs domain expert review
 
 ---
 
@@ -628,14 +612,12 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 15. `avakill schema`
 16. `avakill guide`
 
-### Defer or gate behind feature flag
-17. `avakill enforce *` (landlock, sandbox, windows, tetragon)
-18. `avakill launch`
-19. `avakill mcp-proxy / mcp-wrap / mcp-unwrap`
-20. `avakill compliance *`
-21. `avakill metrics`
-22. `avakill profile *`
-23. `avakill dashboard`
+### FUTURE RELEASE (deferred — needs infrastructure or further design)
+17. `avakill enforce *` (landlock, sandbox, windows, tetragon) — needs Linux/Windows
+18. `avakill launch` — depends on untested enforce backends
+19. `avakill mcp-proxy / mcp-wrap / mcp-unwrap` — needs real MCP server
+20. `avakill metrics` — enterprise observability
+21. `avakill guide` — overlaps with quickstart, decide merge vs differentiate
 
 ---
 
