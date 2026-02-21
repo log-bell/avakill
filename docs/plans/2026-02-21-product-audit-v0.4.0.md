@@ -578,12 +578,36 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   # → "Available built-in profiles: aider, cline, continue, openclaw, swe-agent"
   ```
 
-### `avakill compliance report / gaps`
+### `avakill compliance report / gaps` ✅
 - **File**: `cli/compliance_cmd.py` + `compliance/*`
-- **Status**: PRODUCTION
-- **What it does**: Assesses policy against SOC 2, NIST AI RMF, EU AI Act, ISO 42001
-- **E2E test**: Run against a real policy, review output for usefulness
-- **v1?**: NO — enterprise feature, needs domain expert review
+- **Status**: BATTLE-TESTED
+- **What it does**: Assesses policy against SOC 2, NIST AI RMF, EU AI Act, ISO 42001. Shows control-by-control status (PASS/FAIL/PARTIAL), evidence, and actionable recommendations. Gaps command shows only failing/partial controls with remediation steps.
+- **E2E test**: All frameworks tested individually and combined (default). All output formats tested (table, json, markdown). File output (`-o`) tested. `gaps` command tested with and without `--policy`. Default (no `--policy`) auto-finds `avakill.yaml`. Recommendations are specific and actionable (e.g., "Generate a signing key with 'avakill keygen'").
+- **v1?**: NO — enterprise feature, but the output quality is surprisingly good
+- **Example use cases**:
+  ```bash
+  # Full report across all frameworks (table format)
+  avakill compliance report --policy avakill.yaml
+
+  # Single framework
+  avakill compliance report --policy avakill.yaml --framework soc2
+  avakill compliance report --policy avakill.yaml --framework nist-ai-rmf
+  avakill compliance report --policy avakill.yaml --framework eu-ai-act
+  avakill compliance report --policy avakill.yaml --framework iso-42001
+
+  # JSON output (for dashboards/CI)
+  avakill compliance report --policy avakill.yaml --format json
+
+  # Markdown output (for docs/reports)
+  avakill compliance report --policy avakill.yaml --format markdown -o compliance.md
+
+  # Gaps only — shows failing controls with remediation steps
+  avakill compliance gaps --policy avakill.yaml
+
+  # Default — auto-finds avakill.yaml in cwd
+  avakill compliance report
+  avakill compliance gaps
+  ```
 
 ### `avakill mcp-wrap / mcp-unwrap`
 - **File**: `cli/mcp_wrap_cmd.py` + `mcp/wrapper.py`
