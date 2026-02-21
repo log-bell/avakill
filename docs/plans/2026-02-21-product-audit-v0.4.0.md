@@ -509,33 +509,21 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **What it does**: Transparent MCP proxy — intercepts tools/call JSON-RPC messages, evaluates against policy
 - **Why deferred**: Needs a real MCP server to test. MCP protocol is evolving. High value if it works but can't verify without infrastructure.
 
-### `avakill mcp-wrap / mcp-unwrap` — FUTURE RELEASE
-- **File**: `cli/mcp_wrap_cmd.py` + `mcp/wrapper.py`
-- **Status**: PRODUCTION
-- **What it does**: Rewrites MCP server configs to route through avakill proxy
-- **Why deferred**: Pairs with mcp-proxy. Modifies real agent configs — risky without proxy verification first.
-
 ### `avakill metrics` — FUTURE RELEASE
 - **File**: `cli/metrics_cmd.py`
 - **Status**: PRODUCTION
 - **What it does**: Starts Prometheus metrics HTTP server
 - **Why deferred**: Enterprise observability feature. Needs prometheus-client and a scraper to test.
 
-### `avakill guide` — FUTURE RELEASE
-- **File**: `cli/guide_cmd.py` (543+ lines)
-- **Status**: PRODUCTION
-- **What it does**: Interactive wizard for protection modes and policy creation
-- **Why deferred**: Overlaps with quickstart. Large interactive flow, never tested by a real user. Decide whether to merge with quickstart or differentiate before investing E2E time.
-
 ---
 
-### Testable now (low-hanging fruit)
+### Testable now
 
 ### `avakill schema`
 - **File**: `cli/schema_cmd.py`
 - **Status**: PRODUCTION
 - **What it does**: Exports JSON Schema for policy files, generates LLM prompts
-- **E2E test**: Export schema, validate a policy against it
+- **E2E test**: Export schema, validate a policy against it, test `--llm-prompt`
 - **v1?**: NICE-TO-HAVE
 
 ### `avakill profile list / show`
@@ -551,6 +539,22 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 - **What it does**: Assesses policy against SOC 2, NIST AI RMF, EU AI Act, ISO 42001
 - **E2E test**: Run against a real policy, review output for usefulness
 - **v1?**: NO — enterprise feature, needs domain expert review
+
+### `avakill mcp-wrap / mcp-unwrap`
+- **File**: `cli/mcp_wrap_cmd.py` + `mcp/wrapper.py`
+- **Status**: PRODUCTION
+- **What it does**: Rewrites MCP server configs to route through avakill proxy
+- **Concerns**: Modifies real agent configs (Claude Desktop, Cursor). One wrong JSON write breaks the agent. Has backup/restore.
+- **E2E test**: Wrap a test config, verify original backed up, unwrap, verify restored
+- **v1?**: MAYBE — pairs with mcp-proxy
+
+### `avakill guide`
+- **File**: `cli/guide_cmd.py` (543+ lines)
+- **Status**: PRODUCTION
+- **What it does**: Interactive wizard for protection modes and policy creation
+- **Concerns**: Large interactive flow. Never tested by a real user. Overlaps with quickstart.
+- **E2E test**: Walk through each wizard path, verify generated config is valid
+- **v1?**: MAYBE — overlaps with quickstart
 
 ---
 
@@ -612,12 +616,11 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
 15. `avakill schema`
 16. `avakill guide`
 
-### FUTURE RELEASE (deferred — needs infrastructure or further design)
+### FUTURE RELEASE (deferred — needs infrastructure)
 17. `avakill enforce *` (landlock, sandbox, windows, tetragon) — needs Linux/Windows
 18. `avakill launch` — depends on untested enforce backends
-19. `avakill mcp-proxy / mcp-wrap / mcp-unwrap` — needs real MCP server
-20. `avakill metrics` — enterprise observability
-21. `avakill guide` — overlaps with quickstart, decide merge vs differentiate
+19. `avakill mcp-proxy` — needs a real MCP server
+20. `avakill metrics` — needs prometheus-client, a scraper
 
 ---
 
