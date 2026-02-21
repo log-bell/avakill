@@ -114,7 +114,7 @@ The prompt includes the full JSON Schema, evaluation rules, examples, and common
 avakill validate generated-policy.yaml
 ```
 
-> See [`llm-policy-prompt.md`](llm-policy-prompt.md) for a paste-ready prompt you can use without installing AvaKill.
+> See [`llm-policy-prompt.md`](internal/llm-policy-prompt.md) for a paste-ready prompt you can use without installing AvaKill.
 
 ## 2. Review the Policy
 
@@ -572,9 +572,9 @@ Exit codes: `0` = allowed, `2` = denied, `1` = error.
 
 Once you have hooks working, you can add additional enforcement layers for defense-in-depth:
 
-- **[Upgrade to Launch Mode](upgrade-to-launch-mode.md)** -- add OS-level sandboxing on top of hooks. Your existing policies continue to work unchanged.
-- **[Defense-in-Depth Guide](defense-in-depth.md)** -- understand how hooks, launch mode, and MCP proxy compose together. Includes a risk matrix and per-agent recommendations.
-- **[Sandbox Backends](sandbox-backends.md)** -- platform-specific details for Landlock (Linux), sandbox_init (macOS), and AppContainer (Windows).
+- **[Upgrade to Launch Mode](internal/upgrade-to-launch-mode.md)** -- add OS-level sandboxing on top of hooks. Your existing policies continue to work unchanged.
+- **[Defense-in-Depth Guide](internal/defense-in-depth.md)** -- understand how hooks, launch mode, and MCP proxy compose together. Includes a risk matrix and per-agent recommendations.
+- **[Sandbox Backends](internal/sandbox-backends.md)** -- platform-specific details for Landlock (Linux), sandbox_init (macOS), and AppContainer (Windows).
 - **[Agent Profiles](cli-reference.md#profile)** -- built-in containment profiles for OpenClaw, Aider, Cline, Continue.dev, and SWE-Agent. Run `avakill profile list` to see them.
 
 Quick start:
@@ -593,16 +593,16 @@ avakill launch --agent aider --policy avakill.yaml -- aider
 ## Next Steps
 
 - **[Policy Reference](policy-reference.md)** -- full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
-- **[Framework Integrations](framework-integrations.md)** — drop-in wrappers for OpenAI, Anthropic, LangChain, CrewAI, and MCP.
-- **[MCP Proxy](mcp-proxy.md)** — deploy AvaKill as a transparent proxy for any MCP server.
-- **[MCP Universal Interception](mcp-proxy-universal.md)** — wrap any agent's MCP config with `avakill mcp-wrap` for zero-code interception.
-- **[Security Hardening](security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
-- **[Deployment Guide](deployment.md)** — dev → staging → production patterns, Docker, and systemd.
+- **[Framework Integrations](internal/framework-integrations.md)** — drop-in wrappers for OpenAI, Anthropic, LangChain, CrewAI, and MCP.
+- **[MCP Proxy](internal/mcp-proxy.md)** — deploy AvaKill as a transparent proxy for any MCP server.
+- **[MCP Universal Interception](internal/mcp-proxy-universal.md)** — wrap any agent's MCP config with `avakill mcp-wrap` for zero-code interception.
+- **[Security Hardening](internal/security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
+- **[Deployment Guide](internal/deployment.md)** — dev → staging → production patterns, Docker, and systemd.
 - **[Cookbook](cookbook.md)** — real-world policy recipes for common use cases.
-- **[Process Launcher](process-launcher.md)** — launch agent processes inside OS-level sandboxes with `avakill launch`.
+- **[Process Launcher](internal/process-launcher.md)** — launch agent processes inside OS-level sandboxes with `avakill launch`.
 - **[CLI Reference](cli-reference.md)** — complete documentation for all CLI commands.
 - **[API Reference](api-reference.md)** — full Python API documentation.
-- **[Troubleshooting](troubleshooting.md)** — common issues and solutions.
-- **[Native Agent Hooks](framework-integrations.md#native-agent-hooks)** — per-agent hook details for Claude Code, Gemini CLI, Cursor, and Windsurf.
-- **[Daemon Deployment](deployment.md#daemon-deployment)** — running the daemon with systemd, monitoring, and SIGHUP reload.
-- **[Compliance Reporting](deployment.md#compliance-deployment)** — automated SOC 2, NIST, EU AI Act, and ISO 42001 assessments.
+- **[Troubleshooting](internal/troubleshooting.md)** — common issues and solutions.
+- **[Native Agent Hooks](internal/framework-integrations.md#native-agent-hooks)** — per-agent hook details for Claude Code, Gemini CLI, Cursor, and Windsurf.
+- **[Daemon Deployment](internal/deployment.md#daemon-deployment)** — running the daemon with systemd, monitoring, and SIGHUP reload.
+- **[Compliance Reporting](internal/deployment.md#compliance-deployment)** — automated SOC 2, NIST, EU AI Act, and ISO 42001 assessments.

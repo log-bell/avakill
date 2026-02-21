@@ -445,7 +445,7 @@ The database is created automatically on first use. If it doesn't exist, ensure 
 
 ## Still Stuck?
 
-- Check the [Policy Reference](policy-reference.md) for YAML syntax details
+- Check the [Policy Reference](../policy-reference.md) for YAML syntax details
 - Use `avakill validate` to catch schema errors
 - Use `avakill logs` to see what decisions are being made
 - Use `avakill dashboard` to monitor in real-time

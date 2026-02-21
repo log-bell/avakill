@@ -450,7 +450,7 @@ avakill mcp-proxy --upstream-cmd CMD [--upstream-args ARGS] [--policy PATH] [--l
 | `--policy` | `avakill.yaml` | Path to the policy file |
 | `--log-db` | *(none)* | Path to the audit database (omit to disable logging) |
 
-Sits between an MCP client and an upstream MCP server, intercepting `tools/call` requests and evaluating them against the policy. See the [MCP Proxy Guide](mcp-proxy.md) for detailed setup.
+Sits between an MCP client and an upstream MCP server, intercepting `tools/call` requests and evaluating them against the policy. See the [MCP Proxy Guide](internal/mcp-proxy.md) for detailed setup.
 
 **Examples:**
 
@@ -1120,6 +1120,6 @@ avakill fix --db /var/log/avakill/audit.db
 
 - **[Getting Started](getting-started.md)** — walkthrough using the CLI
 - **[Policy Reference](policy-reference.md)** — full YAML schema
-- **[Security Hardening](security-hardening.md)** — signing and hardening workflows
-- **[Deployment](deployment.md)** — production deployment patterns
-- **[Framework Integrations](framework-integrations.md)** — native hooks and SDK wrappers
+- **[Security Hardening](internal/security-hardening.md)** — signing and hardening workflows
+- **[Deployment](internal/deployment.md)** — production deployment patterns
+- **[Framework Integrations](internal/framework-integrations.md)** — native hooks and SDK wrappers

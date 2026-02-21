@@ -8,9 +8,9 @@ AvaKill intercepts AI agent tool calls and enforces YAML-based safety policies d
 
 - [Getting Started](docs/getting-started.md): Installation, first policy, integration guide
 - [Policy Reference](docs/policy-reference.md): Full YAML policy format, conditions, rate limiting
-- [Framework Integrations](docs/framework-integrations.md): OpenAI, Anthropic, LangChain, MCP
-- [MCP Proxy](docs/mcp-proxy.md): Transparent proxy for MCP servers
-- [LLM Policy Prompt](docs/llm-policy-prompt.md): Generate policies with any LLM
+- [Framework Integrations](docs/internal/framework-integrations.md): OpenAI, Anthropic, LangChain, MCP
+- [MCP Proxy](docs/internal/mcp-proxy.md): Transparent proxy for MCP servers
+- [LLM Policy Prompt](docs/internal/llm-policy-prompt.md): Generate policies with any LLM
 
 ## Generate Policies
 

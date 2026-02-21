@@ -22,7 +22,7 @@ pipx install avakill    # Recommended
 # or: pip install avakill
 ```
 
-[Quickstart](#quickstart) · [Tutorial](docs/tutorial-you-couldve-invented-avakill.md) · [Integrations](#framework-integrations) · [Policy Reference](#policy-configuration) · [Security](docs/security-hardening.md) · [Deployment](docs/deployment.md) · [CLI](docs/cli-reference.md) · [Cookbook](docs/cookbook.md) · [API](docs/api-reference.md) · [Contributing](CONTRIBUTING.md)
+[Quickstart](#quickstart) · [Tutorial](docs/internal/tutorial-you-couldve-invented-avakill.md) · [Integrations](#framework-integrations) · [Policy Reference](#policy-configuration) · [Security](docs/internal/security-hardening.md) · [Deployment](docs/internal/deployment.md) · [CLI](docs/cli-reference.md) · [Cookbook](docs/cookbook.md) · [API](docs/api-reference.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -186,7 +186,7 @@ avakill hook list
 
 AvaKill intercepts every tool call at the agent level. Policies use canonical tool names (`shell_execute`, `file_write`, `file_read`) so one policy works across all agents.
 
-> See [`docs/framework-integrations.md`](docs/framework-integrations.md#native-agent-hooks) for per-agent details and the full tool normalization table.
+> See [`docs/internal/framework-integrations.md`](docs/internal/framework-integrations.md#native-agent-hooks) for per-agent details and the full tool normalization table.
 
 ### OpenAI
 
@@ -346,7 +346,7 @@ schema = get_json_schema()          # For structured output / validation
 prompt = generate_prompt()           # Self-contained LLM prompt
 ```
 
-> See [`docs/llm-policy-prompt.md`](docs/llm-policy-prompt.md) for a paste-ready prompt.
+> See [`docs/internal/llm-policy-prompt.md`](docs/internal/llm-policy-prompt.md) for a paste-ready prompt.
 
 ## CLI
 

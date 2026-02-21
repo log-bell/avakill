@@ -59,7 +59,7 @@ Switch from the permissive template to a strict one:
 avakill init --template strict --output avakill-staging.yaml
 ```
 
-Or write a custom policy based on what you observed in development. See the [Policy Reference](policy-reference.md) for the full YAML schema.
+Or write a custom policy based on what you observed in development. See the [Policy Reference](../policy-reference.md) for the full YAML schema.
 
 ### Validate Before Deploy
 
@@ -551,9 +551,9 @@ export API_RATE_LIMIT=1000 # Development (more lenient)
 
 ## Further Reading
 
-- **[Getting Started](getting-started.md)** — quick setup walkthrough
+- **[Getting Started](../getting-started.md)** — quick setup walkthrough
 - **[Security Hardening](security-hardening.md)** — signing, OS hardening, C hooks
 - **[Observability](observability.md)** — OTel + Prometheus setup
 - **[MCP Proxy](mcp-proxy.md)** — detailed MCP deployment guide
-- **[CLI Reference](cli-reference.md)** — all commands
+- **[CLI Reference](../cli-reference.md)** — all commands
 - **[Framework Integrations](framework-integrations.md)** — native hooks and SDK wrappers

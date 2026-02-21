@@ -330,7 +330,7 @@ proxy = MCPProxyServer(
 await proxy.run()
 ```
 
-See the [MCP Proxy Guide](mcp-proxy.md) for detailed usage.
+See the [MCP Proxy Guide](internal/mcp-proxy.md) for detailed usage.
 
 ---
 

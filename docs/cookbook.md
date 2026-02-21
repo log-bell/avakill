@@ -696,6 +696,6 @@ Approvals expire after 1 hour by default. Expired approvals are automatically cl
 ## Further Reading
 
 - **[Policy Reference](policy-reference.md)** — full YAML schema and pattern matching
-- **[Framework Integrations](framework-integrations.md)** — OpenAI, Anthropic, LangChain wrappers
-- **[Deployment](deployment.md)** — production deployment patterns
-- **[Troubleshooting](troubleshooting.md)** — common policy issues
+- **[Framework Integrations](internal/framework-integrations.md)** — OpenAI, Anthropic, LangChain wrappers
+- **[Deployment](internal/deployment.md)** — production deployment patterns
+- **[Troubleshooting](internal/troubleshooting.md)** — common policy issues

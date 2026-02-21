@@ -523,11 +523,11 @@ avakill dashboard     # Watch it work in real-time
 
 You understand the *why* behind every feature. Now go build something:
 
-- **[Getting Started](getting-started.md)** — full walkthrough from install to dashboard
-- **[Policy Reference](policy-reference.md)** — every YAML option, with examples
+- **[Getting Started](../getting-started.md)** — full walkthrough from install to dashboard
+- **[Policy Reference](../policy-reference.md)** — every YAML option, with examples
 - **[Framework Integrations](framework-integrations.md)** — OpenAI, Anthropic, LangChain, MCP
 - **[Security Hardening](security-hardening.md)** — policy signing, OS-level protection, C-level hooks
-- **[Cookbook](cookbook.md)** — real-world policies for common use cases
+- **[Cookbook](../cookbook.md)** — real-world policies for common use cases
 
 The safety layer your agent is missing takes 5 minutes to add.
 

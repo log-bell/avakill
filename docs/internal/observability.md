@@ -168,5 +168,5 @@ The AvaKill dashboard is automatically provisioned.
 ## Further Reading
 
 - **[Deployment Guide](deployment.md)** — production setup with Prometheus alerting and Docker patterns.
-- **[Cookbook: Audit & Compliance](cookbook.md#audit--compliance)** — Prometheus alert rules for denial spikes and self-protection triggers.
+- **[Cookbook: Audit & Compliance](../cookbook.md#audit--compliance)** — Prometheus alert rules for denial spikes and self-protection triggers.
 - **[Troubleshooting](troubleshooting.md#performance)** — diagnosing evaluation latency.

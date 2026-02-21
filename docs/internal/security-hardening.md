@@ -232,7 +232,7 @@ export AVAKILL_POLICY="/path/to/project/avakill.yaml"
 exec /path/to/avakill-hook-claude-code
 ```
 
-See [Getting Started — Project-Level Hook Setup](getting-started.md#9-project-level-hook-setup-standalone-mode) for the full walkthrough.
+See [Getting Started — Project-Level Hook Setup](../getting-started.md#9-project-level-hook-setup-standalone-mode) for the full walkthrough.
 
 ## C-Level Audit Hooks (Optional)
 
@@ -543,6 +543,6 @@ avakill check-hardening avakill.yaml
 ## Further Reading
 
 - **[Deployment Guide](deployment.md)** — dev → staging → production patterns
-- **[Policy Reference](policy-reference.md)** — full YAML schema
-- **[CLI Reference](cli-reference.md)** — all security-related commands
+- **[Policy Reference](../policy-reference.md)** — full YAML schema
+- **[CLI Reference](../cli-reference.md)** — all security-related commands
 - **[Troubleshooting](troubleshooting.md)** — common security issues
