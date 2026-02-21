@@ -35,10 +35,11 @@ notifications: {}
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `version` | string | No | `"1.0"` | Schema version. Must be `"1.0"`. |
+| `version` | string | No | `"1.0"` | Schema version. Accepts `"1"` or `"1.0"` (both normalize to `"1.0"`). |
 | `default_action` | string | No | `"deny"` | Action when no rule matches. Must be `"allow"` or `"deny"`. |
 | `policies` | list | Yes | — | Ordered list of policy rules, evaluated top-to-bottom. |
 | `notifications` | object | No | `{}` | Notification configuration (reserved for future use). |
+| `sandbox` | object | No | `null` | OS-level sandbox configuration (future release). See [Sandbox Configuration](#sandbox-configuration). |
 
 ## Policy Rule Fields
 
@@ -105,7 +106,7 @@ policies:
     message: "Large query detected (advisory only — not enforced)"
 ```
 
-Advisory rules generate audit events with the deny decision but do not actually block the tool call. Use them to test new rules before enforcing them.
+Advisory rules always **allow** the tool call regardless of the rule's `action`. The returned decision has `allowed=True` with the reason prefixed `[advisory]`. This generates an audit event you can monitor without blocking anything. Use advisory rules to test new deny rules before enforcing them.
 
 ## Tool Matching Patterns
 
@@ -161,6 +162,108 @@ policies:
 ```
 
 If you put the general `allow-sql` rule first, it would match before `block-drop` ever gets checked.
+
+## Tool Normalization
+
+Each AI coding agent uses its own naming convention for tools. AvaKill provides a canonical namespace so you can write policies once and apply them uniformly across agents.
+
+### Canonical tool names
+
+| Canonical Name | Description |
+|----------------|-------------|
+| `shell_execute` | Run a shell/terminal command |
+| `file_read` | Read a file |
+| `file_write` | Write/create a file |
+| `file_edit` | Edit an existing file |
+| `file_search` | Search for files by name/pattern |
+| `file_list` | List directory contents |
+| `content_search` | Search file contents (grep) |
+| `web_fetch` | Fetch a URL |
+| `web_search` | Web search |
+| `agent_spawn` | Spawn a sub-agent |
+
+### Agent-native mappings
+
+These are the built-in mappings from each agent's native tool names to canonical names:
+
+| Agent | Native Name | Canonical Name |
+|-------|-------------|----------------|
+| `claude-code` | `Bash` | `shell_execute` |
+| `claude-code` | `Read` | `file_read` |
+| `claude-code` | `Write` | `file_write` |
+| `claude-code` | `Edit`, `MultiEdit` | `file_edit` |
+| `claude-code` | `Glob` | `file_search` |
+| `claude-code` | `Grep` | `content_search` |
+| `claude-code` | `LS` | `file_list` |
+| `claude-code` | `WebFetch` | `web_fetch` |
+| `claude-code` | `WebSearch` | `web_search` |
+| `claude-code` | `Task` | `agent_spawn` |
+| `gemini-cli` | `run_shell_command` | `shell_execute` |
+| `gemini-cli` | `read_file` | `file_read` |
+| `gemini-cli` | `write_file` | `file_write` |
+| `gemini-cli` | `edit_file` | `file_edit` |
+| `cursor` | `shell_command` | `shell_execute` |
+| `cursor` | `read_file` | `file_read` |
+| `windsurf` | `run_command` | `shell_execute` |
+| `windsurf` | `write_code` | `file_write` |
+| `windsurf` | `read_code` | `file_read` |
+| `openai-codex` | `shell`, `shell_command`, `local_shell`, `exec_command` | `shell_execute` |
+| `openai-codex` | `apply_patch` | `file_write` |
+| `openai-codex` | `read_file` | `file_read` |
+| `openai-codex` | `list_dir` | `file_list` |
+| `openai-codex` | `grep_files` | `content_search` |
+
+MCP tools (prefixed with `mcp__` or `mcp:`) pass through unchanged and are never normalized.
+
+### Two approaches to cross-agent policies
+
+**Approach 1: List all agent-native names explicitly.** This is what the built-in templates use. No normalization required — policies work by matching every known name for each tool:
+
+```yaml
+# From the default template
+- name: allow-safe-shell
+  tools:
+    # Canonical
+    - "shell_execute"
+    # Claude Code
+    - "Bash"
+    # Gemini CLI
+    - "run_shell_command"
+    # Windsurf
+    - "run_command"
+    # OpenAI Codex
+    - "shell"
+    - "local_shell"
+    - "exec_command"
+    # Generic globs
+    - "shell_*"
+    - "bash_*"
+    - "command_*"
+  action: allow
+  conditions:
+    shell_safe: true
+    command_allowlist: [echo, ls, cat, pwd, git, python, pip, npm, node, make]
+```
+
+**Approach 2: Enable `normalize_tools` and write canonical names only.** Shorter policies, but requires setting `agent_id` on every call:
+
+```yaml
+# Same rule, canonical names only
+- name: allow-safe-shell
+  tools: ["shell_execute"]
+  action: allow
+  conditions:
+    shell_safe: true
+    command_allowlist: [echo, ls, cat, pwd, git, python, pip, npm, node, make]
+```
+
+```python
+guard = Guard(policy="avakill.yaml", normalize_tools=True)
+decision = guard.evaluate(tool="Bash", args={"command": "ls"}, agent_id="claude-code")
+# "Bash" is normalized to "shell_execute" before rule matching
+```
+
+See the [API Reference](api-reference.md) for Python SDK details on `normalize_tools` and `ToolNormalizer`.
 
 ## Conditions
 
@@ -386,7 +489,7 @@ except RateLimitExceeded as e:
 
 - Rate limits use a **sliding window** with an in-memory deque of timestamps.
 - The window slides continuously — it is not reset at fixed intervals.
-- Rate limits are tracked per tool name, not per rule.
+- Rate limits are tracked per tool name. When `agent_id` is set, counters are scoped per agent, so each agent gets an independent rate-limit counter per tool. Key format: `{agent_id}:{tool_name}` or just `{tool_name}`.
 - Rate limit state is thread-safe (protected by a lock). By default, timestamps are stored in-memory and reset on process restart. For persistence across restarts, use the `SQLiteBackend`:
 
 ```python
@@ -428,12 +531,14 @@ If an environment variable is not set, the `${VAR_NAME}` placeholder is left as-
 
 The full evaluation algorithm:
 
-1. Iterate through `policies` in order.
-2. For each rule, check if the tool name matches any pattern in `tools`.
-3. If matched, check `conditions` (if any). Both `args_match` and `args_not_match` must be satisfied.
-4. If conditions pass, check `rate_limit` (if any). If the rate limit is exceeded, raise `RateLimitExceeded`.
-5. If all checks pass, return this rule's `action` as the decision. **Stop here.**
-6. If no rule matches, return `default_action`.
+0. **Self-protection check** (if enabled). Runs before any user-defined rule. See [Self-Protection](#self-protection).
+1. **Normalize tool name** (if `normalize_tools` enabled). See [Tool Normalization](#tool-normalization).
+2. Iterate through `policies` in order.
+3. For each rule, check if the tool name matches any pattern in `tools`.
+4. If matched, check `conditions` (if any). Both `args_match` and `args_not_match` must be satisfied.
+5. If conditions pass, check `rate_limit` (if any). If the rate limit is exceeded, raise `RateLimitExceeded`.
+6. If all checks pass, return this rule's `action` as the decision. **Stop here.**
+7. If no rule matches, return `default_action`.
 
 ```
 tool_call("execute_sql", {"query": "DROP TABLE users"})
@@ -445,6 +550,30 @@ tool_call("execute_sql", {"query": "DROP TABLE users"})
     │          → action: deny → RETURN Decision(allowed=False)
     │
     └─ (remaining rules never checked)
+```
+
+### Self-Protection
+
+Self-protection is a set of hardcoded checks that run **before** any user-defined policy rules. They cannot be overridden or relaxed by policy configuration.
+
+When self-protection blocks a call, the returned decision has `policy_name="self-protection"` and the `reason` starts with `"Self-protection:"`.
+
+| Category | What is blocked |
+|----------|----------------|
+| Policy file writes | Write/edit/delete tools targeting `avakill.yaml` or `avakill.yml` |
+| Package uninstall | Shell commands matching `pip uninstall avakill`, `pipx uninstall avakill`, etc. |
+| Approve command | Shell commands running `avakill approve` (only humans may activate policies) |
+| Daemon shutdown | Shell commands running `avakill daemon stop`, `pkill avakill`, `systemctl stop avakill`, etc. |
+| Source modification | Write tools or shell commands targeting `site-packages/avakill/` or `src/avakill/` |
+| Hook binary tampering | Shell commands deleting, moving, or overwriting `avakill-hook-*` binaries |
+| Hook config tampering | Write tools targeting agent config files (`.claude/settings.json`, `.gemini/hooks.json`, etc.) |
+
+Policy file writes are redirected through a **staging workflow**: agents can write to `.proposed.yaml` instead. A human then runs `avakill approve` to activate the proposed policy.
+
+Self-protection is enabled by default. Pass `self_protection=False` to `Guard()` only for testing:
+
+```python
+guard = Guard(policy="avakill.yaml", self_protection=False)  # testing only
 ```
 
 ## Examples
@@ -650,6 +779,70 @@ Set `PROD_DB_HOST` per environment:
 export PROD_DB_HOST="prod-db.internal.company.com"
 ```
 
+### Cross-agent shell policy
+
+When your policy must work across multiple AI coding agents, list all agent-native tool names alongside the canonical name. This is the pattern used by AvaKill's built-in templates:
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: block-dangerous-shell
+    tools:
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"]
+    message: "Dangerous shell command blocked."
+
+  - name: allow-safe-shell
+    tools:
+      - "shell_execute"
+      - "Bash"
+      - "run_shell_command"
+      - "run_command"
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
+    action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: [echo, ls, cat, pwd, git, python, pip, npm, node, make]
+```
+
+### Starting from a template
+
+AvaKill ships four policy templates. Use `avakill guide` to generate one interactively, or copy from `src/avakill/templates/`:
+
+| Template | `default_action` | Description |
+|----------|-------------------|-------------|
+| `hooks` | `allow` | Blocks catastrophic ops, allows most else. Designed for agent hooks. |
+| `default` | `deny` | Deny-by-default with read allows, rate limits, and safe-shell rules. |
+| `strict` | `deny` | Explicit allowlist only. All writes require approval. |
+| `permissive` | `allow` | Allows everything, logs all calls. For development and audit. |
+
+All templates include agent-native tool names for Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex.
+
 ## Hot Reloading
 
 Policies can be reloaded at runtime without restarting your application:
@@ -678,7 +871,7 @@ Policy files are discovered in this order (highest priority first for deny rules
 |-------|------|-------------|
 | **System** | `/etc/avakill/policy.yaml` | Organization-wide defaults. Managed by admins. |
 | **Global** | `~/.config/avakill/policy.yaml` | User-wide defaults. |
-| **Project** | `.avakill/policy.yaml` or `avakill.yaml` | Project-specific rules. Walks up the directory tree. |
+| **Project** | `.avakill/policy.yaml`, `avakill.yaml`, or `avakill.yml` | Project-specific rules. Walks up the directory tree. |
 | **Local** | `.avakill/policy.local.yaml` | Local overrides. Gitignored. |
 
 ### Merge Semantics
@@ -741,3 +934,58 @@ config = cascade.load()
 ```
 
 The `avakill daemon` and hook adapters use the cascade automatically.
+
+## Sandbox Configuration
+
+> **Future release.** OS-level sandboxing is defined in the policy schema but not yet enforced at runtime. The fields below are accepted and validated but have no effect until a future version.
+
+The optional `sandbox` top-level field configures OS-level process sandboxing (Landlock on Linux, sandbox-exec on macOS):
+
+```yaml
+version: "1.0"
+default_action: deny
+
+sandbox:
+  allow_paths:
+    read:
+      - "/usr"
+      - "/etc"
+      - "${HOME}/.config"
+    write:
+      - "/tmp"
+      - "${HOME}/projects"
+    execute:
+      - "/usr/bin"
+      - "/usr/local/bin"
+  allow_network:
+    connect:
+      - "api.example.com:443"
+      - "registry.npmjs.org:443"
+    bind: []
+  resource_limits:
+    max_memory_mb: 512
+    max_open_files: 256
+    max_processes: 50
+    timeout_seconds: 300
+  inherit_env: true
+  inject_hooks: true
+
+policies:
+  - name: allow-reads
+    tools: ["*_read"]
+    action: allow
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `allow_paths.read` | list[string] | `[]` | Filesystem paths the sandboxed process can read. |
+| `allow_paths.write` | list[string] | `[]` | Filesystem paths the sandboxed process can write. |
+| `allow_paths.execute` | list[string] | `[]` | Filesystem paths the sandboxed process can execute. |
+| `allow_network.connect` | list[string] | `[]` | Network endpoints the sandboxed process can connect to. |
+| `allow_network.bind` | list[string] | `[]` | Network endpoints the sandboxed process can bind/listen on. |
+| `resource_limits.max_memory_mb` | int | `null` | Maximum memory in megabytes. |
+| `resource_limits.max_open_files` | int | `null` | Maximum number of open file descriptors. |
+| `resource_limits.max_processes` | int | `null` | Maximum number of child processes. |
+| `resource_limits.timeout_seconds` | int | `null` | Maximum execution time in seconds. |
+| `inherit_env` | bool | `true` | Whether the sandboxed process inherits the parent environment. |
+| `inject_hooks` | bool | `true` | Whether AvaKill hook binaries are injected into the sandbox. |

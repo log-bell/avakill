@@ -21,6 +21,8 @@ Guard(
     signing_key: bytes | None = None,
     verify_key: bytes | None = None,
     rate_limit_backend: RateLimitBackend | None = None,
+    normalize_tools: bool = False,
+    approval_store: ApprovalStore | None = None,
 )
 ```
 
@@ -33,6 +35,8 @@ Guard(
 | `signing_key` | `bytes \| None` | `None` | HMAC signing key. If `None`, reads `AVAKILL_POLICY_KEY` env var. |
 | `verify_key` | `bytes \| None` | `None` | Ed25519 public key. If `None`, reads `AVAKILL_VERIFY_KEY` env var. |
 | `rate_limit_backend` | `RateLimitBackend \| None` | `None` | Persistent backend for rate-limit timestamps. `None` = in-memory only. |
+| `normalize_tools` | `bool` | `False` | Enable automatic tool name normalization via ToolNormalizer |
+| `approval_store` | `ApprovalStore \| None` | `None` | Approval store for `require_approval` action. If `None`, approval requests are not persisted. |
 
 **Raises:** `ConfigError` if the policy cannot be loaded or parsed.
 
@@ -46,6 +50,7 @@ Guard.evaluate(
     agent_id: str | None = None,
     session_id: str | None = None,
     metadata: dict[str, Any] | None = None,
+    override: bool = False,
 ) -> Decision
 ```
 
@@ -58,6 +63,7 @@ Evaluate a tool call against the loaded policy. Self-protection rules run first,
 | `agent_id` | Override agent identifier (falls back to Guard default) |
 | `session_id` | Optional session identifier |
 | `metadata` | Arbitrary metadata attached to the call |
+| `override` | If `True` and the decision is `overridable`, flip deny to allow with `[override]` audit trail |
 
 **Returns:** A `Decision` object.
 
@@ -245,6 +251,7 @@ The result of evaluating a tool call. Immutable (Pydantic frozen model).
 | `reason` | `str \| None` | Human-readable explanation |
 | `timestamp` | `datetime` | When the decision was made |
 | `latency_ms` | `float` | Evaluation time in milliseconds |
+| `overridable` | `bool` | Whether this denial can be overridden (based on rule enforcement level) |
 
 ### ToolCall
 
@@ -270,6 +277,7 @@ Links a tool call to its decision. Available from `avakill.core.models`.
 | `decision` | `Decision` | The policy decision |
 | `execution_result` | `Any \| None` | Tool result if allowed |
 | `error` | `str \| None` | Error if execution failed |
+| `recovery_hint` | `Any \| None` | Recovery guidance attached by `avakill fix` |
 
 ---
 
@@ -453,6 +461,10 @@ DaemonServer(
     socket_path: str | Path | None = None,
     pid_file: str | Path | None = None,
     normalizer: ToolNormalizer | None = None,
+    max_connections: int = 100,
+    transport: ServerTransport | None = None,
+    tcp_port: int | None = None,
+    os_enforce: bool = False,
 )
 ```
 
@@ -462,6 +474,10 @@ DaemonServer(
 | `socket_path` | `str \| Path \| None` | `None` | Unix socket path. Defaults to `AVAKILL_SOCKET` env var or `~/.avakill/avakill.sock`. |
 | `pid_file` | `str \| Path \| None` | `None` | PID file path. Defaults to `~/.avakill/avakill.pid`. |
 | `normalizer` | `ToolNormalizer \| None` | `None` | Tool name normalizer for agent-specific tool names |
+| `max_connections` | `int` | `100` | Maximum concurrent connections |
+| `transport` | `ServerTransport \| None` | `None` | Custom transport layer |
+| `tcp_port` | `int \| None` | `None` | Optional TCP port (in addition to Unix socket) |
+| `os_enforce` | `bool` | `False` | Enable OS-level enforcement backends |
 
 ### start()
 
@@ -508,6 +524,8 @@ Synchronous client for communicating with the AvaKill daemon. Designed for short
 DaemonClient(
     socket_path: str | Path | None = None,
     timeout: float = 5.0,
+    transport: ClientTransport | None = None,
+    tcp_port: int | None = None,
 )
 ```
 
@@ -515,6 +533,8 @@ DaemonClient(
 |-----------|------|---------|-------------|
 | `socket_path` | `str \| Path \| None` | `None` | Unix socket path. Defaults to `AVAKILL_SOCKET` env var or `~/.avakill/avakill.sock`. |
 | `timeout` | `float` | `5.0` | Connection and read timeout in seconds |
+| `transport` | `ClientTransport \| None` | `None` | Custom transport layer |
+| `tcp_port` | `int \| None` | `None` | Connect via TCP instead of Unix socket |
 
 ### evaluate()
 
@@ -531,6 +551,14 @@ DaemonClient.ping() -> bool
 ```
 
 Check daemon connectivity. Returns `True` if the daemon responds.
+
+### try_evaluate()
+
+```python
+DaemonClient.try_evaluate(request: EvaluateRequest) -> EvaluateResponse | None
+```
+
+Like `evaluate()` but returns `None` on connection failure instead of a deny response.
 
 ---
 
@@ -572,6 +600,7 @@ from avakill.daemon.protocol import EvaluateResponse
 | `policy` | `str \| None` | `None` | Name of the matching policy rule |
 | `latency_ms` | `float` | `0.0` | Evaluation time in milliseconds |
 | `modified_args` | `dict[str, Any] \| None` | `None` | Modified arguments (reserved) |
+| `approval_request_id` | `str \| None` | `None` | UUID of the pending approval request (when decision is `require_approval`) |
 
 ### Serialization
 
@@ -654,6 +683,11 @@ Built-in mapping of agent-native tool names to canonical names:
 | `windsurf` | `run_command` | `shell_execute` |
 | `windsurf` | `write_code` | `file_write` |
 | `windsurf` | `read_code` | `file_read` |
+| `openai-codex` | `shell` / `shell_command` / `local_shell` / `exec_command` | `shell_execute` |
+| `openai-codex` | `apply_patch` | `file_write` |
+| `openai-codex` | `read_file` | `file_read` |
+| `openai-codex` | `list_dir` | `file_list` |
+| `openai-codex` | `grep_files` | `content_search` |
 
 MCP tool names (prefixed with `mcp__` or `mcp:`) pass through without normalization.
 
@@ -731,8 +765,9 @@ Abstract base class for all hook adapters.
 | `GeminiCliAdapter` | `gemini-cli` | BeforeTool | `permissionDecision: "deny"` in JSON |
 | `CursorAdapter` | `cursor` | beforeShellExecution | `continue: false` in JSON (always exit 0) |
 | `WindsurfAdapter` | `windsurf` | pre_run_command | Exit code 2 + reason on stderr |
+| `OpenAICodexAdapter` | `openai-codex` | before_tool_use | Exit code 1 + JSON `{"decision": "block"}` |
 
-Each adapter has a corresponding console script entry point: `avakill-hook-claude-code`, `avakill-hook-gemini-cli`, `avakill-hook-cursor`, `avakill-hook-windsurf`.
+Each adapter has a corresponding console script entry point: `avakill-hook-claude-code`, `avakill-hook-gemini-cli`, `avakill-hook-cursor`, `avakill-hook-windsurf`, `avakill-hook-openai-codex`.
 
 **Standalone mode:** If the daemon is unreachable, adapters fall back to standalone evaluation using the policy file at `AVAKILL_POLICY` environment variable.
 
@@ -851,6 +886,18 @@ async with ApprovalStore("approvals.db") as store:
 
     # Clean up expired
     count = await store.cleanup_expired()
+
+    # Find approved request for tool+agent
+    req = await store.get_approved_for_tool("shell_execute", agent="claude-code")
+
+    # Resolve a prefix ID (12-char) to full UUID
+    full_id = await store.resolve_id("abc123def456")
+
+    # Get a single request by ID
+    req = await store.get(request.id)
+
+    # Close the database connection
+    await store.close()
 ```
 
 ### AuditAnalytics
@@ -874,6 +921,18 @@ scores = await analytics.agent_risk_scores()
 # Per-rule effectiveness
 effectiveness = await analytics.policy_effectiveness()
 ```
+
+---
+
+## avakill.ProcessLauncher
+
+Launches and manages sandboxed child processes. Available from `avakill.launcher.core`. Exported in `__all__`.
+
+```python
+from avakill.launcher.core import ProcessLauncher
+```
+
+> **Note:** ProcessLauncher is shipped but currently untested per audit status.
 
 ---
 
@@ -904,5 +963,6 @@ These are not part of the public API and may change between versions.
 | `ComplianceReporter` | `avakill.compliance.reporter` | Compliance report formatting (table/JSON/Markdown) |
 | `ApprovalStore` | `avakill.core.approval` | SQLite-backed approval workflow |
 | `AuditAnalytics` | `avakill.analytics.engine` | Audit log analysis and risk scoring |
+| `ProcessLauncher` | `avakill.launcher.core` | Sandboxed child process launcher (shipped-untested) |
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full architecture overview.
