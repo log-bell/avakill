@@ -11,7 +11,22 @@ from __future__ import annotations
 import subprocess
 import sys
 
+import pytest
+
 PYTHON = sys.executable
+
+# Check if the C extension is available (opt-in build via AVAKILL_BUILD_C_EXTENSION=1)
+try:
+    import avakill._avakill_hooks  # noqa: F401
+
+    _C_EXT_AVAILABLE = True
+except ImportError:
+    _C_EXT_AVAILABLE = False
+
+requires_c_ext = pytest.mark.skipif(
+    not _C_EXT_AVAILABLE,
+    reason="C extension not built (set AVAKILL_BUILD_C_EXTENSION=1 to build)",
+)
 
 
 def _run(code: str) -> subprocess.CompletedProcess[str]:
@@ -24,6 +39,7 @@ def _run(code: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+@requires_c_ext
 class TestCHookInstallation:
     def test_is_active_returns_true(self) -> None:
         r = _run(
@@ -61,6 +77,7 @@ class TestCHookInstallation:
         assert "ok" in r.stdout
 
 
+@requires_c_ext
 class TestCHookBlocking:
     """These tests arm the hook then verify blocking works."""
 
@@ -147,6 +164,7 @@ class TestCHookBlocking:
         assert "ok" in r.stdout
 
 
+@requires_c_ext
 class TestCHookAllowsNormal:
     def test_allows_normal_imports_after_arm(self) -> None:
         r = _run(
@@ -184,6 +202,7 @@ class TestCHookAllowsNormal:
         assert "ok" in r.stdout
 
 
+@requires_c_ext
 class TestRemoteExecDisabled:
     def test_python_disable_remote_debug_set(self) -> None:
         r = _run(
@@ -206,6 +225,7 @@ class TestGracefulDegradation:
         assert mgr.is_installed is False
 
 
+@requires_c_ext
 class TestAuditHooksIntegration:
     def test_c_hooks_detected(self) -> None:
         r = _run(
@@ -230,6 +250,7 @@ class TestAuditHooksIntegration:
         assert "ok" in r.stdout
 
 
+@requires_c_ext
 class TestGuardHardenedStatus:
     def test_guard_reports_hardened(self) -> None:
         r = _run(
