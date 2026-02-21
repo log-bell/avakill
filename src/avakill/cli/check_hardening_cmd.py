@@ -103,7 +103,7 @@ def check_hardening(policy_file: str) -> None:
         table.add_row(
             "C-Level Hooks",
             "[yellow]Not Installed[/yellow]",
-            'pip install "avakill[hardened]"',
+            "pipx inject avakill avakill\\[hardened]",
         )
 
     panel = Panel(

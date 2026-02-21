@@ -403,20 +403,71 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   # → "Auto-signed (Ed25519): avakill.yaml.sig"
   ```
 
-### `avakill harden`
+### `avakill harden` ✅
 - **File**: `cli/harden_cmd.py` (154 lines)
-- **Status**: PRODUCTION
-- **What it does**: Sets immutable flags (chattr/chflags), outputs hardening templates (SELinux, AppArmor, seccomp)
-- **Concerns**: Requires root on Linux. Has this been run on macOS? On Linux?
-- **E2E test**: Run on macOS, verify immutable flag set, verify policy file can't be deleted
-- **v1?**: LATER — advanced hardening
+- **Status**: BATTLE-TESTED
+- **What it does**: Sets OS-level immutable flags on policy files (Linux: `chattr +i`, macOS: `chflags schg`). Also outputs security templates (SELinux, AppArmor, seccomp) for Linux hardening.
+- **Dependencies**: Root/sudo for immutable flags. No dependencies for template output.
+- **E2E test**: Tested on macOS — auto-detected platform, set schg flag with sudo, verified file was immutable (`echo >> avakill.yaml` → "Operation not permitted"), removed flag with `chflags noschg`. All three template outputs tested (selinux, apparmor, seccomp). File output (`-o`) tested. Error paths (missing file, no root) tested.
+- **v1?**: LATER — advanced hardening, defense-in-depth behind self-protection
+- **Example use cases**:
+  ```bash
+  # --- Immutable flags (requires sudo) ---
 
-### `avakill check-hardening`
+  # Auto-detect platform and set immutable flag
+  sudo avakill harden avakill.yaml
+  # macOS → chflags schg, Linux → chattr +i
+
+  # Explicit platform flag
+  sudo avakill harden --schg avakill.yaml    # macOS
+  sudo avakill harden --chattr avakill.yaml  # Linux
+
+  # Verify — file is now immutable
+  echo "# test" >> avakill.yaml
+  # → "Operation not permitted"
+
+  # Undo
+  sudo chflags noschg avakill.yaml   # macOS
+  sudo chattr -i avakill.yaml        # Linux
+
+  # --- Security templates (no root needed) ---
+
+  # Output SELinux type enforcement policy
+  avakill harden --selinux
+
+  # Output AppArmor profile
+  avakill harden --apparmor
+
+  # Output seccomp-bpf filter JSON
+  avakill harden --seccomp
+
+  # Write template to file
+  avakill harden --seccomp -o /tmp/avakill-seccomp.json
+  ```
+
+### `avakill check-hardening` ✅
 - **File**: `cli/check_hardening_cmd.py` (114 lines)
-- **Status**: PRODUCTION
-- **What it does**: Reports hardening status (immutable, permissions, signing, C hooks)
-- **E2E test**: Run before and after `avakill harden`, verify status changes
-- **v1?**: LATER
+- **Status**: BATTLE-TESTED
+- **What it does**: Reports hardening status — immutable flag, file permissions, world-writable check, signing configuration, signature validity, C-level audit hooks
+- **E2E test**: Tested before and after `avakill harden` — immutable flag status correctly changed from "Not Set" to "Set". Permissions, signing, and C-hooks rows all render correctly. Error path (missing file) tested.
+- **v1?**: LATER — pairs with harden
+- **Example use cases**:
+  ```bash
+  # Check hardening status of your policy
+  avakill check-hardening avakill.yaml
+  # → Shows table: Immutable Flag, Permissions, World Writable,
+  #   Signing, Signature, C-Level Hooks
+
+  # Check with signing configured
+  export AVAKILL_POLICY_KEY=<hex>
+  avakill check-hardening avakill.yaml
+  # → Signing = "Configured", Signature = "Valid" or "Invalid"
+
+  # Typical workflow: harden, then verify
+  sudo avakill harden avakill.yaml
+  avakill check-hardening avakill.yaml
+  # → Immutable Flag = "Set"
+  ```
 
 ---
 
