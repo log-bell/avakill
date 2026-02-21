@@ -552,12 +552,31 @@ Full command-by-command audit of what's production-ready vs. scaffolded. This do
   avakill schema --format=prompt -o avakill-prompt.txt
   ```
 
-### `avakill profile list / show`
+### `avakill profile list / show` ✅
 - **File**: `cli/profile_cmd.py` + `profiles/*`
-- **Status**: PRODUCTION
-- **What it does**: Lists/shows agent containment profiles (openclaw, cline, aider, swe-agent, continue)
-- **E2E test**: `avakill profile list`, `avakill profile show openclaw`, verify output makes sense
+- **Status**: BATTLE-TESTED
+- **What it does**: Lists/shows agent containment profiles with sandbox configs, detection paths, resource limits
+- **E2E test**: All 5 profiles tested — `list` (basic and `-v` verbose), `show` for each profile (openclaw, cline, continue, swe-agent, aider). Error path (nonexistent profile) shows helpful message with available profiles. Each profile renders correctly with protection modes, detection paths, sandbox rules (read/write/execute/network), and resource limits.
 - **v1?**: MAYBE — useful for `launch` command but `launch` itself isn't v1
+- **Example use cases**:
+  ```bash
+  # List all profiles
+  avakill profile list
+
+  # List with descriptions
+  avakill profile list -v
+
+  # Show a specific profile (sandbox config, detection, limits)
+  avakill profile show openclaw
+  avakill profile show cline
+  avakill profile show continue
+  avakill profile show swe-agent
+  avakill profile show aider
+
+  # Error — shows available profiles
+  avakill profile show nonexistent
+  # → "Available built-in profiles: aider, cline, continue, openclaw, swe-agent"
+  ```
 
 ### `avakill compliance report / gaps`
 - **File**: `cli/compliance_cmd.py` + `compliance/*`
