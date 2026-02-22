@@ -148,7 +148,7 @@ class TestShimVersion:
 class TestShimDiagnose:
     def test_diagnose_outputs_json(self):
         result = subprocess.run(
-            [SHIM_BINARY, "--diagnose", "--upstream-cmd", "echo"],
+            [SHIM_BINARY, "--diagnose", "--", "echo"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -189,12 +189,11 @@ class TestShimProxySubprocess:
 
         stdout, stderr, rc = _run_shim(
             [
-                "--upstream-cmd",
-                "python3",
-                "--upstream-args",
-                mock_upstream,
                 "--policy",
                 policy_file,
+                "--",
+                "python3",
+                mock_upstream,
             ],
             stdin_data=request,
         )
@@ -219,12 +218,11 @@ class TestShimProxySubprocess:
 
         stdout, stderr, rc = _run_shim(
             [
-                "--upstream-cmd",
-                "python3",
-                "--upstream-args",
-                mock_upstream,
                 "--policy",
                 policy_file,
+                "--",
+                "python3",
+                mock_upstream,
             ],
             stdin_data=request,
         )
@@ -254,12 +252,11 @@ class TestShimProxySubprocess:
 
         stdout, stderr, rc = _run_shim(
             [
-                "--upstream-cmd",
-                "python3",
-                "--upstream-args",
-                mock_upstream,
                 "--policy",
                 policy_file,
+                "--",
+                "python3",
+                mock_upstream,
             ],
             stdin_data=request,
         )
@@ -329,12 +326,11 @@ class TestShimDaemonIntegration:
 
             stdout, stderr, rc = _run_shim(
                 [
-                    "--upstream-cmd",
-                    "python3",
-                    "--upstream-args",
-                    mock_upstream,
                     "--socket",
                     sock_path,
+                    "--",
+                    "python3",
+                    mock_upstream,
                 ],
                 stdin_data=request,
             )
@@ -374,12 +370,11 @@ class TestShimDaemonIntegration:
 
             stdout, stderr, rc = _run_shim(
                 [
-                    "--upstream-cmd",
-                    "python3",
-                    "--upstream-args",
-                    mock_upstream,
                     "--socket",
                     sock_path,
+                    "--",
+                    "python3",
+                    mock_upstream,
                 ],
                 stdin_data=request,
             )
