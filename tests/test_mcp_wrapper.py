@@ -31,11 +31,10 @@ class TestWrapMCPConfig:
         wrapped = wrap_mcp_config(config, policy="avakill.yaml")
         server = wrapped.servers[0]
         assert is_already_wrapped(server)
-        assert "--upstream-cmd" in server.args
-        # upstream-cmd may be resolved to an absolute path
-        cmd_idx = server.args.index("--upstream-cmd") + 1
-        assert "npx" in server.args[cmd_idx]
-        assert "--upstream-args" in server.args
+        # Go shim format: [flags..., "--", cmd, args...]
+        assert "--" in server.args
+        sep_idx = server.args.index("--")
+        assert server.args[sep_idx + 1] == "npx"
 
     def test_wrap_preserves_env_vars(self) -> None:
         config = MCPConfig(
@@ -97,6 +96,46 @@ class TestWrapMCPConfig:
         assert len(wrapped.servers) == 2
         assert all(is_already_wrapped(s) for s in wrapped.servers)
 
+    def test_wrap_uses_double_dash_separator(self) -> None:
+        """Wrapped config should use -- to separate shim flags from upstream."""
+        config = MCPConfig(
+            agent="claude-desktop",
+            config_path=Path("/tmp/config.json"),
+            servers=[
+                MCPServerEntry(
+                    name="fs",
+                    command="npx",
+                    args=["-y", "@anthropic/mcp-fs", "/path"],
+                ),
+            ],
+        )
+        wrapped = wrap_mcp_config(config, policy="avakill.yaml")
+        server = wrapped.servers[0]
+        assert "--" in server.args, "wrapped args should contain -- separator"
+        sep_idx = server.args.index("--")
+        # Everything after -- is the original command + args
+        assert server.args[sep_idx + 1] == "npx"
+        assert server.args[sep_idx + 2 :] == ["-y", "@anthropic/mcp-fs", "/path"]
+
+    def test_wrap_preserves_args_with_spaces(self) -> None:
+        """Args containing spaces must survive wrap/unwrap round-trip."""
+        config = MCPConfig(
+            agent="test",
+            config_path=Path("/tmp/config.json"),
+            servers=[
+                MCPServerEntry(
+                    name="fs",
+                    command="npx",
+                    args=["-y", "@anthropic/mcp-fs", "/Users/John Smith/Desktop"],
+                ),
+            ],
+        )
+        wrapped = wrap_mcp_config(config, policy="avakill.yaml")
+        unwrapped = unwrap_mcp_config(wrapped)
+        server = unwrapped.servers[0]
+        assert server.command == "npx"
+        assert server.args == ["-y", "@anthropic/mcp-fs", "/Users/John Smith/Desktop"]
+
 
 # ---------------------------------------------------------------------------
 # TestUnwrapMCPConfig
@@ -107,6 +146,44 @@ class TestUnwrapMCPConfig:
     """Test unwrapping to restore original server commands."""
 
     def test_unwrap_restores_original_command(self) -> None:
+        config = MCPConfig(
+            agent="test",
+            config_path=Path("/tmp/config.json"),
+            servers=[
+                MCPServerEntry(
+                    name="fs",
+                    command="/usr/local/bin/avakill-shim",
+                    args=[
+                        "--policy",
+                        "/abs/path/avakill.yaml",
+                        "--",
+                        "npx",
+                        "-y",
+                        "@anthropic/mcp-fs",
+                        "/path",
+                    ],
+                ),
+            ],
+        )
+        unwrapped = unwrap_mcp_config(config)
+        server = unwrapped.servers[0]
+        assert server.command == "npx"
+        assert server.args == ["-y", "@anthropic/mcp-fs", "/path"]
+
+    def test_unwrap_non_wrapped_is_noop(self) -> None:
+        config = MCPConfig(
+            agent="test",
+            config_path=Path("/tmp/config.json"),
+            servers=[
+                MCPServerEntry(name="fs", command="npx", args=["fs-server"]),
+            ],
+        )
+        unwrapped = unwrap_mcp_config(config)
+        assert unwrapped.servers[0].command == "npx"
+        assert unwrapped.servers[0].args == ["fs-server"]
+
+    def test_unwrap_python_fallback_format(self) -> None:
+        """Unwrap should still handle the Python mcp-proxy format."""
         config = MCPConfig(
             agent="test",
             config_path=Path("/tmp/config.json"),
@@ -130,18 +207,6 @@ class TestUnwrapMCPConfig:
         server = unwrapped.servers[0]
         assert server.command == "npx"
         assert server.args == ["-y", "@anthropic/mcp-fs", "/path"]
-
-    def test_unwrap_non_wrapped_is_noop(self) -> None:
-        config = MCPConfig(
-            agent="test",
-            config_path=Path("/tmp/config.json"),
-            servers=[
-                MCPServerEntry(name="fs", command="npx", args=["fs-server"]),
-            ],
-        )
-        unwrapped = unwrap_mcp_config(config)
-        assert unwrapped.servers[0].command == "npx"
-        assert unwrapped.servers[0].args == ["fs-server"]
 
 
 # ---------------------------------------------------------------------------
@@ -174,15 +239,15 @@ class TestWriteMCPConfig:
             servers=[
                 MCPServerEntry(
                     name="fs",
-                    command="avakill",
-                    args=["mcp-proxy", "--upstream-cmd", "npx"],
+                    command="/usr/local/bin/avakill-shim",
+                    args=["--policy", "/tmp/avakill.yaml", "--", "npx", "server.js"],
                 ),
             ],
         )
         write_mcp_config(config)
 
         written = json.loads(config_path.read_text())
-        assert written["mcpServers"]["fs"]["command"] == "avakill"
+        assert "avakill-shim" in written["mcpServers"]["fs"]["command"]
 
     def test_write_preserves_non_mcp_keys(self, tmp_path: Path) -> None:
         config_path = tmp_path / "config.json"

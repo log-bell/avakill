@@ -63,7 +63,12 @@ def wrap_mcp_config(
 
         command: "npx" args: ["-y", "@anthropic/mcp-fs", "/path"]
 
-    Becomes::
+    Becomes (Go shim)::
+
+        command: "avakill-shim"
+        args: ["--policy", "...", "--", "npx", "-y", ...]
+
+    Or (Python fallback)::
 
         command: "avakill" args: ["mcp-proxy", "--policy", "...",
                  "--upstream-cmd", "npx", "--upstream-args", "-y @anthropic/mcp-fs /path"]
@@ -72,6 +77,7 @@ def wrap_mcp_config(
     """
     shim_binary = _resolve_shim_binary()
     use_shim = "avakill-shim" in shim_binary
+    policy_abs = str(Path(policy).resolve())
 
     wrapped_servers: list[MCPServerEntry] = []
 
@@ -85,45 +91,36 @@ def wrap_mcp_config(
             wrapped_servers.append(server)
             continue
 
-        # Resolve upstream command to absolute path at wrap time
-        resolved_upstream = _resolve_upstream_binary(server.command)
-
         if use_shim:
-            # Use Go shim binary
-            args: list[str] = [
-                "--upstream-cmd",
-                resolved_upstream,
-            ]
+            # Go shim uses -- separator: avakill-shim [flags] -- <cmd> [args...]
+            # Args stay as discrete array elements — no joining, no splitting.
+            shim_flags: list[str] = []
 
             if daemon:
-                args.extend(["--socket", "~/.avakill/avakill.sock"])
+                shim_flags.extend(["--socket", "~/.avakill/avakill.sock"])
             else:
-                args.extend(["--policy", str(policy)])
+                shim_flags.extend(["--policy", policy_abs])
 
-            if server.args:
-                args.extend(["--upstream-args", " ".join(server.args)])
-
-            # Inject resolved PATH directories into env
-            env = dict(server.env) if server.env else {}
-            upstream_dir = str(Path(resolved_upstream).parent)
-            if upstream_dir != "." and "PATH" not in env:
-                env["PATH"] = upstream_dir + ":" + os.environ.get("PATH", "/usr/bin:/bin")
+            # Build: [shim_flags..., "--", upstream_cmd, upstream_args...]
+            args = shim_flags + ["--", server.command] + (server.args or [])
 
             wrapped = MCPServerEntry(
                 name=server.name,
                 command=shim_binary,
                 args=args,
-                env=env if env else None,
+                env=server.env,
                 transport=server.transport,
             )
         else:
-            # Fallback: Python avakill CLI
+            # Fallback: Python avakill CLI — resolve upstream to absolute
+            # path since Python proxy doesn't have shell env recovery.
+            resolved_upstream = _resolve_upstream_binary(server.command)
             args = ["mcp-proxy"]
 
             if daemon:
                 args.extend(["--daemon", "~/.avakill/avakill.sock"])
             else:
-                args.extend(["--policy", str(policy)])
+                args.extend(["--policy", policy_abs])
 
             if log_db:
                 args.extend(["--log-db", str(log_db)])
@@ -152,8 +149,9 @@ def wrap_mcp_config(
 def unwrap_mcp_config(config: MCPConfig) -> MCPConfig:
     """Reverse wrap_mcp_config: restore original server commands.
 
-    Extracts the ``--upstream-cmd`` and ``--upstream-args`` from wrapped
-    entries and rebuilds the original server config.
+    Supports two formats:
+    - Go shim (--): args contain "--", everything after is command + args
+    - Python fallback: args contain "--upstream-cmd" and "--upstream-args"
     """
     unwrapped_servers: list[MCPServerEntry] = []
 
@@ -162,20 +160,27 @@ def unwrap_mcp_config(config: MCPConfig) -> MCPConfig:
             unwrapped_servers.append(server)
             continue
 
-        # Parse the avakill mcp-proxy args to extract upstream info
         upstream_cmd = ""
         upstream_args: list[str] = []
 
-        args_iter = iter(server.args)
-        for arg in args_iter:
-            if arg == "--upstream-cmd":
-                upstream_cmd = next(args_iter, "")
-            elif arg == "--upstream-args":
-                raw = next(args_iter, "")
-                upstream_args = raw.split() if raw else []
+        if "--" in server.args:
+            # Go shim format: [shim_flags..., "--", cmd, arg1, arg2, ...]
+            sep_idx = server.args.index("--")
+            remaining = server.args[sep_idx + 1 :]
+            if remaining:
+                upstream_cmd = remaining[0]
+                upstream_args = remaining[1:]
+        else:
+            # Python fallback format: --upstream-cmd <cmd> --upstream-args <space-joined>
+            args_iter = iter(server.args)
+            for arg in args_iter:
+                if arg == "--upstream-cmd":
+                    upstream_cmd = next(args_iter, "")
+                elif arg == "--upstream-args":
+                    raw = next(args_iter, "")
+                    upstream_args = raw.split() if raw else []
 
         if not upstream_cmd:
-            # Can't unwrap — leave as-is
             unwrapped_servers.append(server)
             continue
 
