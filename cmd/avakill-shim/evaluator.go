@@ -134,9 +134,14 @@ func (e *Evaluator) evaluateDaemon(tool string, args map[string]interface{}) (Ev
 // evaluateSubprocess spawns `avakill evaluate --json --policy <path>`,
 // pipes the tool call as JSON on stdin, reads the decision from stdout.
 func (e *Evaluator) evaluateSubprocess(tool string, args map[string]interface{}) (EvaluateResponse, error) {
-	avakillBin, err := exec.LookPath("avakill")
+	// Try recovered shell env first (handles launchd's restricted PATH)
+	avakillBin, err := ResolveInEnv("avakill")
 	if err != nil {
-		return EvaluateResponse{}, fmt.Errorf("avakill not found in PATH: %w", err)
+		// Fall back to process PATH
+		avakillBin, err = exec.LookPath("avakill")
+		if err != nil {
+			return EvaluateResponse{}, fmt.Errorf("avakill not found in PATH: %w", err)
+		}
 	}
 
 	cmd := exec.Command(avakillBin, "evaluate", "--json", "--policy", e.PolicyPath)
@@ -155,27 +160,35 @@ func (e *Evaluator) evaluateSubprocess(tool string, args map[string]interface{})
 	}
 
 	cmd.Stdin = bytes.NewReader(stdinData)
-	out, err := cmd.Output()
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+
+	// Try to parse JSON from stdout regardless of exit code.
+	// avakill evaluate --json writes the response to stdout even on deny (exit 2).
+	if stdout.Len() > 0 {
+		var resp EvaluateResponse
+		if jsonErr := json.Unmarshal(stdout.Bytes(), &resp); jsonErr == nil {
+			return resp, nil
+		}
+	}
+
 	if err != nil {
-		// Exit code 2 = deny in avakill CLI convention
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if exitErr.ExitCode() == 2 {
-				// Parse stderr or use default deny
-				return EvaluateResponse{
-					Decision: "deny",
-					Reason:   "denied by subprocess",
-				}, nil
-			}
+		// Exit code 2 = deny, but we couldn't parse JSON above
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 2 {
+			return EvaluateResponse{
+				Decision: "deny",
+				Reason:   "denied by subprocess (no structured output)",
+			}, nil
 		}
 		return EvaluateResponse{}, fmt.Errorf("subprocess: %w", err)
 	}
 
-	var resp EvaluateResponse
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return EvaluateResponse{}, fmt.Errorf("unmarshal subprocess output: %w", err)
-	}
-
-	return resp, nil
+	// If we got here, cmd.Run() succeeded but stdout had no valid JSON
+	return EvaluateResponse{}, fmt.Errorf("no valid JSON in subprocess output")
 }
 
 // DaemonReachable checks if the daemon socket is connectable.

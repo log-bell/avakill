@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -234,6 +235,103 @@ func TestEvaluateDaemonEmptyResponse(t *testing.T) {
 	resp := eval.Evaluate("write_file", nil)
 	if resp.Decision != "deny" {
 		t.Errorf("expected deny on empty response, got %q", resp.Decision)
+	}
+}
+
+// fakeAvakill creates a shell script named "avakill" in a temp dir that
+// writes the given stdout string and exits with the given code.
+// It returns the temp dir (caller must defer os.RemoveAll) and sets PATH
+// so ResolveInEnv / exec.LookPath will find the fake.
+func fakeAvakill(t *testing.T, stdout string, exitCode int) (cleanup func()) {
+	t.Helper()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "avakill")
+
+	content := "#!/bin/sh\n"
+	if stdout != "" {
+		content += "printf '%s' '" + stdout + "'\n"
+	}
+	content += "exit " + fmt.Sprintf("%d", exitCode) + "\n"
+
+	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
+		t.Fatalf("write fake avakill: %v", err)
+	}
+
+	origPath := os.Getenv("PATH")
+	newPath := dir + ":" + origPath
+	os.Setenv("PATH", newPath)
+
+	// Seed the env cache so ResolveInEnv finds our fake binary first,
+	// bypassing the shell recovery (which spawns a new shell that won't
+	// have our modified PATH).
+	ResetEnvCache()
+	envOnce.Do(func() {
+		envCache = map[string]string{"PATH": newPath}
+		envErr = nil
+	})
+
+	return func() {
+		os.Setenv("PATH", origPath)
+		ResetEnvCache()
+	}
+}
+
+func TestEvaluateSubprocessDenyWithJSON(t *testing.T) {
+	// Fake avakill outputs JSON deny on stdout and exits 2
+	denyResp := `{"decision":"deny","reason":"write to /etc blocked by policy","policy":"block-etc"}`
+	cleanup := fakeAvakill(t, denyResp, 2)
+	defer cleanup()
+
+	eval := &Evaluator{PolicyPath: "/tmp/fake-policy.yaml"}
+	resp, err := eval.evaluateSubprocess("write_file", map[string]interface{}{"path": "/etc/passwd"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny, got %q", resp.Decision)
+	}
+	if resp.Reason != "write to /etc blocked by policy" {
+		t.Errorf("expected real deny reason, got %q", resp.Reason)
+	}
+	if resp.Policy != "block-etc" {
+		t.Errorf("expected policy 'block-etc', got %q", resp.Policy)
+	}
+}
+
+func TestEvaluateSubprocessDenyNoJSON(t *testing.T) {
+	// Fake avakill exits 2 with no stdout — should get fallback reason
+	cleanup := fakeAvakill(t, "", 2)
+	defer cleanup()
+
+	eval := &Evaluator{PolicyPath: "/tmp/fake-policy.yaml"}
+	resp, err := eval.evaluateSubprocess("write_file", map[string]interface{}{"path": "/etc/passwd"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny, got %q", resp.Decision)
+	}
+	if resp.Reason != "denied by subprocess (no structured output)" {
+		t.Errorf("expected fallback reason, got %q", resp.Reason)
+	}
+}
+
+func TestEvaluateSubprocessAllow(t *testing.T) {
+	// Fake avakill outputs JSON allow on stdout and exits 0
+	allowResp := `{"decision":"allow","policy":"default-allow"}`
+	cleanup := fakeAvakill(t, allowResp, 0)
+	defer cleanup()
+
+	eval := &Evaluator{PolicyPath: "/tmp/fake-policy.yaml"}
+	resp, err := eval.evaluateSubprocess("read_file", map[string]interface{}{"path": "/tmp/test.txt"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "allow" {
+		t.Errorf("expected allow, got %q", resp.Decision)
+	}
+	if resp.Policy != "default-allow" {
+		t.Errorf("expected policy 'default-allow', got %q", resp.Policy)
 	}
 }
 
