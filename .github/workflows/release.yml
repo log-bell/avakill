@@ -44,7 +44,8 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   github-release:
-    needs: publish
+    needs: [build, publish]
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -68,4 +69,8 @@ jobs:
           if compgen -G "shim-binaries/*" > /dev/null; then
             shim_files=(shim-binaries/*)
           fi
-          gh release create "$TAG_NAME" dist/* "${shim_files[@]}" --title "$TAG_NAME" --generate-notes
+          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            gh release upload "$TAG_NAME" dist/* "${shim_files[@]}" --clobber
+          else
+            gh release create "$TAG_NAME" dist/* "${shim_files[@]}" --title "$TAG_NAME" --generate-notes
+          fi
