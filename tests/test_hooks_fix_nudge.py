@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from avakill.daemon.protocol import EvaluateResponse
 from avakill.hooks.claude_code import ClaudeCodeAdapter
 from avakill.hooks.cursor import CursorAdapter
@@ -31,14 +33,15 @@ class TestClaudeCodeFixNudge:
 
 
 class TestGeminiCLIFixNudge:
-    def test_deny_includes_fix_nudge(self) -> None:
+    def test_deny_includes_fix_nudge(self, capsys: pytest.CaptureFixture) -> None:  # type: ignore[type-arg]
         adapter = GeminiCLIAdapter()
         resp = EvaluateResponse(decision="deny", reason="Blocked", policy="test")
         output, code = adapter.format_response(resp)
-        assert output is not None
-        payload = json.loads(output)
-        reason = payload["hookSpecificOutput"]["reason"]
-        assert _FIX_NUDGE in reason
+        # Gemini CLI deny protocol: exit 2, reason on stderr, no stdout
+        assert output is None
+        assert code == 2
+        captured = capsys.readouterr()
+        assert _FIX_NUDGE in captured.err
 
 
 class TestCursorFixNudge:

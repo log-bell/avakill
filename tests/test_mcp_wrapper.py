@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from avakill.mcp.config import MCPConfig, MCPServerEntry, is_already_wrapped
 from avakill.mcp.wrapper import unwrap_mcp_config, wrap_mcp_config, write_mcp_config
+
+# Mock the shim binary resolution to always use the Go shim format in tests
+_MOCK_SHIM = patch(
+    "avakill.mcp.wrapper._resolve_shim_binary",
+    return_value="/usr/local/bin/avakill-shim",
+)
 
 # ---------------------------------------------------------------------------
 # TestWrapMCPConfig
@@ -16,7 +23,8 @@ from avakill.mcp.wrapper import unwrap_mcp_config, wrap_mcp_config, write_mcp_co
 class TestWrapMCPConfig:
     """Test wrapping MCP server entries to route through AvaKill."""
 
-    def test_wrap_stdio_server(self) -> None:
+    @_MOCK_SHIM
+    def test_wrap_stdio_server(self, _mock: object) -> None:
         config = MCPConfig(
             agent="claude-desktop",
             config_path=Path("/tmp/config.json"),
@@ -96,7 +104,8 @@ class TestWrapMCPConfig:
         assert len(wrapped.servers) == 2
         assert all(is_already_wrapped(s) for s in wrapped.servers)
 
-    def test_wrap_uses_double_dash_separator(self) -> None:
+    @_MOCK_SHIM
+    def test_wrap_uses_double_dash_separator(self, _mock: object) -> None:
         """Wrapped config should use -- to separate shim flags from upstream."""
         config = MCPConfig(
             agent="claude-desktop",
@@ -117,7 +126,8 @@ class TestWrapMCPConfig:
         assert server.args[sep_idx + 1] == "npx"
         assert server.args[sep_idx + 2 :] == ["-y", "@anthropic/mcp-fs", "/path"]
 
-    def test_wrap_preserves_args_with_spaces(self) -> None:
+    @_MOCK_SHIM
+    def test_wrap_preserves_args_with_spaces(self, _mock: object) -> None:
         """Args containing spaces must survive wrap/unwrap round-trip."""
         config = MCPConfig(
             agent="test",

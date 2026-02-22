@@ -358,7 +358,7 @@ class TestFailClosedMode:
         captured = capsys.readouterr()
         parsed = json.loads(captured.out)
         assert parsed["hookSpecificOutput"]["permissionDecision"] == "deny"
-        assert "fail-closed" in captured.err
+        assert "AVAKILL_FAIL_CLOSED" in captured.err
 
     @patch("avakill.hooks.base.HookAdapter._try_daemon", return_value=None)
     def test_fail_open_allows_when_env_not_set(
