@@ -78,7 +78,7 @@ class TestRecoveryHintFor:
         hint = recovery_hint_for(d)
         assert hint is not None
         assert hint.source == "self-protection-uninstall"
-        assert "human" in hint.steps[0].lower()
+        assert "human" in hint.steps[1].lower()
 
     def test_self_protection_approve(self) -> None:
         d = Decision(
