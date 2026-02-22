@@ -76,7 +76,7 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath string) {
 		output.Checks = append(output.Checks, DiagnoseResult{
 			Check:  "upstream",
 			Status: "fail",
-			Detail: "no --upstream-cmd specified",
+			Detail: "no upstream command specified (usage: avakill-shim [flags] -- <command>)",
 		})
 	}
 
