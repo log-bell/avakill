@@ -32,6 +32,8 @@ pip install "avakill[openai]"       # OpenAI function calling
 pip install "avakill[anthropic]"    # Anthropic tool use
 pip install "avakill[langchain]"    # LangChain / LangGraph
 pip install "avakill[mcp]"          # MCP proxy
+pip install "avakill[metrics]"      # Prometheus metrics
+pip install "avakill[watch]"        # File-watching (policy hot-reload)
 pip install "avakill[all]"          # Everything
 ```
 
@@ -47,56 +49,108 @@ cd avakill
 pip install -e ".[dev]"
 ```
 
-## 1. Initialize Your First Policy
+## 1. Set Up Your Policy
 
-Run `avakill init` to generate a starter policy file:
+### Interactive setup with `avakill guide`
+
+The recommended way to get started is the interactive TUI:
 
 ```bash
-$ avakill init
-Which policy template? [default/strict/permissive/hooks] (default): default
-
-╭──────────────────────────── AvaKill Initialized ─────────────────────────────╮
-│                                                                              │
-│  Policy file created: avakill.yaml                                           │
-│  Template: default                                                           │
-│                                                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-
-Next steps:
-  1. Review and customise avakill.yaml
-  2. Add AvaKill to your agent code — see https://github.com/log-bell/avakill/blob/main/docs/getting-started.md
-  3. Run avakill hook install --agent all to register agent hooks
-  4. Enable audit logging (see docs/getting-started)
-  5. Run avakill dashboard to monitor in real-time
-  6. Run avakill validate to check your policy
+avakill guide
 ```
 
-> **Note:** If AvaKill detects installed frameworks (OpenAI, Anthropic, LangChain, MCP) or AI coding agents (Claude Code, Gemini CLI), it will show quickstart code snippets and agent hook instructions.
+This opens a 7-section menu covering setup, policies, hooks, signing, monitoring, compliance, and quick reference. Selecting **"Set up AvaKill"** walks you through:
 
-Four templates are available:
+1. Detects installed agents (claude-code, gemini-cli, cursor, windsurf, openai-codex)
+2. Prompts for a template (hooks, default, strict, permissive)
+3. Copies the template to `avakill.yaml` and validates it
+4. Offers to install hooks for every detected agent
+
+### Non-interactive alternative
+
+Use `avakill init` for scripted or CI setups:
+
+```bash
+avakill init --template default
+avakill init --template strict --output policies/production.yaml
+avakill init --scan    # Scan project for sensitive files and generate deny rules
+avakill init --mode hooks  # Protection mode: hooks, launch, mcp, all
+```
+
+### Templates
 
 | Template | Default action | Philosophy |
 |----------|---------------|------------|
-| `default` | `deny` | Balanced — allows reads, blocks destructive ops, rate-limits searches |
-| `strict` | `deny` | Maximum safety — explicit allowlist only, rate limits on everything |
-| `permissive` | `allow` | Audit mode — logs everything, blocks only catastrophic operations |
-| `hooks` | `allow` | Agent hooks — allows everything, blocks catastrophic ops, requires approval for installs |
+| `hooks` | `allow` | Blocks catastrophic ops, allows most else |
+| `default` | `deny` | Balanced -- allows reads, blocks destructive ops, rate-limits searches |
+| `strict` | `deny` | Maximum safety -- explicit allowlist only, rate limits on everything |
+| `permissive` | `allow` | Audit mode -- logs everything, blocks only catastrophic operations |
 
-> **Tip:** Use `hooks` when integrating with AI coding agents via `avakill hook install`. It's designed to let agents work freely while blocking genuinely dangerous operations.
+### The default policy
 
-```bash
-avakill init --template strict
-avakill init --template permissive
-avakill init --template hooks
+Here's what `default.yaml` actually contains -- 7 rules with cross-agent tool names (abbreviated; see `src/avakill/templates/default.yaml` for the full file):
+
+```yaml
+version: "1.0"
+default_action: deny
+
+policies:
+  - name: block-destructive-ops       # deny delete_*, remove_*, destroy_*, drop_* (+ suffixes)
+    tools: ["delete_*", "remove_*", "destroy_*", "drop_*", "*_delete", "*_remove", "*_destroy", "*_drop"]
+    action: deny
+
+  - name: block-destructive-sql       # deny DROP/DELETE/TRUNCATE/ALTER on database_*, sql_*, etc.
+    tools: ["database_*", "sql_*", "execute_sql", "run_query"]
+    action: deny
+    conditions: { args_match: { query: ["DROP", "DELETE", "TRUNCATE", "ALTER"] } }
+
+  - name: block-dangerous-shell       # deny rm -rf, sudo, chmod 777, mkfs, > /dev/
+    tools: ["shell_execute", "Bash", "run_shell_command", "run_command",  # + Codex + globs
+            "shell", "local_shell", "exec_command", "shell_*", "bash_*", "command_*"]
+    action: deny
+    conditions: { args_match: { command: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"] } }
+
+  - name: rate-limit-web-search       # 30 calls/minute
+    tools: ["web_search", "WebSearch"]
+    action: allow
+    rate_limit: { max_calls: 30, window: "1m" }
+
+  - name: allow-read-operations       # Claude Code names + generic prefix/suffix globs
+    tools: ["Read", "Glob", "Grep", "LS", "WebFetch", "grep_files",
+            "search_*", "get_*", "list_*", "read_*", "query_*", "fetch_*", "find_*", "lookup_*",
+            "*_search", "*_get", "*_list", "*_read", "*_query", "*_fetch", "*_find", "*_lookup"]
+    action: allow
+
+  - name: allow-safe-sql              # after destructive SQL blocked above
+    tools: ["database_*", "sql_*", "execute_sql", "run_query"]
+    action: allow
+
+  - name: allow-safe-shell            # shell_safe + 19-command allowlist
+    tools: ["shell_execute", "Bash", "run_shell_command", "run_command",
+            "shell", "local_shell", "exec_command", "shell_*", "bash_*", "command_*"]
+    action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: [echo, ls, cat, pwd, git, python, pip, npm, node,
+                          make, which, whoami, date, uname, head, tail, wc, file, stat]
 ```
 
-You can also specify the output path:
+Rules are evaluated top-to-bottom. The first matching rule wins. If nothing matches, `default_action` applies.
+
+### Validate your policy
 
 ```bash
-avakill init --template strict --output policies/production.yaml
+$ avakill validate avakill.yaml
+
+Policy Rules: 7 rules (block-destructive-ops, block-destructive-sql,
+  block-dangerous-shell, rate-limit-web-search, allow-read-operations,
+  allow-safe-sql, allow-safe-shell)
+Version: 1.0 | Default action: deny | Total rules: 7
+
+Policy is valid.
 ```
 
-### LLM-Assisted Policy Creation
+### LLM-assisted policy creation
 
 Instead of writing YAML manually, you can use any LLM to generate a policy:
 
@@ -108,91 +162,17 @@ avakill schema --format=prompt
 avakill schema --format=prompt --tools="execute_sql,shell_exec,file_read" --use-case="data pipeline"
 ```
 
-The prompt includes the full JSON Schema, evaluation rules, examples, and common mistakes to avoid. Copy it into ChatGPT, Claude, Gemini, or any other LLM, then describe your agent and its tools. Validate the output with:
+The prompt includes the full JSON Schema, evaluation rules, and examples. Paste it into any LLM, describe your agent, then validate with `avakill validate generated-policy.yaml`. See [`llm-policy-prompt.md`](internal/llm-policy-prompt.md) for a paste-ready version.
 
-```bash
-avakill validate generated-policy.yaml
-```
+## 2. Add AvaKill to Your Code
 
-> See [`llm-policy-prompt.md`](internal/llm-policy-prompt.md) for a paste-ready prompt you can use without installing AvaKill.
+### The `@protect` decorator
 
-## 2. Review the Policy
-
-Open `avakill.yaml`. Here's what the default template looks like:
-
-```yaml
-version: "1.0"
-default_action: deny
-
-policies:
-  # Allow read-only operations
-  - name: allow-read-operations
-    tools: ["*_read", "*_get", "*_list", "*_search", "*_query"]
-    action: allow
-
-  # Block destructive SQL
-  - name: block-destructive-sql
-    tools: ["database_*", "sql_*"]
-    action: deny
-    conditions:
-      args_match:
-        query: ["DROP", "DELETE", "TRUNCATE", "ALTER"]
-    message: "Destructive SQL operations require manual execution"
-
-  # Block dangerous shell commands
-  - name: block-dangerous-shell
-    tools: ["shell_*", "bash_*", "command_*"]
-    action: deny
-    conditions:
-      args_match:
-        cmd: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"]
-
-  # Rate limit search and code execution
-  - name: rate-limit-search
-    tools: ["web_search", "code_execute"]
-    action: allow
-    rate_limit:
-      max_calls: 30
-      window: "1m"
-
-  # Require approval for sensitive operations
-  - name: require-approval-sensitive
-    tools: ["email_send", "file_delete", "api_delete"]
-    action: require_approval
-```
-
-Rules are evaluated top-to-bottom. The first matching rule wins. If nothing matches, `default_action` applies.
-
-Validate your policy file at any time:
-
-```bash
-$ avakill validate avakill.yaml
-
-┌─────────────────────────────── Policy Rules ───────────────────────────────┐
-│  #  │ Name                      │ Action           │ Rate Limit │
-│  1  │ allow-read-operations     │ allow            │ -          │
-│  2  │ block-destructive-sql     │ deny             │ -          │
-│  3  │ block-dangerous-shell     │ deny             │ -          │
-│  4  │ rate-limit-search         │ allow            │ 30/1m      │
-│  5  │ require-approval-sensitive│ require_approval │ -          │
-└───────────────────────────────────────────────────────────────────────────┘
-╭─ Policy Summary ─╮
-│ Version:        1.0
-│ Default action: deny
-│ Total rules:    5
-╰──────────────────╯
-
-Policy is valid.
-```
-
-## 3. Protect Your First Function
-
-The fastest integration path is the `@protect` decorator. It wraps any function with a policy check — if the policy denies the call, the function body never runs.
+The fastest integration path. It wraps any function with a policy check -- if the policy denies the call, the function body never runs.
 
 ```python
 from avakill import Guard, protect, PolicyViolation
 
-# Load the policy
 guard = Guard(policy="avakill.yaml")
 
 @protect(guard=guard)
@@ -205,71 +185,34 @@ def search_users(query: str) -> str:
     """Search for users."""
     return f"Found users matching: {query}"
 
-# This succeeds — "search_users" matches the "*_search" pattern → allowed
+# This succeeds -- "search_users" matches the "*_search" pattern -> allowed
 result = search_users(query="active")
 print(result)
-# → Found users matching: active
+# -> Found users matching: active
 
-# This raises — "delete_user" matches no allow rule → denied by default
+# This raises -- "delete_user" matches no allow rule -> denied by default
 try:
     delete_user(user_id="123")
 except PolicyViolation as e:
     print(e)
-# → AvaKill blocked 'delete_user': No matching rule; default action is 'deny'
+# -> AvaKill blocked 'delete_user': No matching rule; default action is 'deny'
 ```
 
-### How the decorator works
+Decorator options:
 
-1. When `search_users(query="active")` is called, the decorator calls `guard.evaluate(tool="search_users", args={"query": "active"})`.
-2. The engine checks each rule. `search_users` matches `*_search` in the `allow-read-operations` rule.
-3. The decision is `allowed=True`, so the function runs normally.
-4. When `delete_user(user_id="123")` is called, no rule matches. The `default_action` is `deny`, so `PolicyViolation` is raised.
+| Option | Example | Effect |
+|--------|---------|--------|
+| Auto-detect | `@protect` | Loads `avakill.yaml` from cwd |
+| Explicit policy | `@protect(policy="strict.yaml")` | Uses specified file |
+| Custom tool name | `@protect(guard=guard, tool_name="db_exec")` | Overrides function name |
+| Return None | `@protect(guard=guard, on_deny="return_none")` | Returns `None` instead of raising |
+| Custom callback | `@protect(guard=guard, on_deny="callback", deny_callback=fn)` | Calls `fn(tool_name, decision, args, kwargs)` |
 
-### Decorator options
+Works with both sync and async functions.
 
-```python
-# Auto-detect policy from avakill.yaml in the current directory
-@protect
-def my_tool():
-    ...
+### Using `Guard.evaluate()` directly
 
-# Explicit policy file
-@protect(policy="policies/strict.yaml")
-def my_tool():
-    ...
-
-# Custom tool name (defaults to the function name)
-@protect(guard=guard, tool_name="database_execute")
-def run_sql(query: str):
-    ...
-
-# Return None instead of raising on denial
-@protect(guard=guard, on_deny="return_none")
-def optional_tool():
-    ...
-
-# Custom denial callback
-def on_blocked(tool_name, decision, args, kwargs):
-    log.warning(f"Blocked: {tool_name}")
-    return {"error": "not allowed"}
-
-@protect(guard=guard, on_deny="callback", deny_callback=on_blocked)
-def guarded_tool():
-    ...
-```
-
-The decorator works with both sync and async functions:
-
-```python
-@protect(guard=guard)
-async def async_search(query: str) -> str:
-    result = await db.search(query)
-    return result
-```
-
-## 4. Use the Guard Directly
-
-For more control, use `Guard.evaluate()` directly in your agent loop:
+For more control, use `Guard.evaluate()` in your agent loop:
 
 ```python
 from avakill import Guard, PolicyViolation
@@ -277,7 +220,6 @@ from avakill import Guard, PolicyViolation
 guard = Guard(policy="avakill.yaml")
 
 def agent_loop(tool_name: str, args: dict):
-    # Check before executing
     decision = guard.evaluate(tool=tool_name, args=args)
 
     if not decision.allowed:
@@ -285,14 +227,6 @@ def agent_loop(tool_name: str, args: dict):
         return None
 
     return execute_tool(tool_name, args)
-```
-
-Or use `evaluate_or_raise()` for automatic exceptions:
-
-```python
-# Raises PolicyViolation if denied, RateLimitExceeded if rate limited
-decision = guard.evaluate_or_raise(tool="delete_user", args={"user_id": "123"})
-# If we get here, the call was allowed
 ```
 
 ### Sessions
@@ -303,10 +237,10 @@ Use sessions to group related calls under an agent and session ID:
 with guard.session(agent_id="my-agent") as session:
     session.evaluate(tool="search_users", args={"query": "active"})
     session.evaluate(tool="get_user", args={"id": "456"})
-    print(f"Calls made: {session.call_count}")  # → 2
+    print(f"Calls made: {session.call_count}")  # -> 2
 ```
 
-## 5. Enable Audit Logging
+### Audit logging
 
 Add a `SQLiteLogger` to persist every decision to a local database:
 
@@ -321,78 +255,11 @@ guard = Guard(policy="avakill.yaml", logger=logger)
 guard.evaluate(tool="search_users", args={"query": "test"})
 ```
 
-## 6. View Audit Logs
+## 3. Protect AI Coding Agents
 
-Query the audit log from the CLI:
+AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
 
-```bash
-# Show the last 50 events
-$ avakill logs
-
-┌──────────────────────── AvaKill Audit Log ────────────────────────┐
-│ Time                │ Tool          │ Action │ Policy               │
-│ 2025-01-15 14:32:01 │ search_users  │ ALLOW  │ allow-read-operations│
-│ 2025-01-15 14:32:03 │ delete_user   │ DENY   │                     │
-│ 2025-01-15 14:32:05 │ execute_sql   │ DENY   │ block-destructive-sql│
-└─────────────────────────────────────────────────────────────────────┘
-3 event(s) shown
-```
-
-Filter and format options:
-
-```bash
-# Only denied events
-avakill logs --denied-only
-
-# Filter by tool name (supports globs)
-avakill logs --tool "database_*"
-
-# Events from the last hour
-avakill logs --since 1h
-
-# Filter by agent
-avakill logs --agent my-agent
-
-# JSON output for piping to jq
-avakill logs --json
-
-# Follow new events in real-time (like tail -f)
-avakill logs tail
-```
-
-## 7. Run the Dashboard
-
-Launch the real-time terminal dashboard:
-
-```bash
-$ avakill dashboard
-```
-
-The dashboard shows:
-
-- **Safety Overview** — total events, allowed/denied/pending counts with percentages
-- **Live Tool Calls** — a streaming table of every intercepted call with timestamps, actions, and matching policies
-- **Top Denied Tools** — bar chart of the most frequently blocked tools in the last hour
-
-Keyboard shortcuts:
-
-| Key | Action |
-|-----|--------|
-| `q` | Quit |
-| `r` | Reload policy |
-| `c` | Clear events |
-
-Options:
-
-```bash
-avakill dashboard --db avakill_audit.db  # Custom database path
-avakill dashboard --refresh 1.0              # Refresh interval in seconds
-avakill dashboard --policy avakill.yaml   # Policy file to monitor
-```
-
-## 8. Protect AI Coding Agents with Hooks
-
-AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Cursor, and Windsurf without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
+The fastest path is `avakill guide` > **Hooks & Agents**, which handles detection and installation. Or use the CLI directly:
 
 ### Start the daemon
 
@@ -421,140 +288,83 @@ avakill hook list
 ### How it works
 
 ```
-Agent (e.g., Claude Code)
-  │
-  ├─ Tool call: Bash("rm -rf /")
-  │
-  ▼
-Hook Script (avakill-hook-claude-code)
-  │
-  ├─ Translates tool name: Bash → shell_execute
-  ├─ Sends EvaluateRequest to daemon
-  │
-  ▼
-AvaKill Daemon
-  │
-  ├─ Evaluates against policy
-  ├─ Returns: deny
-  │
-  ▼
-Hook Script
-  │
-  └─ Returns deny to agent → tool call blocked
+Agent  ->  Hook Script  ->  AvaKill Daemon  ->  Policy Engine
+                 |                                    |
+          Translates tool name              Evaluates rules
+          (Bash -> shell_execute)           Returns: allow/deny
 ```
 
-Policies use **canonical tool names** so one policy works across all agents:
+### Canonical tool names
+
+One policy works across all agents thanks to canonical names:
 
 | Agent | Native Name | Canonical Name |
 |-------|------------|----------------|
 | Claude Code | `Bash` | `shell_execute` |
-| Claude Code | `Write` | `file_write` |
-| Claude Code | `Read` | `file_read` |
+| Claude Code | `Write` / `Read` | `file_write` / `file_read` |
 | Gemini CLI | `run_shell_command` | `shell_execute` |
 | Cursor | `shell_command` | `shell_execute` |
 | Windsurf | `run_command` | `shell_execute` |
 
-Write policies using canonical names. Use `shell_safe` and `command_allowlist` for shell commands:
+### Recommended hook policy
+
+Use `shell_safe` and `command_allowlist` to control shell access:
 
 ```yaml
-policies:
-  - name: allow-safe-shell
-    tools: ["shell_execute"]
-    action: allow
-    conditions:
-      shell_safe: true
-      command_allowlist: [echo, ls, git, python, pip, cat, head, tail]
-
-  - name: deny-everything-else
-    tools: ["*"]
-    action: deny
+- name: allow-safe-shell
+  tools: ["shell_execute", "Bash", "run_shell_command", "run_command",
+          "shell", "local_shell", "exec_command"]
+  action: allow
+  conditions:
+    shell_safe: true
+    command_allowlist: [echo, ls, cat, pwd, git, python, pip, npm, node,
+                        make, which, whoami, date, uname, head, tail, wc, file, stat]
 ```
 
-## 9. Project-Level Hook Setup (Standalone Mode)
+Use `avakill guide` > **Policies** to test tool calls against your policy.
 
-Hooks can run in **two modes**:
+## 4. Monitor and Debug
 
-| Mode | How it works | When to use |
-|------|-------------|-------------|
-| **Daemon mode** (default) | Hook sends request to running daemon via Unix socket | Multi-project setups, shared daemon |
-| **Standalone mode** | Hook evaluates directly using `AVAKILL_POLICY` env var — no daemon needed | Per-project setup, simpler deployment |
-
-### Step-by-step standalone setup
-
-**1. Initialize your project:**
+### View audit logs
 
 ```bash
-cd /path/to/my-project
-avakill init              # creates avakill.yaml
-mkdir -p .claude
+# Show recent events
+$ avakill logs
+
+┌──────────────────────── AvaKill Audit Log ────────────────────────┐
+│ Time                │ Tool          │ Action │ Policy               │
+│ 2026-01-15 14:32:01 │ search_users  │ ALLOW  │ allow-read-operations│
+│ 2026-01-15 14:32:03 │ delete_user   │ DENY   │                     │
+│ 2026-01-15 14:32:05 │ execute_sql   │ DENY   │ block-destructive-sql│
+└─────────────────────────────────────────────────────────────────────┘
+3 event(s) shown
 ```
 
-**2. Create a wrapper script** (`avakill-hook.sh`) for reliability:
+Filter and format options:
 
 ```bash
-#!/bin/bash
-export AVAKILL_POLICY="/path/to/my-project/avakill.yaml"
-exec /path/to/avakill-hook-claude-code
+avakill logs --denied-only              # Only denied events
+avakill logs --tool "database_*"        # Filter by tool name (supports globs)
+avakill logs --since 1h                 # Events from the last hour
+avakill logs --agent my-agent           # Filter by agent
+avakill logs --json                     # JSON output for piping to jq
+avakill logs tail                       # Follow new events in real-time
 ```
 
-Make it executable:
+### Run the dashboard
+
+Launch the real-time terminal dashboard with `avakill dashboard`. It shows live safety overview, streaming tool calls, and top denied tools.
 
 ```bash
-chmod +x avakill-hook.sh
+avakill dashboard --db avakill_audit.db     # Custom database path
+avakill dashboard --refresh 1.0             # Refresh interval in seconds
+avakill dashboard --policy avakill.yaml     # Policy file to monitor
+avakill dashboard --watch                   # Auto-reload on policy change
 ```
 
-> **Tip:** Use absolute paths for both `AVAKILL_POLICY` and the hook binary. Find the binary path with `which avakill-hook-claude-code`.
+Keyboard shortcuts: `q` quit, `r` reload policy, `c` clear events.
 
-**3. Create `.claude/settings.local.json`:**
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/path/to/my-project/avakill-hook.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**4. Add the hardened policy pattern** to `avakill.yaml`:
-
-```yaml
-version: "1.0"
-default_action: deny
-
-policies:
-  - name: allow-safe-shell
-    tools: ["shell_execute"]
-    action: allow
-    conditions:
-      shell_safe: true
-      command_allowlist: [echo, ls, git, python, pip, cat, head, tail, wc, file]
-
-  - name: allow-reads
-    tools: ["file_read", "*_read", "*_get", "*_list", "*_search"]
-    action: allow
-
-  - name: deny-everything-else
-    tools: ["*"]
-    action: deny
-```
-
-> **Important:** Hooks are loaded at session start — restart Claude Code after changing `settings.local.json`.
-
-> **Note:** Use canonical tool names in policies (e.g., `shell_execute` not `Bash`). See the [normalization table](#how-it-works) above for agent-to-canonical mappings.
-
-## 10. Evaluate Tool Calls from the CLI
-
-You can evaluate tool calls directly without running an agent:
+### Test tool calls from the CLI
 
 ```bash
 # Via the daemon
@@ -568,41 +378,25 @@ echo '{"tool": "file_read", "args": {"path": "README.md"}}' | avakill evaluate -
 
 Exit codes: `0` = allowed, `2` = denied, `1` = error.
 
-## Next Level: OS Sandboxing and MCP Proxy
+## Going Further
 
-Once you have hooks working, you can add additional enforcement layers for defense-in-depth:
+### OS sandboxing
 
-- **[Upgrade to Launch Mode](internal/upgrade-to-launch-mode.md)** -- add OS-level sandboxing on top of hooks. Your existing policies continue to work unchanged.
-- **[Defense-in-Depth Guide](internal/defense-in-depth.md)** -- understand how hooks, launch mode, and MCP proxy compose together. Includes a risk matrix and per-agent recommendations.
-- **[Sandbox Backends](internal/sandbox-backends.md)** -- platform-specific details for Landlock (Linux), sandbox_init (macOS), and AppContainer (Windows).
-- **[Agent Profiles](cli-reference.md#profile)** -- built-in containment profiles for OpenClaw, Aider, Cline, Continue.dev, and SWE-Agent. Run `avakill profile list` to see them.
-
-Quick start:
+Add OS-level containment on top of policy enforcement:
 
 ```bash
-# See available agent profiles
-avakill profile list
-
-# Test sandbox restrictions without launching
-avakill launch --agent aider --dry-run
-
-# Launch with OS sandbox
-avakill launch --agent aider --policy avakill.yaml -- aider
+avakill profile list                                          # See available agent profiles
+avakill launch --agent aider --dry-run                        # Test sandbox restrictions
+avakill launch --agent aider --policy avakill.yaml -- aider   # Launch with OS sandbox
 ```
 
-## Next Steps
+The `avakill guide` TUI also has sections for signing, compliance, MCP wrapping, and approvals.
 
-- **[Policy Reference](policy-reference.md)** -- full documentation of the YAML policy format, conditions, rate limiting, and environment variable substitution.
-- **[Framework Integrations](internal/framework-integrations.md)** — drop-in wrappers for OpenAI, Anthropic, LangChain, CrewAI, and MCP.
-- **[MCP Proxy](internal/mcp-proxy.md)** — deploy AvaKill as a transparent proxy for any MCP server.
-- **[MCP Universal Interception](internal/mcp-proxy-universal.md)** — wrap any agent's MCP config with `avakill mcp-wrap` for zero-code interception.
-- **[Security Hardening](internal/security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
-- **[Deployment Guide](internal/deployment.md)** — dev → staging → production patterns, Docker, and systemd.
-- **[Policy Examples](policy-reference.md#examples)** — real-world policy recipes for common use cases.
-- **[Process Launcher](internal/process-launcher.md)** — launch agent processes inside OS-level sandboxes with `avakill launch`.
-- **[CLI Reference](cli-reference.md)** — complete documentation for all CLI commands.
-- **[API Reference](api-reference.md)** — full Python API documentation.
-- **[Troubleshooting](internal/troubleshooting.md)** — common issues and solutions.
-- **[Native Agent Hooks](internal/framework-integrations.md#native-agent-hooks)** — per-agent hook details for Claude Code, Gemini CLI, Cursor, and Windsurf.
-- **[Daemon Deployment](internal/deployment.md#daemon-deployment)** — running the daemon with systemd, monitoring, and SIGHUP reload.
-- **[Compliance Reporting](internal/deployment.md#compliance-deployment)** — automated SOC 2, NIST, EU AI Act, and ISO 42001 assessments.
+### Reference
+
+- **[Policy Reference](policy-reference.md)** -- YAML format, conditions, rate limiting, examples
+- **[CLI Reference](cli-reference.md)** -- all commands and flags
+- **[API Reference](api-reference.md)** -- Python SDK documentation
+- **[Framework Integrations](internal/framework-integrations.md)** -- OpenAI, Anthropic, LangChain, MCP
+- **[Security Hardening](internal/security-hardening.md)** -- signing, self-protection, OS-level enforcement
+- **[Troubleshooting](internal/troubleshooting.md)** -- common issues and solutions
