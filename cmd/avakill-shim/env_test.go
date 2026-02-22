@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -131,5 +133,31 @@ func TestResolveInEnvNotFound(t *testing.T) {
 	_, err := ResolveInEnv("nonexistent-binary-that-does-not-exist-xyz123")
 	if err == nil {
 		t.Error("expected error for nonexistent binary")
+	}
+}
+
+func TestExpandHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home directory")
+	}
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"~/.avakill/avakill.sock", filepath.Join(home, ".avakill/avakill.sock")},
+		{"~/foo", filepath.Join(home, "foo")},
+		{"/absolute/path", "/absolute/path"},
+		{"relative/path", "relative/path"},
+		{"~notuser/path", "~notuser/path"}, // only expand ~/
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		result := expandHome(tt.input)
+		if result != tt.expected {
+			t.Errorf("expandHome(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
 	}
 }

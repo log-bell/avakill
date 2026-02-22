@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -103,6 +104,18 @@ func EnvToSlice(env map[string]string) []string {
 		result = append(result, k+"="+v)
 	}
 	return result
+}
+
+// expandHome replaces a leading "~/" with the user's home directory.
+func expandHome(path string) string {
+	if !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path // can't expand, return as-is
+	}
+	return filepath.Join(home, path[2:])
 }
 
 // ResetEnvCache clears the cached environment (for testing).

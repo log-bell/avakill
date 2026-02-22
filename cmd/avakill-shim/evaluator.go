@@ -75,7 +75,8 @@ func (e *Evaluator) evaluateDaemon(tool string, args map[string]interface{}) (Ev
 		timeout = 5 * time.Second
 	}
 
-	conn, err := net.DialTimeout("unix", e.SocketPath, timeout)
+	socketPath := expandHome(e.SocketPath)
+	conn, err := net.DialTimeout("unix", socketPath, timeout)
 	if err != nil {
 		return EvaluateResponse{}, fmt.Errorf("connect: %w", err)
 	}
@@ -196,7 +197,8 @@ func (e *Evaluator) DaemonReachable() bool {
 	if e.SocketPath == "" {
 		return false
 	}
-	conn, err := net.DialTimeout("unix", e.SocketPath, 2*time.Second)
+	socketPath := expandHome(e.SocketPath)
+	conn, err := net.DialTimeout("unix", socketPath, 2*time.Second)
 	if err != nil {
 		return false
 	}

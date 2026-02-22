@@ -97,7 +97,7 @@ def wrap_mcp_config(
             shim_flags: list[str] = []
 
             if daemon:
-                shim_flags.extend(["--socket", "~/.avakill/avakill.sock"])
+                shim_flags.extend(["--socket", str(Path("~/.avakill/avakill.sock").expanduser())])
             else:
                 shim_flags.extend(["--policy", policy_abs])
 
@@ -118,7 +118,7 @@ def wrap_mcp_config(
             args = ["mcp-proxy"]
 
             if daemon:
-                args.extend(["--daemon", "~/.avakill/avakill.sock"])
+                args.extend(["--daemon", str(Path("~/.avakill/avakill.sock").expanduser())])
             else:
                 args.extend(["--policy", policy_abs])
 
