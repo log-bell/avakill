@@ -598,7 +598,7 @@ avakill launch --agent aider --policy avakill.yaml -- aider
 - **[MCP Universal Interception](internal/mcp-proxy-universal.md)** — wrap any agent's MCP config with `avakill mcp-wrap` for zero-code interception.
 - **[Security Hardening](internal/security-hardening.md)** — policy signing, self-protection, OS-level hardening, and C-level audit hooks.
 - **[Deployment Guide](internal/deployment.md)** — dev → staging → production patterns, Docker, and systemd.
-- **[Cookbook](cookbook.md)** — real-world policy recipes for common use cases.
+- **[Policy Examples](policy-reference.md#examples)** — real-world policy recipes for common use cases.
 - **[Process Launcher](internal/process-launcher.md)** — launch agent processes inside OS-level sandboxes with `avakill launch`.
 - **[CLI Reference](cli-reference.md)** — complete documentation for all CLI commands.
 - **[API Reference](api-reference.md)** — full Python API documentation.
