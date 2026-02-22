@@ -1,5 +1,5 @@
 # AvaKill Hooks Policy
-# Designed for use with agent hooks (Claude Code, Gemini CLI, Cursor, Windsurf).
+# Designed for use with agent hooks (Claude Code, Gemini CLI, Windsurf, OpenAI Codex).
 # Includes native tool names so policies match even without normalization.
 #
 # This template blocks genuinely dangerous operations while allowing

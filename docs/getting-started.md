@@ -61,7 +61,7 @@ avakill guide
 
 This opens a 7-section menu covering setup, policies, hooks, signing, monitoring, compliance, and quick reference. Selecting **"Set up AvaKill"** walks you through:
 
-1. Detects installed agents (claude-code, gemini-cli, cursor, windsurf, openai-codex)
+1. Detects installed agents (claude-code, gemini-cli, windsurf, openai-codex, and others)
 2. Prompts for a template (hooks, default, strict, permissive)
 3. Copies the template to `avakill.yaml` and validates it
 4. Offers to install hooks for every detected agent
@@ -257,7 +257,7 @@ guard.evaluate(tool="search_users", args={"query": "test"})
 
 ## 3. Protect AI Coding Agents
 
-AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
+AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
 
 The fastest path is `avakill guide` > **Hooks & Agents**, which handles detection and installation. Or use the CLI directly:
 
@@ -294,6 +294,22 @@ Agent  ->  Hook Script  ->  AvaKill Daemon  ->  Policy Engine
           (Bash -> shell_execute)           Returns: allow/deny
 ```
 
+### Standalone mode (no daemon)
+
+Hooks work without a running daemon. When the daemon is unreachable, each hook evaluates policies in-process using this fallback chain:
+
+1. Connect to daemon socket (`~/.avakill/avakill.sock`)
+2. If unreachable, load policy from `avakill.yaml` in cwd and evaluate locally
+3. If no policy file found, **allow** the call (fail-open, the default)
+
+To change the default to **fail-closed** (deny when no policy is available):
+
+```bash
+export AVAKILL_FAIL_CLOSED=1
+```
+
+With `AVAKILL_FAIL_CLOSED=1`, tool calls are denied when both the daemon and local policy file are unavailable. This is recommended for production environments.
+
 ### Canonical tool names
 
 One policy works across all agents thanks to canonical names:
@@ -303,8 +319,15 @@ One policy works across all agents thanks to canonical names:
 | Claude Code | `Bash` | `shell_execute` |
 | Claude Code | `Write` / `Read` | `file_write` / `file_read` |
 | Gemini CLI | `run_shell_command` | `shell_execute` |
-| Cursor | `shell_command` | `shell_execute` |
+| Gemini CLI | `read_file` / `write_file` / `edit_file` | `file_read` / `file_write` / `file_edit` |
+| Gemini CLI | `search_files` / `list_files` | `file_search` / `file_list` |
+| Gemini CLI | `web_search` / `web_fetch` | `web_search` / `web_fetch` |
 | Windsurf | `run_command` | `shell_execute` |
+| Windsurf | `write_code` / `read_code` | `file_write` / `file_read` |
+| Windsurf | `mcp_tool` | *(pass-through)* |
+| OpenAI Codex | `shell` | `shell_execute` |
+| OpenAI Codex | `apply_patch` / `read_file` | `file_write` / `file_read` |
+| OpenAI Codex | `list_dir` / `grep_files` | `file_list` / `content_search` |
 
 ### Recommended hook policy
 

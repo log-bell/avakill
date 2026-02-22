@@ -1720,12 +1720,12 @@
 
     <div class="hero-desc">
       <p>Intercepts agent tool calls in real-time. Blocks destructive operations before they execute. Protects your databases, files, and infrastructure from rogue AI.</p>
-      <p>Works with OpenAI, Anthropic, LangChain, MCP, and every major framework.</p>
+      <p>Native hooks for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex. One YAML policy protects every agent.</p>
     </div>
 
     <a href="https://pypi.org/project/avakill/" class="hero-pill">
       <span class="badge">New</span>
-      <span class="pill-text">AvaKill v0.4.0 — Now on PyPI</span>
+      <span class="pill-text">AvaKill v0.5.0 — Hooks for 4 Agents</span>
       <span class="arrow">&rarr;</span>
     </a>
   </section>
@@ -1747,9 +1747,9 @@
             <span class="terminal-dot terminal-dot--green"></span>
           </div>
           <div class="terminal-tabs">
-            <button class="terminal-tab active" data-tab="oneliner">One-liner</button>
-            <button class="terminal-tab" data-tab="pipx">pipx</button>
+            <button class="terminal-tab active" data-tab="pipx">pipx</button>
             <button class="terminal-tab" data-tab="pip">pip</button>
+            <button class="terminal-tab" data-tab="hooks">Hooks</button>
           </div>
           <div class="terminal-meta">
             <span class="terminal-os">macOS/Linux/Windows</span>
@@ -1758,8 +1758,8 @@
           </div>
         </div>
         <div class="terminal-code">
-          <div class="terminal-comment"># Protect your agents in one command.</div>
-          <div><span class="terminal-prompt">$ </span><span class="terminal-command" id="terminal-cmd">pip install avakill &amp;&amp; avakill init</span></div>
+          <div class="terminal-comment"># Install AvaKill and set up hooks for your agents.</div>
+          <div><span class="terminal-prompt">$ </span><span class="terminal-command" id="terminal-cmd">pipx install avakill &amp;&amp; avakill guide</span></div>
           <button class="terminal-copy" id="copy-btn" aria-label="Copy to clipboard">
             <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span class="tooltip" id="copy-tooltip">Copied!</span>
@@ -1822,8 +1822,8 @@
         <div class="feature-icon">
           <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
-        <h3 class="feature-title">MCP Proxy</h3>
-        <p class="feature-desc">Drop-in transparent proxy for any MCP server. Intercepts tools/call requests without changing your server or client code.</p>
+        <h3 class="feature-title">Native Agent Hooks</h3>
+        <p class="feature-desc">Drop-in hooks for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex. One command to install &mdash; no code changes to your agent.</p>
       </div>
 
     </div>
@@ -1836,8 +1836,17 @@
     </div>
 
     <div class="integrations-content">
-      <!-- Row 1: AI Frameworks -->
-      <div class="integrations-row-label">Integrates with</div>
+      <!-- Row 0: Native Agent Hooks -->
+      <div class="integrations-row-label">Native Agent Hooks</div>
+      <div class="integrations-row">
+        <span class="integration-pill"><span class="integration-dot" style="background: #D97757;"></span>Claude Code</span>
+        <span class="integration-pill"><span class="integration-dot" style="background: #4285F4;"></span>Gemini CLI</span>
+        <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>Windsurf</span>
+        <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>OpenAI Codex</span>
+      </div>
+
+      <!-- Row 1: Python SDK -->
+      <div class="integrations-row-label">Python SDK</div>
       <div class="integrations-row">
         <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>OpenAI</span>
         <span class="integration-pill"><span class="integration-dot" style="background: #D97757;"></span>Anthropic</span>
@@ -2095,9 +2104,9 @@
 
     /* ----- Terminal tab switching ----- */
     const commands = {
-      oneliner: 'pip install avakill && avakill init',
-      pipx: 'pipx install avakill && avakill init',
-      pip: 'pip install avakill',
+      pipx: 'pipx install avakill && avakill guide',
+      pip: 'pip install avakill && avakill guide',
+      hooks: 'avakill hook install --agent all',
     };
 
     const cmdEl = document.getElementById('terminal-cmd');

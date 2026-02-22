@@ -79,7 +79,7 @@ Simple, readable safety rules anyone can write. Glob patterns, argument matching
 <td>
 
 :satellite: **Native Agent Hooks**<br>
-Drop-in hooks for Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex. One command to install — no code changes to your agent.
+Drop-in hooks for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex. One policy protects every agent.
 
 </td>
 <td>
@@ -168,10 +168,15 @@ Safe policy change workflow — propose changes, review diffs, approve with back
 Protect AI coding agents with zero code changes — just install the hook:
 
 ```bash
-avakill daemon start --policy avakill.yaml
-avakill hook install --agent claude-code  # or gemini-cli, cursor, windsurf, openai-codex, all
+# Install hooks for your agents (works standalone — no daemon required)
+avakill hook install --agent claude-code  # or gemini-cli, windsurf, openai-codex, all
 avakill hook list
+
+# Optional: start the daemon for sub-5ms shared evaluation
+avakill daemon start --policy avakill.yaml
 ```
+
+Hooks work standalone by default — each hook evaluates policies in-process. The daemon is optional and provides shared state (rate limits, audit) across agents.
 
 AvaKill intercepts every tool call at the agent level. Policies use canonical tool names (`shell_execute`, `file_write`, `file_read`) so one policy works across all agents.
 
@@ -181,9 +186,10 @@ AvaKill intercepts every tool call at the agent level. Policies use canonical to
 |---|---|
 | Claude Code | Battle-tested |
 | Gemini CLI | Supported |
-| Cursor | Supported |
 | Windsurf | Supported |
-| OpenAI Codex | Supported |
+| OpenAI Codex | Supported (pending upstream hook API) |
+
+> **Other agents:** Cursor, Cline, and Continue are available via MCP wrapping or the Python SDK.
 
 ### Python SDK
 
@@ -388,7 +394,7 @@ avakill dashboard --db avakill_audit.db --policy avakill.yaml --watch
 │  AI Agent        │     │                                              │     │   Tool   │
 │  (Claude Code,   │────>│  Hook ──> Daemon ──> Guard ──> Policy ──> Log│────>│          │
 │   Gemini CLI,    │     │                        │           │         │     │          │
-│   Cursor, etc.)  │     │                   ┌────┴────┐      │         │     └──────────┘
+│   Windsurf, etc.) │     │                   ┌────┴────┐      │         │     └──────────┘
 │                  │     │                Allow    Deny/     │         │
 └─────────────────┘     │                  │     Approve     │         │
                         │                  v       │         │         │
@@ -406,7 +412,7 @@ AvaKill protects your agents at multiple levels: **native hooks** intercept tool
 - **`Audit Logger`** — async SQLite logger with batched writes and WAL mode.
 - **`Event Bus`** — in-process pub/sub for real-time dashboard and monitoring.
 - **`DaemonServer`** — persistent Unix socket server for <5ms evaluation without in-process integration.
-- **`Hook Adapters`** — native integrations for Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex.
+- **`Hook Adapters`** — native integrations for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex.
 - **`ToolNormalizer`** — translates agent-specific tool names to canonical names for universal policies.
 - **`PolicyCascade`** — discovers and merges policies from system, global, project, and local levels.
 - **`ApprovalStore`** — SQLite-backed human-in-the-loop approval workflow.
@@ -420,7 +426,9 @@ Core features, battle-tested and ready for production use.
 
 - [x] Core policy engine with glob patterns, argument matching, rate limiting
 - [x] Interactive setup wizard (`avakill guide`)
-- [x] Native agent hooks (Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex)
+- [x] Native agent hooks (Claude Code, Gemini CLI, Windsurf, OpenAI Codex)
+- [x] Fail-closed mode (`AVAKILL_FAIL_CLOSED=1`)
+- [x] Standalone hook mode (no daemon required)
 - [x] Persistent daemon with Unix socket (<5ms evaluation)
 - [x] SQLite audit logging with async batched writes
 - [x] Tool name normalization across agents
@@ -446,6 +454,7 @@ Shipped and tested. Available for security-conscious and enterprise users.
 
 Code complete with unit tests, but not yet validated on real infrastructure.
 
+- [x] Cursor hooks (code-complete, not battle-tested)
 - [x] OS-level enforcement — Landlock (Linux), sandbox-exec (macOS), Tetragon (Kubernetes), Windows AppContainer
 - [x] MCP transparent proxy (stdio transport)
 - [x] Compliance reports (SOC 2, NIST AI RMF, EU AI Act, ISO 42001)

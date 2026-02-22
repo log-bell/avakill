@@ -202,11 +202,14 @@ These are the built-in mappings from each agent's native tool names to canonical
 | `gemini-cli` | `read_file` | `file_read` |
 | `gemini-cli` | `write_file` | `file_write` |
 | `gemini-cli` | `edit_file` | `file_edit` |
-| `cursor` | `shell_command` | `shell_execute` |
-| `cursor` | `read_file` | `file_read` |
+| `gemini-cli` | `search_files` | `file_search` |
+| `gemini-cli` | `list_files` | `file_list` |
+| `gemini-cli` | `web_search` | `web_search` |
+| `gemini-cli` | `web_fetch` | `web_fetch` |
 | `windsurf` | `run_command` | `shell_execute` |
 | `windsurf` | `write_code` | `file_write` |
 | `windsurf` | `read_code` | `file_read` |
+| `windsurf` | `mcp_tool` | *(pass-through)* |
 | `openai-codex` | `shell`, `shell_command`, `local_shell`, `exec_command` | `shell_execute` |
 | `openai-codex` | `apply_patch` | `file_write` |
 | `openai-codex` | `read_file` | `file_read` |
@@ -921,7 +924,7 @@ AvaKill ships four policy templates. Use `avakill guide` to generate one interac
 | `strict` | `deny` | Explicit allowlist only. All writes require approval. |
 | `permissive` | `allow` | Allows everything, logs all calls. For development and audit. |
 
-All templates include agent-native tool names for Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex.
+All templates include agent-native tool names for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex.
 
 ## Hot Reloading
 

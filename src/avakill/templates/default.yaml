@@ -3,7 +3,7 @@
 # Works out-of-the-box with the quickstart examples.
 #
 # Includes native tool names from popular AI coding agents:
-#   Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex
+#   Claude Code, Gemini CLI, Windsurf, OpenAI Codex
 
 version: "1.0"
 default_action: deny

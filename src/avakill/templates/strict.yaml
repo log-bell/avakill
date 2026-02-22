@@ -2,7 +2,7 @@
 # Maximum safety — deny by default, explicit allowlist only
 #
 # Includes native tool names from popular AI coding agents:
-#   Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex
+#   Claude Code, Gemini CLI, Windsurf, OpenAI Codex
 
 version: "1.0"
 default_action: deny
