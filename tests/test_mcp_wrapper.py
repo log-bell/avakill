@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from avakill.mcp.config import MCPConfig, MCPServerEntry
+from avakill.mcp.config import MCPConfig, MCPServerEntry, is_already_wrapped
 from avakill.mcp.wrapper import unwrap_mcp_config, wrap_mcp_config, write_mcp_config
 
 # ---------------------------------------------------------------------------
@@ -30,8 +30,7 @@ class TestWrapMCPConfig:
         )
         wrapped = wrap_mcp_config(config, policy="avakill.yaml")
         server = wrapped.servers[0]
-        assert server.command == "avakill"
-        assert "mcp-proxy" in server.args
+        assert is_already_wrapped(server)
         assert "--upstream-cmd" in server.args
         # upstream-cmd may be resolved to an absolute path
         cmd_idx = server.args.index("--upstream-cmd") + 1
@@ -52,7 +51,8 @@ class TestWrapMCPConfig:
             ],
         )
         wrapped = wrap_mcp_config(config, policy="policy.yaml")
-        assert wrapped.servers[0].env == {"DB_URL": "sqlite:///test.db"}
+        assert "DB_URL" in wrapped.servers[0].env
+        assert wrapped.servers[0].env["DB_URL"] == "sqlite:///test.db"
 
     def test_wrap_with_daemon_flag(self) -> None:
         config = MCPConfig(
@@ -63,7 +63,9 @@ class TestWrapMCPConfig:
             ],
         )
         wrapped = wrap_mcp_config(config, policy="avakill.yaml", daemon=True)
-        assert "--daemon" in wrapped.servers[0].args
+        args = wrapped.servers[0].args
+        # Go shim uses --socket, Python fallback uses --daemon
+        assert "--daemon" in args or "--socket" in args
 
     def test_wrap_skips_already_wrapped(self) -> None:
         config = MCPConfig(
@@ -93,7 +95,7 @@ class TestWrapMCPConfig:
         )
         wrapped = wrap_mcp_config(config, policy="avakill.yaml")
         assert len(wrapped.servers) == 2
-        assert all(s.command == "avakill" for s in wrapped.servers)
+        assert all(is_already_wrapped(s) for s in wrapped.servers)
 
 
 # ---------------------------------------------------------------------------
