@@ -64,22 +64,23 @@ class GeminiCLIAdapter(HookAdapter):
     def format_response(self, response: EvaluateResponse) -> tuple[str | None, int]:
         """Format the decision for Gemini CLI.
 
-        - Deny: JSON with ``hookSpecificOutput.permissionDecision = "deny"``, exit 0.
-        - Allow: no output, exit 0.
+        Gemini CLI uses exit codes to determine hook outcome:
+        - Exit 0: allow (tool proceeds)
+        - Exit 2: block (tool is aborted, stderr shown as reason)
+
+        For deny, we write the reason to stderr and exit 2.
+        For allow, no output and exit 0.
         """
         if response.decision == "deny":
             reason = response.reason or "Blocked by AvaKill policy"
             if response.policy:
                 reason = f"{reason} [{response.policy}]"
             reason = f"{reason}. Run `avakill fix` for recovery steps."
-            payload = {
-                "hookSpecificOutput": {
-                    "hookEventName": "BeforeTool",
-                    "permissionDecision": "deny",
-                    "reason": reason,
-                }
-            }
-            return json.dumps(payload), 0
+            # Gemini CLI reads stderr for the rejection reason on exit 2
+            import sys
+
+            print(reason, file=sys.stderr)
+            return None, 2
 
         if response.decision == "require_approval":
             payload = {

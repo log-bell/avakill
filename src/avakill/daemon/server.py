@@ -15,6 +15,7 @@ import logging
 import os
 import signal
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -61,6 +62,7 @@ class DaemonServer:
         transport: ServerTransport | None = None,
         tcp_port: int | None = None,
         os_enforce: bool = False,
+        on_ready: Callable[[str], None] | None = None,
     ) -> None:
         self._guard = guard
         self._socket_path = Path(socket_path) if socket_path else self.default_socket_path()
@@ -71,6 +73,7 @@ class DaemonServer:
         self._server: asyncio.AbstractServer | None = None
         self._stop_event: asyncio.Event | None = None
         self._os_enforce = os_enforce
+        self._on_ready = on_ready
 
         if transport is not None:
             self._transport = transport
@@ -138,11 +141,15 @@ class DaemonServer:
                     loop.add_signal_handler(sig, self._request_stop)
                 loop.add_signal_handler(signal.SIGHUP, self._request_reload)
 
+        address = self._transport.display_address()
         logger.info(
             "AvaKill daemon started on %s (PID %d)",
-            self._transport.display_address(),
+            address,
             os.getpid(),
         )
+
+        if self._on_ready is not None:
+            self._on_ready(address)
 
     async def stop(self) -> None:
         """Close the server and clean up transport artifacts + PID file."""

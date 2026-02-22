@@ -115,7 +115,21 @@ class HookAdapter(ABC):
             exit_code = self.output_response(response)
             sys.exit(exit_code)
 
-        # 5. No policy source → allow with warning
+        # 5. No policy source → check fail-closed mode
+        fail_closed = os.environ.get("AVAKILL_FAIL_CLOSED", "").strip()
+        if fail_closed in ("1", "true", "yes"):
+            print(
+                "avakill: no policy source found and AVAKILL_FAIL_CLOSED is set. "
+                "Denying tool call.",
+                file=sys.stderr,
+            )
+            response = EvaluateResponse(
+                decision="deny", reason="no policy source (fail-closed mode)"
+            )
+            exit_code = self.output_response(response)
+            sys.exit(exit_code)
+
+        # 6. No policy source, fail-open → allow with warning
         print(
             "avakill: no policy source found (no AVAKILL_POLICY, no daemon, "
             "no avakill.yaml in cwd). Allowing tool call. "

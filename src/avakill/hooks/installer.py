@@ -80,7 +80,7 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         },
     },
     "gemini-cli": {
-        "config_path": Path.home() / ".gemini" / "settings.json",
+        "config_path": lambda: Path.cwd() / ".gemini" / "settings.json",
         "event": "BeforeTool",
         "hook_entry": lambda cmd: {
             "matcher": ".*",
@@ -205,12 +205,23 @@ def install_hook(agent: str, config_path: Path | None = None) -> HookInstallResu
 
         # Generate exec policy rules if a policy file is available.
         policy_path_env = os.environ.get("AVAKILL_POLICY")
+        policy_file: Path | None = None
         if policy_path_env:
+            policy_file = Path(policy_path_env)
+        else:
+            # Auto-discover avakill.yaml / avakill.yml in cwd
+            for name in ("avakill.yaml", "avakill.yml"):
+                candidate = Path.cwd() / name
+                if candidate.is_file():
+                    policy_file = candidate
+                    break
+
+        if policy_file:
             from avakill.hooks.openai_codex import generate_codex_rules
 
             rules_path = Path.home() / ".codex" / "rules" / "avakill.rules"
             try:
-                generate_codex_rules(Path(policy_path_env), rules_path)
+                generate_codex_rules(policy_file, rules_path)
                 result.warnings.append(
                     f"Generated exec policy rules at {rules_path} for shell command protection."
                 )

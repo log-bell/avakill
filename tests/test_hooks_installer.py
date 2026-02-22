@@ -190,6 +190,30 @@ class TestCursorConfigPathLazy:
         assert result_a.config_path != result_b.config_path
 
 
+class TestGeminiConfigPathLazy:
+    """Test that Gemini CLI config path is evaluated lazily (respects cwd)."""
+
+    def test_gemini_config_path_respects_cwd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Gemini CLI config_path should be based on cwd at call time, not import time."""
+        project_a = tmp_path / "project_a"
+        project_b = tmp_path / "project_b"
+        project_a.mkdir()
+        project_b.mkdir()
+
+        # Install in project_a
+        monkeypatch.chdir(project_a)
+        result_a = install_hook("gemini-cli")
+        assert "project_a" in str(result_a.config_path)
+
+        # Install in project_b — should resolve to project_b, not project_a
+        monkeypatch.chdir(project_b)
+        result_b = install_hook("gemini-cli")
+        assert "project_b" in str(result_b.config_path)
+        assert result_a.config_path != result_b.config_path
+
+
 class TestListInstalledHooks:
     """Test listing hook installation status."""
 

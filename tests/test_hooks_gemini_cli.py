@@ -95,15 +95,18 @@ class TestGeminiCLIFormatResponse:
     def setup_method(self) -> None:
         self.adapter = GeminiCLIAdapter()
 
-    def test_deny_json_format(self) -> None:
+    def test_deny_exit_code_2(self) -> None:
         resp = EvaluateResponse(decision="deny", reason="blocked", policy="safety")
         stdout, exit_code = self.adapter.format_response(resp)
-        assert stdout is not None
-        parsed = json.loads(stdout)
-        assert parsed["hookSpecificOutput"]["hookEventName"] == "BeforeTool"
-        assert parsed["hookSpecificOutput"]["permissionDecision"] == "deny"
-        assert "blocked" in parsed["hookSpecificOutput"]["reason"]
-        assert exit_code == 0
+        assert stdout is None
+        assert exit_code == 2
+
+    def test_deny_reason_on_stderr(self, capsys: pytest.CaptureFixture) -> None:
+        resp = EvaluateResponse(decision="deny", reason="blocked", policy="safety")
+        self.adapter.format_response(resp)
+        captured = capsys.readouterr()
+        assert "blocked" in captured.err
+        assert "[safety]" in captured.err
 
     def test_allow_returns_none(self) -> None:
         resp = EvaluateResponse(decision="allow")

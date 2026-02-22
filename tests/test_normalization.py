@@ -93,6 +93,32 @@ class TestToolNormalizer:
         assert n.normalize("mcp__s__t", "claude-code") == "mcp__s__t"
 
 
+class TestGeminiCLINormalization:
+    """Tests for Gemini CLI tool name mappings."""
+
+    def test_search_files_to_file_search(self) -> None:
+        assert normalize_tool_name("search_files", "gemini-cli") == "file_search"
+
+    def test_list_files_to_file_list(self) -> None:
+        assert normalize_tool_name("list_files", "gemini-cli") == "file_list"
+
+    def test_web_search_to_web_search(self) -> None:
+        assert normalize_tool_name("web_search", "gemini-cli") == "web_search"
+
+    def test_web_fetch_to_web_fetch(self) -> None:
+        assert normalize_tool_name("web_fetch", "gemini-cli") == "web_fetch"
+
+
+class TestWindsurfNormalization:
+    """Tests for Windsurf tool name mappings."""
+
+    def test_mcp_tool_to_mcp_tool(self) -> None:
+        assert normalize_tool_name("mcp_tool", "windsurf") == "mcp_tool"
+
+    def test_read_code_to_file_read(self) -> None:
+        assert normalize_tool_name("read_code", "windsurf") == "file_read"
+
+
 class TestDenormalize:
     """Tests for reverse lookup."""
 

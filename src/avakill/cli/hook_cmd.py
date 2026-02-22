@@ -68,6 +68,17 @@ def install(agent: str) -> None:
         "(no daemon required)."
     )
 
+    if agent in ("openai-codex", "all"):
+        console.print()
+        console.print(
+            "[yellow]Codex note:[/yellow] Codex CLI does not yet support pre-execution hooks."
+        )
+        console.print("  AvaKill generates exec policy [bold].rules[/bold] files as a stopgap.")
+        console.print(
+            "  Place [cyan]avakill.yaml[/cyan] in your project root for auto-discovery, "
+            "or set [cyan]AVAKILL_POLICY[/cyan]."
+        )
+
 
 @hook.command()
 @click.option(

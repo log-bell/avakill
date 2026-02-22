@@ -67,6 +67,8 @@ policies:
       - "web_search"
       # Claude Code
       - "WebSearch"
+      # Gemini CLI
+      - "web_fetch"
     action: allow
     rate_limit:
       max_calls: 30
@@ -140,6 +142,7 @@ policies:
         - pwd
         - git
         - python
+        - python3
         - pip
         - npm
         - node

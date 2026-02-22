@@ -69,6 +69,9 @@ def start(
     if tcp_port is not None:
         server_kwargs["tcp_port"] = tcp_port
 
+    if foreground:
+        server_kwargs["on_ready"] = lambda addr: click.echo(f"Listening on {addr}")
+
     server = DaemonServer(guard, os_enforce=enforce, **server_kwargs)
 
     if foreground:

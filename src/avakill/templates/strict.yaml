@@ -19,6 +19,9 @@ policies:
       - "WebFetch"
       # Gemini CLI / Cursor / OpenAI Codex
       - "read_file"
+      # Gemini CLI
+      - "search_files"
+      - "list_files"
       # Windsurf
       - "read_code"
       # OpenAI Codex

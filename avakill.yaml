@@ -28,6 +28,16 @@ policies:
         cmd: ["rm -rf /"]
     message: "rm -rf / is blocked even in permissive mode"
 
+  # --- Block filesystem writes via MCP ---
+  - name: block-mcp-writes
+    tools:
+      - "write_file"
+      - "edit_file"
+      - "create_directory"
+      - "move_file"
+    action: deny
+    message: "Filesystem writes blocked by AvaKill policy"
+
   # --- Log all other tool calls (allow, with logging enabled) ---
   - name: log-everything
     tools:

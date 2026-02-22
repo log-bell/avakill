@@ -30,6 +30,10 @@ AGENT_TOOL_MAP: dict[str, dict[str, str]] = {
         "read_file": "file_read",
         "write_file": "file_write",
         "edit_file": "file_edit",
+        "search_files": "file_search",
+        "list_files": "file_list",
+        "web_search": "web_search",
+        "web_fetch": "web_fetch",
     },
     "cursor": {
         "shell_command": "shell_execute",
@@ -39,6 +43,7 @@ AGENT_TOOL_MAP: dict[str, dict[str, str]] = {
         "run_command": "shell_execute",
         "write_code": "file_write",
         "read_code": "file_read",
+        "mcp_tool": "mcp_tool",
     },
     "openai-codex": {
         "shell": "shell_execute",

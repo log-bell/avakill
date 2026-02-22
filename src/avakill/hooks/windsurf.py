@@ -98,6 +98,8 @@ class WindsurfAdapter(HookAdapter):
         """Format the decision for Windsurf.
 
         - Deny: reason string (for stderr), exit 2.
+        - Require approval: degraded to allow with stderr warning
+          (Windsurf has no native approval mechanism).
         - Allow: no output, exit 0.
         """
         if response.decision == "deny":
@@ -113,6 +115,12 @@ class WindsurfAdapter(HookAdapter):
                 "allowing tool that requires approval (policy: %s, reason: %s)",
                 response.policy,
                 response.reason,
+            )
+            print(
+                "avakill: WARNING: Windsurf has no approval mechanism. "
+                "Tool that requires approval is being ALLOWED. "
+                f"Policy: {response.policy}, Reason: {response.reason}",
+                file=sys.stderr,
             )
 
         # Allow (and require_approval treated as allow for now — Windsurf

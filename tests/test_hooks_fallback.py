@@ -334,6 +334,74 @@ class TestFallbackChainAllowWithWarning:
         assert "avakill init --template hooks" in captured.err
 
 
+class TestFailClosedMode:
+    """Test AVAKILL_FAIL_CLOSED env var behavior."""
+
+    @patch("avakill.hooks.base.HookAdapter._try_daemon", return_value=None)
+    def test_fail_closed_denies_when_no_policy_source(
+        self,
+        _mock_daemon: MagicMock,
+        tmp_path: pytest.TempPathFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("AVAKILL_POLICY", raising=False)
+        monkeypatch.setenv("AVAKILL_FAIL_CLOSED", "1")
+
+        adapter = ClaudeCodeAdapter()
+        stdin = _make_stdin(tool="Bash", args={"command": "ls"})
+
+        with pytest.raises(SystemExit):
+            adapter.run(stdin_data=stdin)
+
+        captured = capsys.readouterr()
+        parsed = json.loads(captured.out)
+        assert parsed["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "fail-closed" in captured.err
+
+    @patch("avakill.hooks.base.HookAdapter._try_daemon", return_value=None)
+    def test_fail_open_allows_when_env_not_set(
+        self,
+        _mock_daemon: MagicMock,
+        tmp_path: pytest.TempPathFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("AVAKILL_POLICY", raising=False)
+        monkeypatch.delenv("AVAKILL_FAIL_CLOSED", raising=False)
+
+        adapter = ClaudeCodeAdapter()
+        stdin = _make_stdin(tool="Bash", args={"command": "ls"})
+
+        with pytest.raises(SystemExit) as exc_info:
+            adapter.run(stdin_data=stdin)
+
+        assert exc_info.value.code == 0
+
+    @patch("avakill.hooks.base.HookAdapter._try_daemon", return_value=None)
+    def test_fail_closed_accepts_true_string(
+        self,
+        _mock_daemon: MagicMock,
+        tmp_path: pytest.TempPathFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("AVAKILL_POLICY", raising=False)
+        monkeypatch.setenv("AVAKILL_FAIL_CLOSED", "true")
+
+        adapter = ClaudeCodeAdapter()
+        stdin = _make_stdin(tool="Bash", args={"command": "ls"})
+
+        with pytest.raises(SystemExit):
+            adapter.run(stdin_data=stdin)
+
+        captured = capsys.readouterr()
+        parsed = json.loads(captured.out)
+        assert parsed["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
 class TestFallbackChainOrder:
     """Verify the evaluation order is correct."""
 
