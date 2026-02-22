@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 )
 
@@ -15,8 +14,6 @@ import (
 var Version = "dev"
 
 func main() {
-	upstreamCmd := flag.String("upstream-cmd", "", "Command to spawn as upstream MCP server")
-	upstreamArgs := flag.String("upstream-args", "", "Space-separated args for upstream command")
 	socketPath := flag.String("socket", defaultSocketPath(), "Daemon socket path")
 	policyPath := flag.String("policy", "", "Policy file for subprocess fallback")
 	diagnose := flag.Bool("diagnose", false, "Run preflight checks and exit")
@@ -30,16 +27,26 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Everything after -- is the upstream command and its args
+	remaining := flag.Args()
+
 	if *diagnose {
-		RunDiagnose(*socketPath, *upstreamCmd, *policyPath)
+		upstreamCmd := ""
+		if len(remaining) > 0 {
+			upstreamCmd = remaining[0]
+		}
+		RunDiagnose(*socketPath, upstreamCmd, *policyPath)
 		return
 	}
 
-	if *upstreamCmd == "" {
-		fmt.Fprintln(os.Stderr, "avakill-shim: --upstream-cmd is required")
+	if len(remaining) == 0 {
+		fmt.Fprintln(os.Stderr, "avakill-shim: upstream command required (usage: avakill-shim [flags] -- <command> [args...])")
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	upstreamCmd := remaining[0]
+	upstreamArgs := remaining[1:]
 
 	// Recover shell environment
 	env, err := RecoverShellEnv()
@@ -53,24 +60,18 @@ func main() {
 	}
 
 	// Resolve upstream binary in recovered environment
-	resolvedCmd, err := ResolveInEnv(*upstreamCmd)
+	resolvedCmd, err := ResolveInEnv(upstreamCmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "avakill-shim: cannot find upstream command %q: %v\n", *upstreamCmd, err)
+		fmt.Fprintf(os.Stderr, "avakill-shim: cannot find upstream command %q: %v\n", upstreamCmd, err)
 		os.Exit(1)
 	}
 
 	if *verbose {
-		fmt.Fprintf(os.Stderr, "avakill-shim: resolved %s → %s\n", *upstreamCmd, resolvedCmd)
-	}
-
-	// Parse upstream args
-	var args []string
-	if *upstreamArgs != "" {
-		args = strings.Fields(*upstreamArgs)
+		fmt.Fprintf(os.Stderr, "avakill-shim: resolved %s → %s\n", upstreamCmd, resolvedCmd)
 	}
 
 	// Spawn upstream process
-	cmd := exec.Command(resolvedCmd, args...)
+	cmd := exec.Command(resolvedCmd, upstreamArgs...)
 	cmd.Stderr = os.Stderr
 
 	// Use recovered environment if available
