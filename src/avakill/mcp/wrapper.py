@@ -8,12 +8,46 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 from pathlib import Path
 
 from avakill.mcp.config import MCPConfig, MCPServerEntry, is_already_wrapped
 
 logger = logging.getLogger("avakill.mcp.wrapper")
+
+
+def _resolve_shim_binary() -> str:
+    """Find the avakill-shim binary, preferring /usr/local/bin.
+
+    Returns the path to use as the wrapper command.  Falls back to
+    ``avakill`` (Python CLI) if the Go shim is not installed.
+    """
+    # 1. Preferred location
+    preferred = Path("/usr/local/bin/avakill-shim")
+    if preferred.is_file() and os.access(preferred, os.X_OK):
+        return str(preferred)
+
+    # 2. Anywhere on PATH
+    shim = shutil.which("avakill-shim")
+    if shim:
+        return shim
+
+    # 3. Fallback: Python CLI
+    return "avakill"
+
+
+def _resolve_upstream_binary(command: str) -> str:
+    """Resolve a bare command name to an absolute path at wrap time.
+
+    This avoids PATH-order issues when the MCP client spawns the shim
+    with a restricted PATH (e.g., launchd on macOS).
+
+    Returns *command* unchanged if resolution fails (the shim will
+    resolve it at runtime via shell env recovery).
+    """
+    resolved = shutil.which(command)
+    return resolved if resolved else command
 
 
 def wrap_mcp_config(
@@ -36,6 +70,9 @@ def wrap_mcp_config(
 
     This is idempotent — already-wrapped entries are skipped.
     """
+    shim_binary = _resolve_shim_binary()
+    use_shim = "avakill-shim" in shim_binary
+
     wrapped_servers: list[MCPServerEntry] = []
 
     for server in config.servers:
@@ -48,28 +85,61 @@ def wrap_mcp_config(
             wrapped_servers.append(server)
             continue
 
-        args: list[str] = ["mcp-proxy"]
+        # Resolve upstream command to absolute path at wrap time
+        resolved_upstream = _resolve_upstream_binary(server.command)
 
-        if daemon:
-            args.extend(["--daemon", "~/.avakill/avakill.sock"])
+        if use_shim:
+            # Use Go shim binary
+            args: list[str] = [
+                "--upstream-cmd",
+                resolved_upstream,
+            ]
+
+            if daemon:
+                args.extend(["--socket", "~/.avakill/avakill.sock"])
+            else:
+                args.extend(["--policy", str(policy)])
+
+            if server.args:
+                args.extend(["--upstream-args", " ".join(server.args)])
+
+            # Inject resolved PATH directories into env
+            env = dict(server.env) if server.env else {}
+            upstream_dir = str(Path(resolved_upstream).parent)
+            if upstream_dir != "." and "PATH" not in env:
+                env["PATH"] = upstream_dir + ":" + os.environ.get("PATH", "/usr/bin:/bin")
+
+            wrapped = MCPServerEntry(
+                name=server.name,
+                command=shim_binary,
+                args=args,
+                env=env if env else None,
+                transport=server.transport,
+            )
         else:
-            args.extend(["--policy", str(policy)])
+            # Fallback: Python avakill CLI
+            args = ["mcp-proxy"]
 
-        if log_db:
-            args.extend(["--log-db", str(log_db)])
+            if daemon:
+                args.extend(["--daemon", "~/.avakill/avakill.sock"])
+            else:
+                args.extend(["--policy", str(policy)])
 
-        # Preserve original command as upstream
-        args.extend(["--upstream-cmd", server.command])
-        if server.args:
-            args.extend(["--upstream-args", " ".join(server.args)])
+            if log_db:
+                args.extend(["--log-db", str(log_db)])
 
-        wrapped = MCPServerEntry(
-            name=server.name,
-            command="avakill",
-            args=args,
-            env=server.env,
-            transport=server.transport,
-        )
+            args.extend(["--upstream-cmd", resolved_upstream])
+            if server.args:
+                args.extend(["--upstream-args", " ".join(server.args)])
+
+            wrapped = MCPServerEntry(
+                name=server.name,
+                command="avakill",
+                args=args,
+                env=server.env,
+                transport=server.transport,
+            )
+
         wrapped_servers.append(wrapped)
 
     return MCPConfig(

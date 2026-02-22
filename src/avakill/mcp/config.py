@@ -37,6 +37,9 @@ MCP_CONFIG_PATHS: dict[str, list[Path]] = {
     "continue": [
         Path(".continue/config.json"),
     ],
+    "openclaw": [
+        Path.home() / ".openclaw/mcp.json",
+    ],
 }
 
 
@@ -127,6 +130,9 @@ def is_already_wrapped(entry: MCPServerEntry) -> bool:
     and its args include ``mcp-proxy``.
     """
     if entry.command == "avakill" and "mcp-proxy" in entry.args:
+        return True
+    # Check for avakill-shim binary
+    if "avakill-shim" in entry.command:
         return True
     # Also check for module invocation: python -m avakill mcp-proxy
     return "avakill" in entry.command and "mcp-proxy" in entry.args

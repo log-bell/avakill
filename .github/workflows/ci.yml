@@ -66,9 +66,37 @@ jobs:
       - run: uv sync --locked --all-extras --dev
       - run: uv run pytest tests/
 
+  go-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache-dependency-path: cmd/avakill-shim/go.mod
+      - name: Run Go tests
+        working-directory: cmd/avakill-shim
+        run: go test -v -race ./...
+      - name: Build check
+        working-directory: cmd/avakill-shim
+        run: CGO_ENABLED=0 go build -ldflags="-s -w" -o avakill-shim .
+      - name: Binary size gate
+        working-directory: cmd/avakill-shim
+        run: |
+          SIZE=$(stat --format=%s avakill-shim 2>/dev/null || stat -f%z avakill-shim)
+          echo "Binary size: $SIZE bytes"
+          if [ "$SIZE" -gt 5242880 ]; then
+            echo "::error::Binary too large: $SIZE > 5MB"
+            exit 1
+          fi
+
   check:
     if: always()
-    needs: [lint, typecheck, test, test-windows]
+    needs: [lint, typecheck, test, test-windows, go-test]
     runs-on: ubuntu-latest
     steps:
       - uses: re-actors/alls-green@release/v1

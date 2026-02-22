@@ -33,7 +33,9 @@ class TestWrapMCPConfig:
         assert server.command == "avakill"
         assert "mcp-proxy" in server.args
         assert "--upstream-cmd" in server.args
-        assert "npx" in server.args
+        # upstream-cmd may be resolved to an absolute path
+        cmd_idx = server.args.index("--upstream-cmd") + 1
+        assert "npx" in server.args[cmd_idx]
         assert "--upstream-args" in server.args
 
     def test_wrap_preserves_env_vars(self) -> None:

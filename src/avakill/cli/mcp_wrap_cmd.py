@@ -13,7 +13,7 @@ from rich.table import Table
 from avakill.mcp.config import discover_mcp_configs, is_already_wrapped
 from avakill.mcp.wrapper import unwrap_mcp_config, wrap_mcp_config, write_mcp_config
 
-_AGENT_CHOICES = ["claude-desktop", "cursor", "windsurf", "cline", "continue", "all"]
+_AGENT_CHOICES = ["claude-desktop", "cursor", "windsurf", "cline", "continue", "openclaw", "all"]
 
 
 @click.command("mcp-wrap")
@@ -26,7 +26,8 @@ _AGENT_CHOICES = ["claude-desktop", "cursor", "windsurf", "cline", "continue", "
 @click.option("--policy", default="avakill.yaml", help="Path to the policy file.")
 @click.option("--daemon", is_flag=True, help="Use daemon mode instead of embedded Guard.")
 @click.option("--dry-run", is_flag=True, help="Show changes without writing.")
-def mcp_wrap(agent: str, policy: str, daemon: bool, dry_run: bool) -> None:
+@click.option("--test", is_flag=True, help="Run avakill-shim --diagnose after wrapping.")
+def mcp_wrap(agent: str, policy: str, daemon: bool, dry_run: bool, test: bool) -> None:
     """Wrap MCP server configs to route through AvaKill.
 
     Rewrites agent MCP configs so all tool calls pass through AvaKill's
@@ -73,6 +74,44 @@ def mcp_wrap(agent: str, policy: str, daemon: bool, dry_run: bool) -> None:
             console.print(f"[green]Config updated: {config.config_path}[/green]")
         else:
             console.print("[dim]Dry run — no changes written.[/dim]")
+
+    if test and not dry_run:
+        _run_diagnose(console)
+
+
+def _run_diagnose(console: Console) -> None:
+    """Run avakill-shim --diagnose to validate the wrapping."""
+    import json
+    import shutil
+    import subprocess
+
+    shim = shutil.which("avakill-shim")
+    if not shim:
+        console.print("[yellow]avakill-shim not found in PATH — skipping diagnose.[/yellow]")
+        return
+
+    try:
+        result = subprocess.run(
+            [shim, "--diagnose", "--upstream-cmd", "echo"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        try:
+            output = json.loads(result.stdout)
+            for check in output.get("checks", []):
+                status = check.get("status", "")
+                style = {"ok": "green", "warn": "yellow", "fail": "red"}.get(status, "dim")
+                console.print(
+                    f"  [{style}]{check.get('check', '?')}: {status}[/{style}]"
+                    f" — {check.get('detail', '')}"
+                )
+        except json.JSONDecodeError:
+            console.print(f"[dim]{result.stdout}[/dim]")
+    except FileNotFoundError:
+        console.print("[yellow]avakill-shim not found.[/yellow]")
+    except subprocess.TimeoutExpired:
+        console.print("[yellow]avakill-shim --diagnose timed out.[/yellow]")
 
 
 @click.command("mcp-unwrap")
