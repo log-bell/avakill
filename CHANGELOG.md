@@ -8,10 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [0.5.1] - 2026-02-23
 
+### Added
+
+- `avakill setup` — single interactive command replacing init/guide/quickstart (detect agents, create policy, install hooks, activity tracking)
+- `avakill tracking on/off/status` — user-facing interface for activity tracking (wraps daemon lifecycle)
+- User config management (`~/.avakill/config.json`) for tracking preferences and setup state
+- UX specification document (`docs/UX.md`)
+
 ### Changed
 
 - Self-protection deny messages now include structured agent instructions with rule name, STOP directive, and a pre-written "Tell the user:" block to relay
 - Hook adapters (Claude Code, Gemini CLI, Windsurf) no longer append generic suffix to self-protection denials
+- Default template changed from `default` to `hooks` in `avakill init`
+- `avakill.yaml` rewritten as hooks-oriented policy with native tool names for all supported agents
+- CLI banner redesigned with state-aware status display and blue-to-red gradient wordmark
+- CLI command groups reorganized: `setup`, `tracking`, `fix` promoted to Getting Started
+
+### Fixed
+
+- mypy errors in `config.py` and `tracking_cmd.py`
 
 ## [0.5.0] - 2026-02-22
 

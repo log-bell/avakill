@@ -44,7 +44,7 @@ These aren't edge cases. Research shows AI agents fail in **75% of real-world ta
 
 ```bash
 pipx install avakill
-avakill guide          # Interactive setup — detects agents, generates policy, installs hooks
+avakill setup          # Interactive setup — detects agents, generates policy, installs hooks
 ```
 
 > **Tip:** On macOS, use `pipx install avakill` (recommended). System Python on macOS 14+ blocks global pip installs.
@@ -327,7 +327,7 @@ prompt = generate_prompt()           # Self-contained LLM prompt
 
 ```bash
 # Interactive setup — detects agents, generates policy, installs hooks
-avakill guide
+avakill setup
 
 # Validate your policy file
 avakill validate avakill.yaml
@@ -425,7 +425,7 @@ AvaKill protects your agents at multiple levels: **native hooks** intercept tool
 Core features, battle-tested and ready for production use.
 
 - [x] Core policy engine with glob patterns, argument matching, rate limiting
-- [x] Interactive setup wizard (`avakill guide`)
+- [x] Interactive setup wizard (`avakill setup`)
 - [x] Native agent hooks (Claude Code, Gemini CLI, Windsurf, OpenAI Codex)
 - [x] Fail-closed mode (`AVAKILL_FAIL_CLOSED=1`)
 - [x] Standalone hook mode (no daemon required)

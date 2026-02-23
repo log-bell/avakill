@@ -8,7 +8,7 @@ avakill [--version] <command> [options]
 
 ## Commands by Category
 
-**Tier 1 — Core:** [guide](#avakill-guide) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries)
+**Tier 1 — Core:** [setup](#avakill-setup) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [guide](#avakill-guide)
 
 **Tier 2 — Operations:** [logs](#avakill-logs) | [logs tail](#avakill-logs-tail) | [dashboard](#avakill-dashboard) | [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status) | [review](#avakill-review) | [approve](#avakill-approve) | [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
 
@@ -17,6 +17,44 @@ avakill [--version] <command> [options]
 **Tier 4 — Advanced (shipped):** [schema](#avakill-schema) | [profile list](#avakill-profile-list) | [profile show](#avakill-profile-show) | [compliance report](#avakill-compliance-report) | [compliance gaps](#avakill-compliance-gaps) | [mcp-wrap](#avakill-mcp-wrap) | [mcp-unwrap](#avakill-mcp-unwrap)
 
 **Tier 4 — Advanced (future release):** [enforce landlock](#avakill-enforce-landlock) | [enforce sandbox](#avakill-enforce-sandbox) | [enforce windows](#avakill-enforce-windows) | [enforce tetragon](#avakill-enforce-tetragon) | [launch](#avakill-launch) | [mcp-proxy](#avakill-mcp-proxy) | [metrics](#avakill-metrics)
+
+---
+
+## avakill setup
+
+Interactive setup — one command to go from zero to protected.
+
+```
+avakill setup
+```
+
+No arguments or options. Launches a 5-step interactive flow:
+
+| Step | What it does |
+|------|-------------|
+| 1. Detect agents | Scans for Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex |
+| 2. Create policy | Generates `avakill.yaml` from the `hooks` template |
+| 3. Install hooks | Registers AvaKill with detected agents |
+| 4. Activity tracking | Optionally enables the tracking daemon |
+| 5. Summary | Shows what was configured |
+
+Non-interactive use: `avakill init --template hooks`
+
+---
+
+## avakill tracking
+
+Manage activity tracking (daemon lifecycle with user-friendly language).
+
+```
+avakill tracking <on|off|status>
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `on` | Enable tracking — starts the background daemon |
+| `off` | Disable tracking — stops the daemon, preserves audit history |
+| `status` | Show whether tracking is active and audit DB location |
 
 ---
 
@@ -40,9 +78,9 @@ No arguments or options. Launches a navigable menu:
 | 6 | Advanced | Compliance, approvals, MCP wrapping, daemon, schema |
 | 7 | Quick Reference | All commands at a glance |
 
-Replaces the deprecated `init` and `quickstart` commands.
+For detailed learning and reference, see also [avakill setup](#avakill-setup) which is the recommended entry point for new users.
 
-> `avakill init` and `avakill quickstart` are deprecated. Their functionality is now part of `avakill guide`.
+> `avakill init` and `avakill quickstart` are deprecated. Use `avakill setup` for first-time configuration.
 
 ---
 

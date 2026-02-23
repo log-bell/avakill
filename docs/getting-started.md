@@ -51,30 +51,30 @@ pip install -e ".[dev]"
 
 ## 1. Set Up Your Policy
 
-### Interactive setup with `avakill guide`
+### Interactive setup with `avakill setup`
 
-The recommended way to get started is the interactive TUI:
+The recommended way to get started:
 
 ```bash
-avakill guide
+avakill setup
 ```
 
-This opens a 7-section menu covering setup, policies, hooks, signing, monitoring, compliance, and quick reference. Selecting **"Set up AvaKill"** walks you through:
+This walks you through a 5-step flow:
 
-1. Detects installed agents (claude-code, gemini-cli, windsurf, openai-codex, and others)
-2. Prompts for a template (hooks, default, strict, permissive)
-3. Copies the template to `avakill.yaml` and validates it
-4. Offers to install hooks for every detected agent
+1. Detects installed agents (claude-code, gemini-cli, cursor, windsurf, openai-codex)
+2. Creates an `avakill.yaml` policy from the `hooks` template
+3. Installs hooks for detected agents
+4. Optionally enables activity tracking
+5. Shows a summary of what was configured
 
 ### Non-interactive alternative
 
 Use `avakill init` for scripted or CI setups:
 
 ```bash
-avakill init --template default
+avakill init --template hooks
 avakill init --template strict --output policies/production.yaml
 avakill init --scan    # Scan project for sensitive files and generate deny rules
-avakill init --mode hooks  # Protection mode: hooks, launch, mcp, all
 ```
 
 ### Templates
@@ -259,7 +259,7 @@ guard.evaluate(tool="search_users", args={"query": "test"})
 
 AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
 
-The fastest path is `avakill guide` > **Hooks & Agents**, which handles detection and installation. Or use the CLI directly:
+The fastest path is `avakill setup`, which handles detection and installation. Or use the CLI directly:
 
 ### Start the daemon
 
@@ -344,7 +344,7 @@ Use `shell_safe` and `command_allowlist` to control shell access:
                         make, which, whoami, date, uname, head, tail, wc, file, stat]
 ```
 
-Use `avakill guide` > **Policies** to test tool calls against your policy.
+Use `avakill evaluate` to test tool calls against your policy.
 
 ## 4. Monitor and Debug
 
@@ -413,7 +413,7 @@ avakill launch --agent aider --dry-run                        # Test sandbox res
 avakill launch --agent aider --policy avakill.yaml -- aider   # Launch with OS sandbox
 ```
 
-The `avakill guide` TUI also has sections for signing, compliance, MCP wrapping, and approvals.
+The `avakill guide` TUI has additional sections for signing, compliance, MCP wrapping, and approvals.
 
 ### Reference
 
