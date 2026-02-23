@@ -47,7 +47,8 @@ class TestPolicyFileModification:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "policy file" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection" in d.reason
 
     def test_blocks_rm_avakill_yml(self, sp: SelfProtection) -> None:
         tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "rm avakill.yml"})
@@ -140,6 +141,16 @@ class TestPolicyFileModification:
         d = sp.check(tc)
         assert d is None
 
+    def test_deny_message_contains_stop_instruction(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="file_write",
+            arguments={"path": "avakill.yaml", "content": "x"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert "STOP" in d.reason
+        assert "Tell the user" in d.reason
+
 
 # -------------------------------------------------------------------
 # Package uninstall
@@ -154,7 +165,8 @@ class TestPackageUninstall:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "uninstall" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (uninstall)" in d.reason
 
     def test_blocks_pip3_uninstall(self, sp: SelfProtection) -> None:
         tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pip3 uninstall avakill"})
@@ -216,7 +228,8 @@ class TestApproveCommand:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "approve" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (approve)" in d.reason
 
     def test_allows_avakill_review(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -251,7 +264,8 @@ class TestSourceModification:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "source" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (source-write)" in d.reason
 
     def test_blocks_write_to_site_packages(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -377,7 +391,8 @@ class TestHookBinaryProtection:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "hook binary" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (hook-binary)" in d.reason
 
     def test_blocks_redirect_to_hook_binary(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -387,7 +402,8 @@ class TestHookBinaryProtection:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "redirect" in d.reason.lower() or "hook binary" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (hook-binary)" in d.reason
 
     def test_blocks_truncate_hook_binary(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -466,7 +482,8 @@ class TestHookConfigProtection:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "hook config" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (hook-config-write)" in d.reason
 
     def test_blocks_write_claude_settings_local(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -552,7 +569,8 @@ class TestPipxUninstall:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "uninstall" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (uninstall)" in d.reason
 
     def test_blocks_pipx_remove(self, sp: SelfProtection) -> None:
         tc = ToolCall(tool_name="shell_exec", arguments={"cmd": "pipx remove avakill"})
@@ -577,7 +595,8 @@ class TestFileEditProtection:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "policy file" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (policy-write)" in d.reason
 
     def test_blocks_file_edit_avakill_yml(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -626,7 +645,8 @@ class TestShellBypassPrevention:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "policy file" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (policy-shell)" in d.reason
 
     def test_blocks_perl_e_write_policy(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -707,7 +727,8 @@ class TestShellHookConfigBypass:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "hook config" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (hook-config-shell)" in d.reason
 
     def test_blocks_node_rewrite_settings_json(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -746,7 +767,8 @@ class TestMainBinaryProtection:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "hook binary" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (hook-binary)" in d.reason
 
     def test_blocks_mv_avakill_binary(self, sp: SelfProtection) -> None:
         tc = ToolCall(
@@ -815,7 +837,8 @@ class TestDaemonShutdownProtection:
         d = sp.check(tc)
         assert d is not None
         assert d.allowed is False
-        assert "daemon shutdown" in d.reason.lower()
+        assert "Tell the user" in d.reason
+        assert "self-protection (daemon-shutdown)" in d.reason
 
     def test_blocks_avakill_daemon_stop_force(self, sp: SelfProtection) -> None:
         tc = ToolCall(

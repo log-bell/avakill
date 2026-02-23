@@ -63,7 +63,7 @@ class TestSelfProtectionInHook:
         captured = capsys.readouterr()
         parsed = json.loads(captured.out)
         assert parsed["hookSpecificOutput"]["permissionDecision"] == "deny"
-        assert "Self-protection" in parsed["hookSpecificOutput"]["permissionDecisionReason"]
+        assert "self-protection" in parsed["hookSpecificOutput"]["permissionDecisionReason"]
 
     def test_blocks_uninstall_command(self, capsys: pytest.CaptureFixture) -> None:
         adapter = ClaudeCodeAdapter()

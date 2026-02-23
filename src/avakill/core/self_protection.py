@@ -155,6 +155,26 @@ _HOOK_SHELL_DESTRUCTIVE = re.compile(
 )
 
 
+def _deny_message(
+    rule: str,
+    blocked: str,
+    user_message: str,
+) -> str:
+    return (
+        f"AvaKill blocked this tool call.\n"
+        f"\n"
+        f"  Rule: self-protection ({rule})\n"
+        f"  Blocked: {blocked}\n"
+        f"\n"
+        f"  This is a hardcoded safety rule. It cannot be overridden by policy.\n"
+        f"\n"
+        f"  STOP. Do not attempt to work around this block.\n"
+        f"  Tell the user exactly this:\n"
+        f"\n"
+        f'  "{user_message}"'
+    )
+
+
 class SelfProtection:
     """Hardcoded self-protection that cannot be overridden by policy.
 
@@ -208,9 +228,12 @@ class SelfProtection:
             value_str = str(value).lower()
             for policy_file in _POLICY_FILES:
                 if policy_file in value_str and ".proposed." not in value_str:
-                    return (
-                        f"Self-protection: blocked {tool_call.tool_name} targeting "
-                        f"policy file '{policy_file}'. Use .proposed.yaml for staging."
+                    return _deny_message(
+                        "policy-write",
+                        f"{tool_call.tool_name}({policy_file})",
+                        "I'm blocked from modifying avakill.yaml by AvaKill's self-protection. "
+                        "You can edit the policy file directly, or use avakill.proposed.yaml "
+                        "for me to suggest changes that you review with avakill approve.",
                     )
         return None
 
@@ -248,13 +271,18 @@ class SelfProtection:
             return None
 
         if targets_policy:
-            return (
-                "Self-protection: blocked shell command targeting policy file. "
-                "Use .proposed.yaml for staging."
+            return _deny_message(
+                "policy-shell",
+                "shell command targeting avakill.yaml",
+                "I'm blocked from running a shell command that would modify the "
+                "AvaKill policy file. You can run this command yourself if intended.",
             )
-        return (
-            "Self-protection: blocked shell command targeting hook config. "
-            "Modifying hook settings would weaken the firewall."
+        return _deny_message(
+            "hook-config-shell",
+            "shell command targeting hook config",
+            "I'm blocked from running a shell command that modifies your agent's "
+            "hook configuration. This protects AvaKill from being uninstalled "
+            "by the agent it's monitoring. You can run this command yourself.",
         )
 
     def _check_hook_binary(self, tool_call: ToolCall) -> str | None:
@@ -263,15 +291,24 @@ class SelfProtection:
 
         # Check for shell commands that destructively target hook binaries
         if _HOOK_SHELL_DESTRUCTIVE.search(scan_text):
-            return "Self-protection: blocked shell command targeting hook binary."
+            return _deny_message(
+                "hook-binary",
+                "shell command targeting hook binary",
+                "I'm blocked from modifying an AvaKill hook binary. This protects "
+                "the firewall from being disabled. You can manage hook binaries "
+                "yourself with: avakill hook install/uninstall",
+            )
 
         # Check for redirect to hook binary path
         for m in _REDIRECT_TO_PATH_PATTERN.finditer(scan_text):
             target = m.group(1)
             if _HOOK_BINARY_PATTERN.search(target):
-                return (
-                    "Self-protection: blocked redirect to hook binary. "
-                    "This would disable the firewall."
+                return _deny_message(
+                    "hook-binary",
+                    f"redirect to hook binary ({target})",
+                    "I'm blocked from modifying an AvaKill hook binary. This protects "
+                    "the firewall from being disabled. You can manage hook binaries "
+                    "yourself with: avakill hook install/uninstall",
                 )
 
         # Check for write tools targeting hook binary paths
@@ -281,9 +318,12 @@ class SelfProtection:
             for value in tool_call.arguments.values():
                 value_str = str(value)
                 if _HOOK_BINARY_PATTERN.search(value_str):
-                    return (
-                        "Self-protection: blocked write tool targeting hook binary. "
-                        "This would disable the firewall."
+                    return _deny_message(
+                        "hook-binary",
+                        f"{tool_call.tool_name}({value_str})",
+                        "I'm blocked from modifying an AvaKill hook binary. This protects "
+                        "the firewall from being disabled. You can manage hook binaries "
+                        "yourself with: avakill hook install/uninstall",
                     )
 
         return None
@@ -298,9 +338,12 @@ class SelfProtection:
         for value in tool_call.arguments.values():
             value_str = str(value)
             if _HOOK_CONFIG_PATTERN.search(value_str):
-                return (
-                    "Self-protection: blocked write to agent hook config. "
-                    "Modifying hook settings would weaken the firewall."
+                return _deny_message(
+                    "hook-config-write",
+                    f"{tool_call.tool_name}({value_str})",
+                    "I'm blocked from writing to your agent's hook config file because "
+                    "it contains AvaKill's hook registration. You can edit this file "
+                    "directly, or manage hooks with: avakill hook install/uninstall",
                 )
 
         return None
@@ -311,22 +354,44 @@ class SelfProtection:
 
         # Check for package uninstall
         if _UNINSTALL_PATTERN.search(scan_text):
-            return "Self-protection: blocked attempt to uninstall avakill."
+            return _deny_message(
+                "uninstall",
+                "shell command attempting to uninstall avakill",
+                "I'm blocked from uninstalling AvaKill. If you want to remove it, "
+                "run the uninstall command yourself: pipx uninstall avakill",
+            )
 
         # Check for approve command (only humans should run this)
         if _APPROVE_PATTERN.search(scan_text):
-            return "Self-protection: blocked 'avakill approve' — only humans may activate policies."
+            return _deny_message(
+                "approve",
+                "avakill approve (only humans may activate policies)",
+                "I'm blocked from running avakill approve — only humans should "
+                "activate policy changes. You can run it yourself: "
+                "avakill approve <policy-file>",
+            )
 
         # Check for daemon shutdown commands
         if _DAEMON_SHUTDOWN_PATTERN.search(scan_text):
-            return "Self-protection: blocking daemon shutdown."
+            return _deny_message(
+                "daemon-shutdown",
+                "command that would shut down the AvaKill daemon",
+                "I'm blocked from stopping AvaKill's background service. If you "
+                "want to stop it, run: avakill tracking off",
+            )
 
         # Check for writes to avakill source
         if _SOURCE_WRITE_PATTERN.search(scan_text):
             tool_lower = tool_call.tool_name.lower()
             is_write_tool = any(fnmatch(tool_lower, pat) for pat in _WRITE_TOOL_PATTERNS)
             if is_write_tool or _SOURCE_ACTION_PATTERN.search(scan_text):
-                return "Self-protection: blocked modification of avakill source files."
+                return _deny_message(
+                    "source-write",
+                    f"{tool_call.tool_name} targeting avakill source/package files",
+                    "I'm blocked from modifying AvaKill's installed package files. "
+                    "This protects the firewall's runtime integrity. If you need to "
+                    "edit these files, do so directly.",
+                )
 
         return None
 

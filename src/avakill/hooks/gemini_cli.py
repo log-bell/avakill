@@ -73,9 +73,11 @@ class GeminiCLIAdapter(HookAdapter):
         """
         if response.decision == "deny":
             reason = response.reason or "Blocked by AvaKill policy"
-            if response.policy:
-                reason = f"{reason} [{response.policy}]"
-            reason = f"{reason}. Run `avakill fix` for recovery steps."
+            if response.policy and response.policy != "self-protection":
+                reason = f"{reason} [{response.policy}]. Run `avakill fix` for recovery steps."
+            elif not response.policy:
+                reason = f"{reason}. Run `avakill fix` for recovery steps."
+            # self-protection messages are already complete
             # Gemini CLI reads stderr for the rejection reason on exit 2
             import sys
 
