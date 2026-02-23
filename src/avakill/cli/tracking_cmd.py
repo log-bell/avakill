@@ -86,8 +86,9 @@ def off() -> None:
         return
 
     # Stop the daemon
-    with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.kill(pid, signal.SIGTERM)
+    if pid is not None:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.kill(pid, signal.SIGTERM)
 
     set_tracking(False)
 

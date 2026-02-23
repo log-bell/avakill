@@ -58,5 +58,8 @@ CLAUDE.md
 docs/plans/
 docs/audit.md
 
+# Compiled Go binaries
+cmd/avakill-shim/avakill-shim
+
 # Pitch deck (not public)
 site/pitch-deck/

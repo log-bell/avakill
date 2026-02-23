@@ -10,17 +10,18 @@ _CONFIG_PATH = Path.home() / ".avakill" / "config.json"
 _DEFAULT_AUDIT_DB = "~/.avakill/audit.db"
 
 
-def _read() -> dict:
+def _read() -> dict[str, object]:
     """Read the config file, returning {} if missing or corrupt."""
     if not _CONFIG_PATH.exists():
         return {}
     try:
-        return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        data: dict[str, object] = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        return data
     except (json.JSONDecodeError, OSError):
         return {}
 
 
-def _write(data: dict) -> None:
+def _write(data: dict[str, object]) -> None:
     """Write the config file."""
     _CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     _CONFIG_PATH.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -28,17 +29,18 @@ def _write(data: dict) -> None:
 
 def is_tracking_enabled() -> bool:
     """Return True if the user opted into activity tracking."""
-    return _read().get("tracking_enabled", False)
+    return bool(_read().get("tracking_enabled", False))
 
 
 def get_audit_db_path() -> str:
     """Return the configured audit DB path."""
-    return _read().get("audit_db", _DEFAULT_AUDIT_DB)
+    return str(_read().get("audit_db", _DEFAULT_AUDIT_DB))
 
 
 def get_protection_level() -> str | None:
     """Return the protection level chosen during setup."""
-    return _read().get("protection_level")
+    level = _read().get("protection_level")
+    return str(level) if level is not None else None
 
 
 def set_tracking(enabled: bool) -> None:
