@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import importlib
-from pathlib import Path
 
 import click
-
-_MARKER = Path.home() / ".avakill" / ".installed"
 
 # Map command name -> (module_path, attribute_name)
 _COMMANDS: dict[str, tuple[str, str]] = {
@@ -33,19 +30,21 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "metrics": ("avakill.cli.metrics_cmd", "metrics"),
     "review": ("avakill.cli.review_cmd", "review"),
     "schema": ("avakill.cli.schema_cmd", "schema"),
+    "setup": ("avakill.cli.setup_cmd", "setup"),
     "sign": ("avakill.cli.sign_cmd", "sign"),
+    "tracking": ("avakill.cli.tracking_cmd", "tracking"),
     "validate": ("avakill.cli.validate_cmd", "validate"),
     "verify": ("avakill.cli.verify_cmd", "verify"),
 }
 
 _COMMAND_GROUPS: list[tuple[str, list[str]]] = [
-    ("Getting Started", ["guide", "validate", "dashboard", "logs"]),
+    ("Getting Started", ["setup", "tracking", "validate", "dashboard", "logs", "fix"]),
     (
         "Integrations",
         ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "daemon", "hook", "evaluate", "launch", "profile"],
     ),
     ("Security", ["sign", "verify", "keygen", "harden", "check-hardening", "review", "approve"]),
-    ("Advanced", ["enforce", "compliance", "approvals", "schema", "metrics", "fix"]),
+    ("Advanced", ["enforce", "compliance", "approvals", "schema", "metrics", "guide"]),
 ]
 
 
@@ -86,36 +85,6 @@ class LazyGroup(click.Group):
                     formatter.write_dl(rows)
 
 
-def _show_first_run_welcome() -> None:
-    """Show a one-time welcome banner after install."""
-    from importlib.metadata import version as pkg_version
-
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.text import Text
-
-    try:
-        ver = pkg_version("avakill")
-    except Exception:
-        ver = "0.0.0"
-
-    body = Text()
-    body.append("AvaKill v", style="bold")
-    body.append(ver, style="bold #00D4FF")
-    body.append(" installed successfully\n\n", style="bold")
-    body.append("Run ")
-    body.append("avakill guide", style="bold #00D4FF")
-    body.append(" to get started")
-
-    con = Console(stderr=True)
-    con.print()
-    con.print(Panel(body, border_style="#00D4FF", padding=(1, 2)))
-    con.print()
-
-    _MARKER.parent.mkdir(parents=True, exist_ok=True)
-    _MARKER.write_text(ver)
-
-
 @click.group(cls=LazyGroup, invoke_without_command=True)
 @click.version_option(package_name="avakill")
 @click.pass_context
@@ -124,9 +93,6 @@ def cli(ctx: click.Context) -> None:
 
     Intercept tool calls. Enforce policies. Kill dangerous operations.
     """
-    if not _MARKER.exists():
-        _show_first_run_welcome()
-
     if ctx.invoked_subcommand is None:
         from avakill.cli.banner import print_banner
 

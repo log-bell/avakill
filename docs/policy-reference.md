@@ -559,7 +559,7 @@ tool_call("execute_sql", {"query": "DROP TABLE users"})
 
 Self-protection is a set of hardcoded checks that run **before** any user-defined policy rules. They cannot be overridden or relaxed by policy configuration.
 
-When self-protection blocks a call, the returned decision has `policy_name="self-protection"` and the `reason` starts with `"Self-protection:"`.
+When self-protection blocks a call, the returned decision has `policy_name="self-protection"` and the `reason` is a structured multi-line message containing the rule name, what was blocked, a `STOP` directive, and a `"Tell the user:"` block with a pre-written sentence for the agent to relay.
 
 | Category | What is blocked |
 |----------|----------------|

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-02-23
+
+### Changed
+
+- Self-protection deny messages now include structured agent instructions with rule name, STOP directive, and a pre-written "Tell the user:" block to relay
+- Hook adapters (Claude Code, Gemini CLI, Windsurf) no longer append generic suffix to self-protection denials
+
 ## [0.5.0] - 2026-02-22
 
 ### Added
@@ -31,4 +38,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Go shim: capture deny reason from subprocess stdout
 
 [0.5.0]: https://github.com/log-bell/avakill/compare/v0.4.0...v0.5.0
-[Unreleased]: https://github.com/log-bell/avakill/compare/v0.5.0...HEAD
+[0.5.1]: https://github.com/log-bell/avakill/compare/v0.5.0...v0.5.1
+[Unreleased]: https://github.com/log-bell/avakill/compare/v0.5.1...HEAD

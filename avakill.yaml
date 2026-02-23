@@ -1,47 +1,102 @@
-# AvaKill Permissive Policy
-# Log everything, block almost nothing — for development and audit
+# AvaKill Hooks Policy
+# Designed for use with agent hooks (Claude Code, Gemini CLI, Windsurf, OpenAI Codex).
+# Includes native tool names so policies match even without normalization.
+#
+# This template blocks genuinely dangerous operations while allowing
+# the full range of tools that AI coding agents need to function.
 
 version: "1.0"
 default_action: allow
 
 policies:
-  # --- Block catastrophic database operations ---
-  - name: block-drop-database
+  # --- Block catastrophic shell commands ---
+  - name: block-dangerous-shell
     tools:
-      - "database_*"
-      - "sql_*"
-    action: deny
-    conditions:
-      args_match:
-        query: ["DROP DATABASE", "DROP SCHEMA"]
-    message: "DROP DATABASE is blocked even in permissive mode"
-
-  # --- Block catastrophic filesystem operations ---
-  - name: block-rm-rf-root
-    tools:
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
       - "shell_*"
       - "bash_*"
       - "command_*"
     action: deny
     conditions:
       args_match:
-        cmd: ["rm -rf /"]
-    message: "rm -rf / is blocked even in permissive mode"
+        command: ["rm -rf /", "rm -rf /*", "mkfs", "> /dev/", "dd if=", ":(){ :|:& };:"]
+    message: "Catastrophic shell command blocked."
 
-  # --- Block filesystem writes via MCP ---
-  - name: block-mcp-writes
+  # --- Block destructive database operations ---
+  - name: block-destructive-sql
     tools:
-      - "write_file"
-      - "edit_file"
-      - "create_directory"
-      - "move_file"
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
     action: deny
-    message: "Filesystem writes blocked by AvaKill policy"
+    conditions:
+      args_match:
+        command: ["DROP DATABASE", "DROP SCHEMA"]
+    message: "Destructive database command blocked."
 
-  # --- Log all other tool calls (allow, with logging enabled) ---
-  - name: log-everything
+  # --- Require approval for package management ---
+  - name: approve-package-installs
+    tools:
+      # Canonical
+      - "shell_execute"
+      # Claude Code
+      - "Bash"
+      # Gemini CLI
+      - "run_shell_command"
+      # Windsurf
+      - "run_command"
+      # OpenAI Codex
+      - "shell"
+      - "local_shell"
+      - "exec_command"
+      # Generic globs
+      - "shell_*"
+      - "bash_*"
+      - "command_*"
+    action: require_approval
+    conditions:
+      args_match:
+        command: ["pip install", "npm install -g", "brew install"]
+    message: "Package installation requires approval."
+
+  # --- Rate limit agent spawning ---
+  - name: rate-limit-agents
+    tools:
+      - "agent_spawn"
+      # Claude Code
+      - "Task"
+    action: allow
+    rate_limit:
+      max_calls: 20
+      window: "1m"
+
+  # --- Log everything else (allow, with audit trail) ---
+  - name: log-all
     tools:
       - "all"
     action: allow
-    log: true
-    message: "Allowed (audit logged)"

@@ -148,12 +148,12 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
     # Choose template
     if template is None:
         if not sys.stdin.isatty():
-            template = "default"
+            template = "hooks"
         else:
             template = Prompt.ask(
                 "Which policy template?",
-                choices=["default", "strict", "permissive", "hooks"],
-                default="default",
+                choices=["hooks", "default", "strict", "permissive"],
+                default="hooks",
                 console=console,
             )
 
