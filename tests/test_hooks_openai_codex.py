@@ -264,6 +264,37 @@ class TestOpenAICodexFormatResponse:
         assert "approval" in parsed["message"].lower()
         assert exit_code == 1
 
+    def test_deny_self_protection_no_suffix(self) -> None:
+        """Self-protection denials should not get [{policy}] or avakill fix suffix."""
+        resp = EvaluateResponse(
+            decision="deny",
+            reason="Blocked: modification of avakill source files",
+            policy="self-protection",
+        )
+        stdout, exit_code = self.adapter.format_response(resp)
+        assert stdout is not None
+        parsed = json.loads(stdout)
+        assert parsed["decision"] == "block"
+        assert "avakill fix" not in parsed["message"]
+        assert "[self-protection]" not in parsed["message"]
+        assert "Blocked: modification of avakill source files" in parsed["message"]
+        assert exit_code == 1
+
+    def test_require_approval_self_protection_no_suffix(self) -> None:
+        """Self-protection require_approval should not get suffix either."""
+        resp = EvaluateResponse(
+            decision="require_approval",
+            reason="Self-protection: requires manual approval",
+            policy="self-protection",
+        )
+        stdout, exit_code = self.adapter.format_response(resp)
+        assert stdout is not None
+        parsed = json.loads(stdout)
+        assert parsed["decision"] == "block"
+        assert "avakill fix" not in parsed["message"]
+        assert "[self-protection]" not in parsed["message"]
+        assert exit_code == 1
+
 
 class TestOpenAICodexRegistration:
     """Test adapter registration in the hook registry."""

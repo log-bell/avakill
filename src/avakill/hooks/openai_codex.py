@@ -159,16 +159,21 @@ class OpenAICodexAdapter(HookAdapter):
         """
         if response.decision == "deny":
             reason = response.reason or "Blocked by AvaKill policy"
-            if response.policy:
-                reason = f"{reason} [{response.policy}]"
-            reason = f"{reason}. Run `avakill fix` for recovery steps."
+            if response.policy and response.policy != "self-protection":
+                reason = f"{reason} [{response.policy}]. Run `avakill fix` for recovery steps."
+            elif not response.policy:
+                reason = f"{reason}. Run `avakill fix` for recovery steps."
+            # self-protection messages are already complete
             payload = {"decision": "block", "message": reason}
             return json.dumps(payload), 1
 
         if response.decision == "require_approval":
             reason = response.reason or "Requires human approval"
-            if response.policy:
-                reason = f"{reason} [{response.policy}]"
+            if response.policy and response.policy != "self-protection":
+                reason = f"{reason} [{response.policy}]. Run `avakill fix` for recovery steps."
+            elif not response.policy:
+                reason = f"{reason}. Run `avakill fix` for recovery steps."
+            # self-protection messages are already complete
             payload = {"decision": "block", "message": f"Requires approval: {reason}"}
             return json.dumps(payload), 1
 
