@@ -33,13 +33,13 @@ class TestRuleDefs:
         assert len(names) == len(set(names)), f"Duplicate names: {names}"
 
     def test_catalog_size(self):
-        assert len(ALL_RULES) == 12  # 3 base + 9 optional
+        assert len(ALL_RULES) == 26  # 3 base + 9 T1 optional + 14 T2
 
     def test_base_rules_count(self):
         assert len(get_base_rules()) == 3
 
     def test_optional_rules_count(self):
-        assert len(get_optional_rules()) == 9
+        assert len(get_optional_rules()) == 23  # 9 T1 + 14 T2
 
     def test_base_rules_are_marked_base(self):
         for rule in get_base_rules():
@@ -64,13 +64,21 @@ class TestGetRuleById:
         assert rule is not None
         assert rule.base is True
 
+    def test_t2_rule_lookup(self):
+        rule = get_rule_by_id("block-catastrophic-deletion")
+        assert rule is not None
+        assert rule.tier == 2
+
 
 class TestGetOptionalRuleIds:
     def test_returns_all_optional_ids(self):
         ids = get_optional_rule_ids()
-        assert len(ids) == 9
+        assert len(ids) == 23  # 9 T1 + 14 T2
         assert "dangerous-shell" in ids
         assert "catastrophic-shell" not in ids  # base rule
+        # T2 rules included
+        assert "block-catastrophic-deletion" in ids
+        assert "enforce-workspace-boundary" in ids
 
     def test_order_matches_catalog(self):
         ids = get_optional_rule_ids()
@@ -84,11 +92,47 @@ class TestGetDefaultOnIds:
         assert "dangerous-shell" in defaults
         assert "destructive-sql" in defaults
         assert "destructive-tools" in defaults
+        # T2 default-on rules
+        assert "block-catastrophic-deletion" in defaults
+        assert "block-ssh-key-access" in defaults
+        assert "block-cloud-credentials" in defaults
 
     def test_excludes_default_off(self):
         defaults = get_default_on_ids()
         assert "package-install" not in defaults
         assert "web-rate-limit" not in defaults
+        assert "enforce-workspace-boundary" not in defaults
+
+
+class TestT2Rules:
+    """T2 path-resolution rules have correct structure."""
+
+    def test_t2_rules_have_path_conditions(self):
+        """All tier=2 rules use path_match or path_not_match."""
+        t2_rules = [r for r in ALL_RULES if r.tier == 2]
+        assert len(t2_rules) == 14
+        for rule in t2_rules:
+            conditions = rule.rule_data.get("conditions", {})
+            has_path = "path_match" in conditions or "path_not_match" in conditions
+            assert has_path, f"T2 rule {rule.id} lacks path_match/path_not_match"
+
+    def test_t2_rules_generate_valid_yaml(self):
+        """generate_yaml() with T2 rules produces valid PolicyConfig."""
+        t2_ids = [r.id for r in ALL_RULES if r.tier == 2]
+        output = generate_yaml(t2_ids)
+        parsed = yaml.safe_load(output)
+        PolicyConfig.model_validate(parsed)
+
+    def test_t2_rule_tiers(self):
+        """All T2 rules have tier=2."""
+        t2_rules = [r for r in ALL_RULES if r.tier == 2]
+        for rule in t2_rules:
+            assert rule.tier == 2, f"{rule.id} has tier={rule.tier}"
+
+    def test_t1_rules_have_tier_1(self):
+        """All non-T2 rules default to tier=1."""
+        t1_rules = [r for r in ALL_RULES if r.tier == 1]
+        assert len(t1_rules) == 12  # 3 base + 9 optional
 
 
 class TestBuildPolicyDict:
@@ -106,6 +150,12 @@ class TestBuildPolicyDict:
         names = [p["name"] for p in result["policies"]]
         assert "block-dangerous-shell" in names
         assert "rate-limit-web-search" in names
+
+    def test_t2_rules_included_when_selected(self):
+        result = build_policy_dict(["block-catastrophic-deletion", "block-ssh-key-access"])
+        names = [p["name"] for p in result["policies"]]
+        assert "block-catastrophic-deletion" in names
+        assert "block-ssh-key-access" in names
 
     def test_selected_in_catalog_order(self):
         # web-rate-limit comes after dangerous-shell in catalog

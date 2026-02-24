@@ -102,11 +102,12 @@ class RuleDef:
         id: Stable identifier used in --rule flags and config persistence.
         label: Short menu label for display.
         description: One-line human-readable explanation.
-        category: Display grouping (shell, sql, tools, rate-limit, access).
+        category: Display grouping (shell, sql, tools, rate-limit, access, filesystem).
         rule_data: PolicyRule-compatible dict, ready for yaml.dump().
         configurable: Fields the user can customize (e.g. rate_limit.max_calls).
         base: If True, always included in generated policies.
         default_on: If True, pre-selected in interactive menu.
+        tier: Engine capability tier (1=substring, 2=path-resolve, 3=command-parse).
     """
 
     id: str
@@ -117,6 +118,7 @@ class RuleDef:
     configurable: list[str] = field(default_factory=list)
     base: bool = False
     default_on: bool = False
+    tier: int = 1
 
 
 # ---------------------------------------------------------------------------
@@ -392,10 +394,305 @@ _OPTIONAL_RULES: list[RuleDef] = [
 ]
 
 # ---------------------------------------------------------------------------
+# T2 rules — path resolution (tilde, env vars, dotdot, symlinks)
+# ---------------------------------------------------------------------------
+
+_T2_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-catastrophic-deletion",
+        label="Catastrophic deletion (path-aware)",
+        description="Block rm -rf targeting root or home (resolves ~/,$HOME)",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-catastrophic-deletion",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {"command": ["rm -rf", "rm -r"]},
+                "path_match": {"command": ["~/", "/"]},
+            },
+            "message": "Catastrophic recursive deletion blocked (path resolved).",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-deletion-outside-workspace",
+        label="Deletion outside workspace",
+        description="Block recursive deletion outside project workspace",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-deletion-outside-workspace",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {"command": ["rm -rf", "rm -r"]},
+                "path_not_match": {"command": ["__workspace__"]},
+            },
+            "message": "Recursive deletion outside workspace blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-symlink-escape",
+        label="Symlink escape detection",
+        description="Catch symlinks resolving to sensitive system dirs",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-symlink-escape",
+            "tools": list(_READ_TOOLS) + list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": ["/etc/", "/usr/", "~/.ssh/", "~/.aws/"],
+                },
+            },
+            "message": "Path resolves to a protected system directory (possible symlink escape).",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-ownership-changes",
+        label="Ownership changes outside workspace",
+        description="Block chown/chgrp targeting paths outside workspace",
+        category="shell",
+        tier=2,
+        rule_data={
+            "name": "block-ownership-changes",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {"command": ["chown", "chgrp"]},
+                "path_not_match": {"command": ["__workspace__"]},
+            },
+            "message": "Ownership changes outside workspace blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-system-dir-writes",
+        label="System directory writes",
+        description="Block file writes to /etc/, /usr/, /sbin/, /boot/, /System/",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-system-dir-writes",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "/etc/",
+                        "/usr/",
+                        "/sbin/",
+                        "/boot/",
+                        "/System/",
+                        "/Library/",
+                    ],
+                },
+            },
+            "message": "Writes to system directories blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-profile-modification",
+        label="Shell profile modification",
+        description="Require approval for edits to .bashrc, .zshrc, .profile",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-profile-modification",
+            "tools": list(_WRITE_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "~/.bashrc",
+                        "~/.zshrc",
+                        "~/.profile",
+                        "~/.bash_profile",
+                    ],
+                },
+            },
+            "message": "Shell profile modification requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-startup-persistence",
+        label="Startup persistence",
+        description="Block writes to LaunchAgents, systemd, cron dirs",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-startup-persistence",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "~/Library/LaunchAgents/",
+                        "/Library/LaunchDaemons/",
+                        "/etc/systemd/",
+                        "~/.config/systemd/",
+                        "/etc/cron.d/",
+                    ],
+                },
+            },
+            "message": "Writes to startup/persistence directories blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="enforce-workspace-boundary",
+        label="Workspace boundary",
+        description="Block file writes outside the project workspace",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "enforce-workspace-boundary",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_not_match": {"file_path": ["__workspace__"]},
+            },
+            "message": "File operation outside workspace boundary blocked.",
+        },
+        default_on=False,
+    ),
+    RuleDef(
+        id="block-ssh-key-access",
+        label="SSH key access",
+        description="Block read/write access to ~/.ssh/",
+        category="access",
+        tier=2,
+        rule_data={
+            "name": "block-ssh-key-access",
+            "tools": list(_READ_TOOLS) + list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {"file_path": ["~/.ssh/"]},
+            },
+            "message": "Access to SSH keys and config blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-cloud-credentials",
+        label="Cloud credential access",
+        description="Block access to ~/.aws/, ~/.gcloud/, ~/.azure/, ~/.kube/",
+        category="access",
+        tier=2,
+        rule_data={
+            "name": "block-cloud-credentials",
+            "tools": list(_READ_TOOLS) + list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "~/.aws/",
+                        "~/.gcloud/",
+                        "~/.azure/",
+                        "~/.kube/",
+                    ],
+                },
+            },
+            "message": "Access to cloud credentials blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-env-outside-workspace",
+        label=".env outside workspace",
+        description="Block access to .env files outside the workspace",
+        category="access",
+        tier=2,
+        rule_data={
+            "name": "block-env-outside-workspace",
+            "tools": list(_READ_TOOLS) + list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {"file_path": [".env"]},
+                "path_not_match": {"file_path": ["__workspace__"]},
+            },
+            "message": "Access to .env files outside workspace blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-launchagent-creation",
+        label="LaunchAgent creation (macOS)",
+        description="Block plist writes to LaunchAgents/LaunchDaemons",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-launchagent-creation",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "~/Library/LaunchAgents/",
+                        "/Library/LaunchDaemons/",
+                    ],
+                },
+            },
+            "message": "LaunchAgent/LaunchDaemon creation blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-systemd-persistence",
+        label="Systemd persistence (Linux)",
+        description="Block writes to systemd unit directories",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-systemd-persistence",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": ["/etc/systemd/", "~/.config/systemd/"],
+                },
+            },
+            "message": "Systemd unit file creation blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-system-file-modification",
+        label="System file modification (Linux)",
+        description="Block writes to /etc/passwd, /etc/shadow, /etc/sudoers",
+        category="filesystem",
+        tier=2,
+        rule_data={
+            "name": "block-system-file-modification",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "/etc/passwd",
+                        "/etc/shadow",
+                        "/etc/sudoers",
+                    ],
+                },
+            },
+            "message": "System file modification blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Combined catalog
 # ---------------------------------------------------------------------------
 
-ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES
+ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES + _T2_RULES
 
 _RULES_BY_ID: dict[str, RuleDef] = {r.id: r for r in ALL_RULES}
 
@@ -416,18 +713,18 @@ def get_base_rules() -> list[RuleDef]:
 
 
 def get_optional_rules() -> list[RuleDef]:
-    """Return all optional rules (user-selectable)."""
-    return list(_OPTIONAL_RULES)
+    """Return all optional rules (user-selectable), including T2."""
+    return list(_OPTIONAL_RULES) + list(_T2_RULES)
 
 
 def get_optional_rule_ids() -> list[str]:
     """Return IDs of all optional rules in catalog order."""
-    return [r.id for r in _OPTIONAL_RULES]
+    return [r.id for r in _OPTIONAL_RULES] + [r.id for r in _T2_RULES]
 
 
 def get_default_on_ids() -> set[str]:
     """Return IDs of optional rules that are on by default."""
-    return {r.id for r in _OPTIONAL_RULES if r.default_on}
+    return {r.id for r in (_OPTIONAL_RULES + _T2_RULES) if r.default_on}
 
 
 def build_policy_dict(
@@ -456,8 +753,10 @@ def build_policy_dict(
     for rule in _BASE_RULES:
         policies.append(copy.deepcopy(rule.rule_data))
 
-    # Selected optional rules in catalog order
-    for rule in _OPTIONAL_RULES:
+    # Selected optional rules in catalog order (T1 + T2; skip T3+)
+    for rule in _OPTIONAL_RULES + _T2_RULES:
+        if rule.tier > 2:
+            continue
         if rule.id in selected_set:
             policies.append(copy.deepcopy(rule.rule_data))
 
