@@ -12,7 +12,6 @@ Non-interactive use: avakill init --template hooks
 
 from __future__ import annotations
 
-import shutil
 import sys
 from pathlib import Path
 
@@ -20,8 +19,6 @@ import click
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.text import Text
-
-_TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
 _ALL_AGENTS = (
     "claude-code",
@@ -45,13 +42,6 @@ _AGENT_HINTS: dict[str, str] = {
     "cursor": "~/.cursor/",
     "windsurf": "~/.codeium/windsurf/",
     "openai-codex": "~/.codex/",
-}
-
-# Template key -> display label for the summary
-_TEMPLATE_LABELS: dict[str, str] = {
-    "hooks": "recommended",
-    "strict": "locked down",
-    "permissive": "audit only",
 }
 
 
@@ -152,7 +142,8 @@ def setup() -> None:
     console.print()
 
     policy_path = Path("avakill.yaml")
-    template_name = "hooks"  # default
+    template_name = "custom"  # default for the new composable flow
+    selected_rules: list[str] = []
 
     if policy_path.exists():
         console.print(f"  [bold]Policy:[/bold] [cyan]{policy_path}[/cyan] already exists.")
@@ -167,9 +158,9 @@ def setup() -> None:
             # Detect template from existing policy
             template_name = _detect_template(policy_path)
         else:
-            template_name = _create_policy(console, policy_path)
+            selected_rules = _create_policy(console, policy_path)
     else:
-        template_name = _create_policy(console, policy_path)
+        selected_rules = _create_policy(console, policy_path)
 
     # ------------------------------------------------------------------
     # Phase 3: Hooks
@@ -253,7 +244,10 @@ def setup() -> None:
     from avakill.cli.config import mark_setup
 
     mark_setup_complete()
-    mark_setup(protection_level=template_name)
+    mark_setup(
+        protection_level=template_name,
+        selected_rules=selected_rules if selected_rules else None,
+    )
 
     # Print summary
     _print_summary(
@@ -263,6 +257,7 @@ def setup() -> None:
         tracking_enabled=tracking_enabled,
         hooks_installed=hooks_installed,
         all_ok=hooks_ok,
+        selected_rules=selected_rules,
     )
 
 
@@ -337,6 +332,7 @@ def _print_summary(
     tracking_enabled: bool,
     hooks_installed: list[str],
     all_ok: bool,
+    selected_rules: list[str] | None = None,
 ) -> None:
     """Print the final setup summary."""
     sep = "\u2500" * min(53, console.width - 4)
@@ -353,7 +349,18 @@ def _print_summary(
     console.print()
 
     # Policy line
-    label = _TEMPLATE_LABELS.get(template_name, template_name)
+    if template_name == "custom" and selected_rules is not None:
+        from avakill.cli.rule_catalog import get_base_rules
+
+        total = len(get_base_rules()) + len(selected_rules)
+        label = f"{total} rules"
+    else:
+        _template_labels: dict[str, str] = {
+            "hooks": "recommended",
+            "strict": "locked down",
+            "permissive": "audit only",
+        }
+        label = _template_labels.get(template_name, template_name)
     console.print(f"    Policy:     [cyan]{policy_path}[/cyan] [dim]({label})[/dim]")
 
     # Tracking line
@@ -392,47 +399,202 @@ def _print_summary(
     console.print()
 
 
-def _create_policy(console: Console, policy_path: Path) -> str:
-    """Interactively create a policy file. Returns template name."""
-    templates = [
-        ("hooks", "Recommended", "Blocks catastrophic ops, allows everything else"),
-        ("strict", "Locked down", "Denies by default, explicit allowlist"),
-        ("permissive", "Audit only", "Allows everything, logs all calls"),
-    ]
+def _create_policy(console: Console, policy_path: Path) -> list[str]:
+    """Interactively create a policy file. Returns list of selected rule IDs."""
+    from avakill.cli.rule_catalog import (
+        generate_yaml,
+        get_base_rules,
+        get_optional_rules,
+    )
 
-    console.print("  [bold]Choose a protection level:[/bold]")
+    # Show base rules
+    base_rules = get_base_rules()
+    console.print("  [bold]Essential rules (always included):[/bold]")
     console.print()
-    for i, (_name, label, desc) in enumerate(templates, 1):
-        line = Text()
-        line.append(f"    {i}. ", style="bold")
-        line.append(
-            label,
-            style="bold #00D4FF" if i == 1 else "bold",
-        )
-        line.append(f"  {desc}", style="#6B7280")
-        console.print(line)
 
+    # Group base rules for display: catastrophic shell + catastrophic SQL
+    console.print("    [green]\u2713[/green] Catastrophic shell commands")
+    console.print("      [dim]Block rm -rf /, mkfs, dd if=, > /dev/, fork bombs[/dim]")
+    console.print("    [green]\u2713[/green] Catastrophic SQL")
+    console.print("      [dim]Block DROP DATABASE/SCHEMA via shell and database tools[/dim]")
     console.print()
-    choice = Prompt.ask(
+
+    # Interactive toggle menu
+    optional_rules = get_optional_rules()
+    selected = _interactive_rule_menu(console, optional_rules)
+
+    # Default action prompt
+    console.print()
+    console.print("  [bold]Default action (when no rule matches):[/bold]")
+    console.print()
+    console.print(
+        "    [bold #00D4FF]1.[/bold #00D4FF] allow  "
+        "[dim]Log and allow unmatched calls (recommended)[/dim]"
+    )
+    console.print(
+        "    [bold]2.[/bold] deny   [dim]Block anything not explicitly allowed (stricter)[/dim]"
+    )
+    console.print()
+    action_choice = Prompt.ask(
         "  Choose",
-        choices=["1", "2", "3"],
+        choices=["1", "2"],
         default="1",
         console=console,
     )
+    default_action = "allow" if action_choice == "1" else "deny"
 
-    template_name = templates[int(choice) - 1][0]
-    src = _TEMPLATES_DIR / f"{template_name}.yaml"
-    if not src.exists():
-        console.print(f"  [red]Template not found:[/red] {src}")
-        return "hooks"
+    # Optional: sensitive file scan
+    extra_rules = _maybe_scan(console)
 
-    shutil.copy2(src, policy_path)
+    # Optional: configure rate limits
+    _configure_rate_limits(console, selected)
+
+    # Generate and write
+    yaml_content = generate_yaml(selected, default_action, extra_rules or None)
+    policy_path.write_text(yaml_content, encoding="utf-8")
+
+    total = len(base_rules) + len(selected)
+    if extra_rules:
+        total += len(extra_rules)
     console.print()
     console.print(
         f"  [green]\u2713[/green] Created [cyan]{policy_path}[/cyan]"
-        f" ({_TEMPLATE_LABELS.get(template_name, template_name)})"
+        f" ({total} rules, default: {default_action})"
     )
-    return template_name
+    return list(selected)
+
+
+def _interactive_rule_menu(
+    console: Console,
+    rules: list,
+    selected: set[str] | None = None,
+) -> list[str]:
+    """Display an interactive toggle menu for optional rules.
+
+    Args:
+        console: Rich Console instance.
+        rules: List of RuleDef instances.
+        selected: Pre-selected rule IDs. Defaults to default_on rules.
+
+    Returns:
+        List of selected rule IDs in catalog order.
+    """
+    from avakill.cli.rule_catalog import get_default_on_ids
+
+    current = set(get_default_on_ids()) if selected is None else set(selected)
+
+    while True:
+        console.print("  [bold]What else should AvaKill block?[/bold]")
+        console.print("  [dim]Type numbers to toggle, 'a' for all, Enter to confirm.[/dim]")
+        console.print()
+
+        for i, rule in enumerate(rules, 1):
+            marker = "[green]\u2713[/green]" if rule.id in current else "[ ]"
+            console.print(f"    {i:>2}. {marker} {rule.label}")
+            console.print(f"        [dim]{rule.description}[/dim]")
+
+        console.print()
+        answer = Prompt.ask(
+            "  Toggle",
+            default="",
+            console=console,
+        )
+
+        answer = answer.strip()
+        if answer == "":
+            break
+        if answer.lower() == "a":
+            # Toggle all: if all are selected, deselect all; otherwise select all
+            all_ids = {r.id for r in rules}
+            if all_ids <= current:
+                current -= all_ids
+            else:
+                current |= all_ids
+            console.print()
+            continue
+
+        # Parse space/comma-separated numbers
+        for token in answer.replace(",", " ").split():
+            try:
+                idx = int(token) - 1
+                if 0 <= idx < len(rules):
+                    rule_id = rules[idx].id
+                    if rule_id in current:
+                        current.discard(rule_id)
+                    else:
+                        current.add(rule_id)
+            except ValueError:
+                pass
+        console.print()
+
+    # Return in catalog order
+    return [r.id for r in rules if r.id in current]
+
+
+def _configure_rate_limits(console: Console, selected_ids: list[str]) -> None:
+    """Prompt for custom rate limit values on configurable rules."""
+    from avakill.cli.rule_catalog import get_rule_by_id
+
+    for rule_id in selected_ids:
+        rule = get_rule_by_id(rule_id)
+        if rule is None or not rule.configurable:
+            continue
+
+        current_max = rule.rule_data.get("rate_limit", {}).get("max_calls", "?")
+        current_window = rule.rule_data.get("rate_limit", {}).get("window", "?")
+        console.print()
+        console.print(
+            f"  [bold]{rule.label}[/bold] — currently {current_max} calls/{current_window}"
+        )
+        custom = Prompt.ask(
+            "  Customize max calls?",
+            default=str(current_max),
+            console=console,
+        )
+        try:
+            new_val = int(custom)
+            if new_val != current_max:
+                # Update the rule_data in-place for this session's generation
+                rule.rule_data["rate_limit"]["max_calls"] = new_val
+        except ValueError:
+            pass
+
+
+def _maybe_scan(console: Console) -> list[dict]:
+    """Offer to scan for sensitive files. Returns extra rule dicts."""
+    console.print()
+    console.print("  [bold]Scan project for sensitive files?[/bold]")
+    console.print("  [dim]Detects .env, keys, credentials and adds deny rules.[/dim]")
+    console.print()
+    scan_choice = Prompt.ask(
+        "  Scan?",
+        choices=["y", "n"],
+        default="y",
+        console=console,
+    )
+
+    if scan_choice != "y":
+        return []
+
+    from avakill.cli.scanner import (
+        detect_project_type,
+        detect_sensitive_files,
+        generate_scan_rules,
+    )
+
+    sensitive_files = detect_sensitive_files(Path.cwd())
+    project_types = detect_project_type(Path.cwd())
+    scan_rules = generate_scan_rules(sensitive_files, project_types)
+
+    if sensitive_files:
+        console.print()
+        for sf in sensitive_files:
+            console.print(f"    [yellow]\u26a0[/yellow] {sf.path} [dim]({sf.description})[/dim]")
+        console.print(f"    [green]\u2713[/green] {len(scan_rules)} protective rule(s) added")
+    else:
+        console.print("    [dim]No sensitive files found.[/dim]")
+
+    return scan_rules
 
 
 def _detect_template(policy_path: Path) -> str:

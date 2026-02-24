@@ -443,6 +443,97 @@ Both conditions must pass for the rule to match. If either fails, the rule is sk
 - All comparisons are case-insensitive.
 - If the specified argument key does not exist in the tool call, it is treated as an empty string (which won't match any substring).
 
+### `path_match`
+
+The `path_match` condition resolves paths in argument values before matching against protected path prefixes. This prevents bypass attacks where raw strings like `~/` or `$HOME` are never expanded.
+
+Resolution order: environment variables (`$HOME`, `$USERPROFILE`) → tilde expansion (`~/`) → absolute path resolution (`../`) → symlink resolution.
+
+```yaml
+conditions:
+  path_match:
+    file_path: ["~/.ssh/", "~/.aws/", "/etc/"]
+```
+
+This matches when the `file_path` argument, after full path resolution, falls under `~/.ssh/`, `~/.aws/`, or `/etc/`. For example:
+
+| Argument | Resolved | Matches? |
+|----------|----------|----------|
+| `~/.ssh/id_rsa` | `/home/user/.ssh/id_rsa` | Yes (under `~/.ssh/`) |
+| `$HOME/.aws/credentials` | `/home/user/.aws/credentials` | Yes (under `~/.aws/`) |
+| `../../../etc/passwd` | `/etc/passwd` | Yes (under `/etc/`) |
+| `./src/main.py` | `/home/user/project/src/main.py` | No |
+
+For `command` or `cmd` argument keys, paths are extracted from the shell command first (handling quotes), then each path is resolved:
+
+```yaml
+conditions:
+  args_match:
+    command: ["rm -rf"]
+  path_match:
+    command: ["~/", "/"]
+```
+
+This blocks `rm -rf ~/`, `rm -rf $HOME`, and `rm -rf /` — the pattern that caused Claude Code's home directory deletion.
+
+Multiple keys use AND logic (same as `args_match`): all keys must have at least one matching path.
+
+### `path_not_match`
+
+The inverse of `path_match`: the condition **fails** if any resolved path falls under a specified prefix. Used for workspace boundary rules:
+
+```yaml
+conditions:
+  path_not_match:
+    file_path: ["__workspace__"]
+```
+
+This condition fails (rule matches → deny) when the file path resolves to a location **outside** the workspace. Paths inside the workspace pass the condition (rule is skipped).
+
+### `workspace`
+
+The `__workspace__` sentinel in `path_match` / `path_not_match` patterns is replaced with the resolved workspace root. Detection priority:
+
+1. `AVAKILL_WORKSPACE` environment variable
+2. Walk up from current directory looking for `.git`
+3. Fall back to current working directory
+
+Override with an explicit `workspace` field in conditions:
+
+```yaml
+conditions:
+  path_not_match:
+    file_path: ["__workspace__"]
+  workspace: "/home/user/myproject"
+```
+
+### Combining `args_match` and `path_match`
+
+Both conditions must pass (AND logic). This is the recommended pattern for catastrophic deletion prevention:
+
+```yaml
+policies:
+  - name: block-catastrophic-deletion
+    tools: ["Bash", "shell_execute", "run_shell_command"]
+    action: deny
+    conditions:
+      args_match:
+        command: ["rm -rf", "rm -r"]
+      path_match:
+        command: ["~/", "/"]
+    message: "Catastrophic recursive deletion blocked."
+```
+
+| Command | `args_match` | `path_match` | Result |
+|---------|-------------|-------------|--------|
+| `rm -rf ~/Documents` | Pass (contains "rm -rf") | Pass (resolves under `~/`) | **Denied** |
+| `rm -rf $HOME` | Pass | Pass (env var → home) | **Denied** |
+| `rm -rf /` | Pass | Pass (root) | **Denied** |
+| `ls ~/Documents` | Fail (no "rm -rf") | — | Allowed |
+| `rm -rf ./build` | Pass | Fail (not under `/etc/` or `~/.ssh/`) | Allowed* |
+
+*When using specific protected paths like `/etc/` and `~/.ssh/` instead of broad `~/`.
+
 ## Rate Limiting
 
 Rate limiting restricts how many times a tool can be called within a sliding time window.

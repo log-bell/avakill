@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- T2 path resolution engine: `path_match` and `path_not_match` condition types that resolve `~/`, `$HOME`, `../`, and symlinks before matching
+- `workspace` condition field with `__workspace__` sentinel for workspace boundary enforcement
+- `detect_workspace_root()` — auto-detects workspace via `AVAKILL_WORKSPACE` env var, `.git` walk-up, or cwd fallback
+- 14 T2 rules in rule catalog: catastrophic deletion, workspace boundary, symlink escape, system dir writes, profile modification, startup persistence, SSH key access, cloud credentials, .env outside workspace, LaunchAgent/systemd/system file protection
+- `tier` field on `RuleDef` for engine capability tagging (T1=substring, T2=path-resolve)
+
 ## [0.5.1] - 2026-02-23
 
 ### Added

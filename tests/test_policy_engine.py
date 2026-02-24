@@ -1524,3 +1524,291 @@ class TestPolicyEngineCommandAllowlist:
         # (no metacharacters). This would be allowed by the policy engine alone.
         # Self-protection catches it at a higher layer.
         assert engine.evaluate(tc).allowed
+
+
+# ---------------------------------------------------------------------------
+# PolicyEngine — path_match / path_not_match conditions (T2)
+# ---------------------------------------------------------------------------
+
+
+class TestPolicyEnginePathMatch:
+    """Tests for the T2 path_match and path_not_match conditions."""
+
+    def test_tilde_catches_rm_rf_home(self) -> None:
+        """rm -rf ~/ is denied by path_match on command targeting ~/."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-home-delete",
+                        tools=["shell_*", "Bash"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            args_match={"command": ["rm -rf", "rm -r"]},
+                            path_match={"command": ["~/"]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(tool_name="Bash", arguments={"command": "rm -rf ~/"})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_env_var_expansion(self) -> None:
+        """rm -rf $HOME/Downloads is denied."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-home-delete",
+                        tools=["shell_*", "Bash"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            args_match={"command": ["rm -rf"]},
+                            path_match={"command": ["~/"]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(
+            tool_name="Bash",
+            arguments={"command": "rm -rf $HOME/Downloads"},
+        )
+        assert engine.evaluate(tc).allowed is False
+
+    def test_dotdot_resolution(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """../ resolves to ancestor — a path traversal into a protected dir is caught."""
+        # Create structure: tmp_path/protected/secret.txt and tmp_path/work/
+        protected = tmp_path / "protected"
+        protected.mkdir()
+        (protected / "secret.txt").touch()
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-protected-writes",
+                        tools=["file_write", "Write"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            path_match={"file_path": [str(protected)]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(
+            tool_name="Write",
+            arguments={"file_path": "../protected/secret.txt"},
+        )
+        assert engine.evaluate(tc).allowed is False
+
+    def test_direct_file_path(self) -> None:
+        """file_path: ~/.ssh/id_rsa matches ~/.ssh/."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-ssh",
+                        tools=["*"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            path_match={"file_path": ["~/.ssh/"]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(
+            tool_name="Read",
+            arguments={"file_path": "~/.ssh/id_rsa"},
+        )
+        assert engine.evaluate(tc).allowed is False
+
+    def test_safe_path_not_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """rm -rf ./build/ doesn't match specific sensitive dirs like /etc/ or ~/.ssh/."""
+        monkeypatch.chdir(tmp_path)
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-sensitive-delete",
+                        tools=["shell_*", "Bash"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            args_match={"command": ["rm -rf"]},
+                            path_match={"command": ["/etc/", "~/.ssh/"]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(
+            tool_name="Bash",
+            arguments={"command": "rm -rf ./build/"},
+        )
+        assert engine.evaluate(tc).allowed is True
+
+    def test_path_not_match_workspace(self, tmp_path: Path) -> None:
+        """Paths inside workspace pass, paths outside fail."""
+        workspace = tmp_path / "project"
+        workspace.mkdir()
+
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-outside-workspace",
+                        tools=["Write", "Edit"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            path_not_match={"file_path": ["__workspace__"]},
+                            workspace=str(workspace),
+                        ),
+                    ),
+                ],
+            )
+        )
+        # Inside workspace — path_not_match finds it inside → condition True
+        # → inverted: rule should NOT match → allow
+        tc_inside = ToolCall(
+            tool_name="Write",
+            arguments={"file_path": str(workspace / "main.py")},
+        )
+        assert engine.evaluate(tc_inside).allowed is True
+
+        # Outside workspace — path_not_match finds it outside → condition False
+        # → inverted: rule matches → deny
+        tc_outside = ToolCall(
+            tool_name="Write",
+            arguments={"file_path": "/etc/passwd"},
+        )
+        assert engine.evaluate(tc_outside).allowed is False
+
+    def test_symlink_escape(self, tmp_path: Path) -> None:
+        """Symlink to /etc caught via resolve."""
+        # Create a symlink that points to /etc
+        link = tmp_path / "sneaky"
+        link.symlink_to("/etc")
+        target = str(link / "passwd")
+
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-etc",
+                        tools=["*"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            path_match={"file_path": ["/etc/"]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(tool_name="Read", arguments={"file_path": target})
+        assert engine.evaluate(tc).allowed is False
+
+    def test_backward_compat(self) -> None:
+        """Existing args_match-only rules are unchanged."""
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-drop",
+                        tools=["database_query"],
+                        action="deny",
+                        conditions=RuleConditions(args_match={"query": ["DROP"]}),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(tool_name="database_query", arguments={"query": "DROP TABLE x"})
+        assert engine.evaluate(tc).allowed is False
+        tc2 = ToolCall(tool_name="database_query", arguments={"query": "SELECT 1"})
+        assert engine.evaluate(tc2).allowed is True
+
+    def test_workspace_sentinel_replaced(self, tmp_path: Path) -> None:
+        """__workspace__ in patterns is replaced with workspace root."""
+        workspace = tmp_path / "myproject"
+        workspace.mkdir()
+        target = workspace / "src" / "main.py"
+        target.parent.mkdir(parents=True)
+        target.touch()
+
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="workspace-only",
+                        tools=["Write"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            path_match={"file_path": ["__workspace__"]},
+                            workspace=str(workspace),
+                        ),
+                    ),
+                ],
+            )
+        )
+        tc = ToolCall(
+            tool_name="Write",
+            arguments={"file_path": str(target)},
+        )
+        # File IS inside workspace → path_match matches → deny
+        assert engine.evaluate(tc).allowed is False
+
+    def test_combined_args_match_and_path_match(self, tmp_path: Path) -> None:
+        """Both args_match and path_match must pass (AND logic)."""
+        sensitive = tmp_path / "sensitive"
+        sensitive.mkdir()
+
+        engine = PolicyEngine(
+            PolicyConfig(
+                default_action="allow",
+                policies=[
+                    PolicyRule(
+                        name="block-recursive-sensitive-delete",
+                        tools=["Bash"],
+                        action="deny",
+                        conditions=RuleConditions(
+                            args_match={"command": ["rm -rf"]},
+                            path_match={"command": [str(sensitive)]},
+                        ),
+                    ),
+                ],
+            )
+        )
+        # Has rm -rf AND targets sensitive dir → denied
+        tc_bad = ToolCall(
+            tool_name="Bash",
+            arguments={"command": f"rm -rf {sensitive}/data"},
+        )
+        assert engine.evaluate(tc_bad).allowed is False
+
+        # Has rm -rf but does NOT target sensitive dir → allowed
+        tc_safe = ToolCall(
+            tool_name="Bash",
+            arguments={"command": f"rm -rf {tmp_path}/other"},
+        )
+        assert engine.evaluate(tc_safe).allowed is True
+
+        # Targets sensitive dir but no rm -rf → allowed (args_match fails)
+        tc_read = ToolCall(
+            tool_name="Bash",
+            arguments={"command": f"ls {sensitive}"},
+        )
+        assert engine.evaluate(tc_read).allowed is True

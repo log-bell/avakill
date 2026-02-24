@@ -7,7 +7,6 @@ Replaces the old quickstart and init commands.
 from __future__ import annotations
 
 import contextlib
-import shutil
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -28,7 +27,6 @@ _GOLD = "bold #FBBF24"
 _CYAN = "bold #00D4FF"
 _GREEN = "bold #22C55E"
 _NUM = "bold #E5E7EB"
-_TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
 
 # -------------------------------------------------------------------
@@ -153,25 +151,39 @@ def _section_setup(con: Console) -> None:
         _wait_for_back(con)
         return
 
-    templates = [
-        "hooks       \u2014 Blocks catastrophic ops, allows most else",
-        "default     \u2014 Denies by default, allows reads, rate-limits",
-        "strict      \u2014 Explicit allowlist, writes require approval",
-        "permissive  \u2014 Allows everything, logs all calls",
-    ]
-    template_names = ["hooks", "default", "strict", "permissive"]
+    from avakill.cli.rule_catalog import generate_yaml, get_optional_rules
+    from avakill.cli.setup_cmd import _interactive_rule_menu
 
-    choice = _numbered_choice(con, "Choose a protection template:", templates)
-    template = template_names[choice]
+    optional_rules = get_optional_rules()
 
-    src = _TEMPLATES_DIR / f"{template}.yaml"
-    if not src.exists():
-        con.print(f"    [red]Template not found:[/red] {src}")
-        _wait_for_back(con)
-        return
+    # Show base rules
+    con.print("    [bold]Essential rules (always included):[/bold]")
+    con.print()
+    con.print(f"    [{_GREEN}]\u2713[/{_GREEN}] Catastrophic shell commands")
+    con.print(f"    [{_GREEN}]\u2713[/{_GREEN}] Catastrophic SQL")
+    con.print()
 
-    shutil.copy2(src, policy_path)
-    con.print(f"    [{_GREEN}]Policy generated:[/{_GREEN}] avakill.yaml ({template} template)")
+    selected = _interactive_rule_menu(con, optional_rules)
+
+    # Default action
+    action_choice = _numbered_choice(
+        con,
+        "Default action when no rule matches:",
+        [
+            "allow  \u2014 Log and allow unmatched calls (recommended)",
+            "deny   \u2014 Block anything not explicitly allowed",
+        ],
+    )
+    default_action = "allow" if action_choice == 0 else "deny"
+
+    # Generate and write
+    yaml_content = generate_yaml(selected, default_action)
+    policy_path.write_text(yaml_content, encoding="utf-8")
+    n_selected = len(selected)
+    con.print(
+        f"    [{_GREEN}]Policy generated:[/{_GREEN}]"
+        f" avakill.yaml ({n_selected} optional + 3 base rules)"
+    )
     con.print()
 
     try:

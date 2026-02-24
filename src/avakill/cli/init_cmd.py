@@ -102,9 +102,10 @@ _PROTECTION_MODES = {
     "--template",
     type=click.Choice(["default", "strict", "permissive", "hooks"]),
     default=None,
-    help="Policy template to use.",
+    help="Policy template to use (legacy). Mutually exclusive with --rule.",
 )
 @click.option(
+    "-o",
     "--output",
     default="avakill.yaml",
     help="Output path for the generated policy file.",
@@ -120,9 +121,55 @@ _PROTECTION_MODES = {
     default=False,
     help="Scan project directory for sensitive files and generate targeted deny rules.",
 )
-def init(template: str | None, output: str, mode: str | None, scan: bool) -> None:
-    """Initialize a new AvaKill policy file."""
+@click.option(
+    "--rule",
+    "rules",
+    multiple=True,
+    help="Include a specific rule by ID. Can be repeated.",
+)
+@click.option(
+    "--all-rules",
+    is_flag=True,
+    default=False,
+    help="Include all optional rules.",
+)
+@click.option(
+    "--default-action",
+    type=click.Choice(["allow", "deny"]),
+    default=None,
+    help="Default action when no rule matches.",
+)
+@click.option(
+    "--list-rules",
+    is_flag=True,
+    default=False,
+    help="Print the rule catalog and exit.",
+)
+def init(
+    template: str | None,
+    output: str,
+    mode: str | None,
+    scan: bool,
+    rules: tuple[str, ...],
+    all_rules: bool,
+    default_action: str | None,
+    list_rules: bool,
+) -> None:
+    """Initialize a new AvaKill policy file.
+
+    Use --rule to select individual rules, or --template for legacy templates.
+    """
     console = Console()
+
+    # --list-rules: print catalog and exit
+    if list_rules:
+        _print_rule_catalog(console)
+        return
+
+    # Mutual exclusivity: --rule/--all-rules vs --template
+    has_rules = bool(rules) or all_rules
+    if has_rules and template is not None:
+        raise click.UsageError("--rule/--all-rules and --template are mutually exclusive.")
 
     output_path = Path(output)
     if output_path.exists():
@@ -145,19 +192,148 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
     # Detect frameworks
     detected = _detect_frameworks()
 
-    # Choose template
-    if template is None:
-        if not sys.stdin.isatty():
-            template = "hooks"
-        else:
-            template = Prompt.ask(
-                "Which policy template?",
-                choices=["hooks", "default", "strict", "permissive"],
-                default="hooks",
-                console=console,
-            )
+    # --- Rule-based policy generation ---
+    if has_rules or (template is None and not sys.stdin.isatty()):
+        # Non-interactive: use --rule flags, --all-rules, or defaults
+        _init_with_rules(
+            console,
+            output_path,
+            rules=rules,
+            all_rules=all_rules,
+            default_action=default_action or "allow",
+            scan=scan,
+            detected=detected,
+            mode=mode,
+        )
+        return
 
-    # Copy template
+    if template is None and sys.stdin.isatty():
+        # Interactive: run the toggle menu
+        from avakill.cli.rule_catalog import (
+            generate_yaml,
+            get_optional_rules,
+        )
+        from avakill.cli.setup_cmd import _interactive_rule_menu
+
+        optional = get_optional_rules()
+        selected = _interactive_rule_menu(console, optional)
+
+        if default_action is None:
+            default_action = "allow"
+
+        # Scan
+        scan_rules: list[dict] = []
+        if scan:
+            scan_rules = _scan_for_rules(console)
+
+        yaml_content = generate_yaml(selected, default_action, scan_rules or None)
+        output_path.write_text(yaml_content, encoding="utf-8")
+
+        console.print()
+        console.print(f"[bold green]Policy file created:[/bold green] {output_path.resolve()}")
+        console.print(f"[dim]Rules:[/dim] {len(selected)} optional + 3 base")
+        _print_next_steps(console, output_path, detected, mode)
+        return
+
+    # --- Legacy template-based path (--template given) ---
+    assert template is not None  # guaranteed by control flow above
+    _init_with_template(
+        console,
+        output_path,
+        template=template,
+        scan=scan,
+        detected=detected,
+        mode=mode,
+    )
+
+
+def _print_rule_catalog(console: Console) -> None:
+    """Print all available rules in a table format."""
+    from avakill.cli.rule_catalog import ALL_RULES
+
+    console.print()
+    console.print("[bold]Available AvaKill rules:[/bold]")
+    console.print()
+
+    current_type = None
+    for rule in ALL_RULES:
+        tag = "BASE" if rule.base else ("ON" if rule.default_on else "off")
+        if rule.base and current_type != "base":
+            console.print("  [bold dim]Base rules (always included):[/bold dim]")
+            current_type = "base"
+        elif not rule.base and current_type != "optional":
+            console.print()
+            console.print("  [bold dim]Optional rules:[/bold dim]")
+            current_type = "optional"
+
+        style = "green" if rule.base else ("cyan" if rule.default_on else "dim")
+        console.print(f"    [{style}]{rule.id:<24s}[/{style}] [{tag:>4s}]  {rule.description}")
+
+    console.print()
+    console.print("[dim]Use --rule <id> to include specific rules.[/dim]")
+    console.print("[dim]Use --all-rules to include everything.[/dim]")
+    console.print()
+
+
+def _init_with_rules(
+    console: Console,
+    output_path: Path,
+    *,
+    rules: tuple[str, ...],
+    all_rules: bool,
+    default_action: str,
+    scan: bool,
+    detected: list[str],
+    mode: str | None,
+) -> None:
+    """Generate policy from rule IDs (non-interactive path)."""
+    from avakill.cli.rule_catalog import (
+        generate_yaml,
+        get_default_on_ids,
+        get_optional_rule_ids,
+        get_rule_by_id,
+    )
+
+    if all_rules:
+        selected = get_optional_rule_ids()
+    elif rules:
+        # Validate rule IDs
+        selected = []
+        for rid in rules:
+            if get_rule_by_id(rid) is None:
+                raise click.ClickException(
+                    f"Unknown rule ID: {rid}. Use --list-rules to see available rules."
+                )
+            r = get_rule_by_id(rid)
+            if r is not None and not r.base:
+                selected.append(rid)
+    else:
+        # No flags, non-TTY: use default_on rules
+        selected = list(get_default_on_ids())
+
+    scan_rules: list[dict] = []
+    if scan:
+        scan_rules = _scan_for_rules(console)
+
+    yaml_content = generate_yaml(selected, default_action, scan_rules or None)
+    output_path.write_text(yaml_content, encoding="utf-8")
+
+    console.print()
+    console.print(f"[bold green]Policy file created:[/bold green] {output_path.resolve()}")
+    console.print(f"[dim]Rules:[/dim] {len(selected)} optional + 3 base")
+    _print_next_steps(console, output_path, detected, mode)
+
+
+def _init_with_template(
+    console: Console,
+    output_path: Path,
+    *,
+    template: str,
+    scan: bool,
+    detected: list[str],
+    mode: str | None,
+) -> None:
+    """Legacy template-based init (backward compat)."""
     src = _TEMPLATES_DIR / f"{template}.yaml"
     if not src.exists():
         raise click.ClickException(f"Template not found: {src}")
@@ -179,7 +355,6 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
         scan_results = sensitive_files
 
         if scan_rules:
-            # Read template, merge scan rules before template rules
             policy_data = yaml.safe_load(output_path.read_text(encoding="utf-8"))
             existing_rules = policy_data.get("policies", [])
             policy_data["policies"] = scan_rules + existing_rules
@@ -205,8 +380,6 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
         for fw in detected:
             lines.append(f"  [cyan]{fw}[/cyan]")
         lines.append("")
-
-        # Show snippet for first detected framework
         snippet_fw = detected[0]
         lines.append(f"[bold]Quickstart ({snippet_fw}):[/bold]")
 
@@ -215,7 +388,6 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
     console.print()
     console.print(Panel(body, title="AvaKill Initialized", border_style="green", padding=(1, 2)))
 
-    # Print code snippet outside the panel for proper syntax highlighting
     if detected:
         snippet_fw = detected[0]
         snippet = _INTEGRATION_SNIPPETS.get(snippet_fw, "")
@@ -229,7 +401,35 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
             console.print("[dim]Other detected frameworks:[/dim]", ", ".join(detected[1:]))
             console.print("[dim]Run [bold]avakill init --help[/bold] for more options.[/dim]")
 
-    # Detect AI coding agents and suggest hook installation.
+    _print_next_steps(console, output_path, detected, mode)
+
+
+def _scan_for_rules(console: Console) -> list[dict]:
+    """Scan for sensitive files and return extra rule dicts."""
+    from avakill.cli.scanner import (
+        detect_project_type,
+        detect_sensitive_files,
+        generate_scan_rules,
+    )
+
+    sensitive_files = detect_sensitive_files(Path.cwd())
+    project_types = detect_project_type(Path.cwd())
+    scan_rules = generate_scan_rules(sensitive_files, project_types)
+
+    if sensitive_files:
+        for sf in sensitive_files:
+            console.print(f"  [yellow]{sf.path}[/yellow] [dim]({sf.description})[/dim]")
+
+    return scan_rules
+
+
+def _print_next_steps(
+    console: Console,
+    output_path: Path,
+    detected: list[str],
+    mode: str | None,
+) -> None:
+    """Print next steps after policy creation."""
     from avakill.hooks.installer import detect_agents
 
     agents = detect_agents()
@@ -240,21 +440,6 @@ def init(template: str | None, output: str, mode: str | None, scan: bool) -> Non
             "Run [bold cyan]avakill hook install --agent all[/bold cyan] to register hooks."
         )
 
-    # Interactive mode selector (only when stdin is a TTY and --mode not given)
-    if mode is None and sys.stdin.isatty() and template is None:
-        console.print()
-        console.print("[bold]How do you want to protect your agents?[/bold]")
-        for i, (_key, desc) in enumerate(_PROTECTION_MODES.items(), 1):
-            console.print(f"  {i}. {desc}")
-        choice = Prompt.ask(
-            "Select mode",
-            choices=["1", "2", "3", "4"],
-            default="1",
-            console=console,
-        )
-        mode = list(_PROTECTION_MODES)[int(choice) - 1]
-
-    # Print mode-specific next steps
     console.print()
     console.print("[bold]Next steps:[/bold]")
     console.print(f"  1. Review and customise [cyan]{output_path}[/cyan]")

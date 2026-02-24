@@ -85,12 +85,24 @@ class RuleConditions(BaseModel):
             argument must match one of these names exactly (case-insensitive).
             Unlike ``args_match`` (substring), this prevents prefix-smuggling
             attacks like ``env VAR=val echo ...``.
+        path_match: Resolve paths in argument values (expanding ``~/``, ``$HOME``,
+            ``../``, symlinks) and check if any falls under a protected path prefix.
+            Keys are argument names; values are lists of protected path prefixes.
+            AND logic across keys (same as ``args_match``).
+        path_not_match: Same as ``path_match`` but inverted: if any resolved path
+            falls under a prefix, the condition **fails**. Used for workspace
+            boundary rules ("outside workspace" detection).
+        workspace: Optional workspace root override for ``__workspace__`` sentinel
+            replacement. If not set, uses ``detect_workspace_root()``.
     """
 
     args_match: dict[str, list[str]] | None = None
     args_not_match: dict[str, list[str]] | None = None
     shell_safe: bool = False
     command_allowlist: list[str] | None = None
+    path_match: dict[str, list[str]] | None = None
+    path_not_match: dict[str, list[str]] | None = None
+    workspace: str | None = None
 
 
 _WINDOW_PATTERN = re.compile(r"^\d+[smh]$")

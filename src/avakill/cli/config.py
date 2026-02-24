@@ -50,14 +50,33 @@ def set_tracking(enabled: bool) -> None:
     _write(data)
 
 
-def mark_setup(*, protection_level: str) -> None:
+def mark_setup(
+    *,
+    protection_level: str,
+    selected_rules: list[str] | None = None,
+) -> None:
     """Record that setup was completed."""
     data = _read()
     data["setup_complete"] = True
     data["setup_date"] = datetime.now(timezone.utc).isoformat()
     data["protection_level"] = protection_level
+    if selected_rules is not None:
+        data["selected_rules"] = selected_rules
     if "audit_db" not in data:
         data["audit_db"] = _DEFAULT_AUDIT_DB
+    _write(data)
+
+
+def get_selected_rules() -> list[str]:
+    """Return the list of selected rule IDs from config."""
+    rules = _read().get("selected_rules", [])
+    return list(rules) if isinstance(rules, list) else []
+
+
+def set_selected_rules(rule_ids: list[str]) -> None:
+    """Save selected rule IDs to config."""
+    data = _read()
+    data["selected_rules"] = rule_ids
     _write(data)
 
 

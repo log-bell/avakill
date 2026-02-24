@@ -318,6 +318,72 @@ class PolicyEngine:
                 if any(s.lower() in value for s in substrings):
                     return False
 
+        if conditions.path_match and not self._check_path_match(
+            args, conditions.path_match, conditions.workspace
+        ):
+            return False
+
+        return not (
+            conditions.path_not_match
+            and self._check_path_match(args, conditions.path_not_match, conditions.workspace)
+        )
+
+    def _check_path_match(
+        self,
+        args: dict[str, Any],
+        path_patterns: dict[str, list[str]],
+        workspace: str | None = None,
+    ) -> bool:
+        """Check whether resolved argument paths fall under protected path prefixes.
+
+        For each key in *path_patterns*, the argument value is resolved to
+        absolute path(s).  If the key is ``command`` or ``cmd``, paths are
+        extracted from the shell command first.  The ``__workspace__`` sentinel
+        in pattern strings is replaced with the resolved workspace root.
+
+        Args:
+            args: The tool call arguments dict.
+            path_patterns: Mapping of argument key → list of protected path
+                prefixes.
+            workspace: Optional explicit workspace root (overrides auto-detect).
+
+        Returns:
+            True if **all** keys have at least one resolved path matching a
+            protected prefix (AND logic across keys).
+        """
+        from avakill.core.path_resolution import (
+            detect_workspace_root,
+            path_matches_protected,
+            resolve_path,
+            resolve_paths_from_value,
+        )
+
+        ws = workspace or detect_workspace_root()
+        ws_resolved = resolve_path(ws)
+
+        for key, patterns in path_patterns.items():
+            value = str(args.get(key, ""))
+            if not value:
+                return False
+
+            # Determine if this key is a command argument
+            is_command = key.lower() in ("command", "cmd")
+
+            # Resolve paths from the argument value
+            resolved_paths = resolve_paths_from_value(value, is_command=is_command)
+            if not resolved_paths:
+                return False
+
+            # Resolve protected path patterns (expand ~, $HOME, __workspace__)
+            resolved_patterns = []
+            for p in patterns:
+                expanded = p.replace("__workspace__", ws_resolved)
+                resolved_patterns.append(resolve_path(expanded))
+
+            # Check if any resolved path matches a protected prefix
+            if not any(path_matches_protected(rp, resolved_patterns) for rp in resolved_paths):
+                return False
+
         return True
 
     def _check_rate_limit(self, tool_call: ToolCall, rate_limit: RateLimit) -> bool:
