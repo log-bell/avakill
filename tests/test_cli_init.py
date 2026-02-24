@@ -161,8 +161,8 @@ class TestInitRuleFlags:
         assert result.exit_code == 0
         policy = yaml.safe_load((tmp_path / "test.yaml").read_text())
         names = [r["name"] for r in policy["policies"]]
-        # Should have all 9 optional + 3 base + log-all = 13
-        assert len(names) == 13
+        # Should have all 23 optional (9 T1 + 14 T2) + 3 base + log-all = 27
+        assert len(names) == 27
         PolicyConfig.model_validate(policy)
 
     def test_list_rules_prints_catalog(self, tmp_path, monkeypatch):
