@@ -250,6 +250,21 @@ class Guard:
                 self._record(tool_call, sp_decision, start)
                 return sp_decision
 
+        # T3: Compound command splitting — evaluate each segment independently
+        compound_decision = self._evaluate_compound_segments(tool_call)
+        if compound_decision is not None:
+            elapsed_ms = (time.monotonic() - start) * 1000
+            compound_decision = Decision(
+                allowed=compound_decision.allowed,
+                action=compound_decision.action,
+                policy_name=compound_decision.policy_name,
+                reason=compound_decision.reason,
+                latency_ms=elapsed_ms,
+                overridable=compound_decision.overridable,
+            )
+            self._record(tool_call, compound_decision, start)
+            return compound_decision
+
         # Integrity check: verify policy file hasn't been tampered with
         if self._integrity is not None and self._policy_path is not None:
             ok, msg = self._integrity.check_integrity(self._policy_path)
@@ -410,6 +425,64 @@ class Guard:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _evaluate_compound_segments(self, tool_call: ToolCall) -> Decision | None:
+        """Evaluate individual segments of compound shell commands.
+
+        Splits commands containing ``&&``, ``||``, ``;``, or ``|`` and
+        evaluates each segment independently against the policy engine.
+        If any segment is denied, returns the deny decision immediately.
+
+        Returns:
+            A deny ``Decision`` if any segment is blocked, or ``None``
+            if all segments pass (caller should evaluate the full command).
+        """
+        from avakill.core.command_parser import is_compound_command, split_compound_command
+
+        command = str(tool_call.arguments.get("command") or tool_call.arguments.get("cmd") or "")
+        if not command:
+            return None
+
+        if not is_compound_command(command):
+            return None
+
+        segments = split_compound_command(command)
+        if len(segments) <= 1:
+            return None
+
+        for segment in segments:
+            # Build a modified ToolCall with just this segment as the command.
+            # Always set both "command" and "cmd" so policies using either key
+            # will match against the segment.
+            seg_args = dict(tool_call.arguments)
+            seg_args["command"] = segment
+            if "cmd" in tool_call.arguments:
+                seg_args["cmd"] = segment
+
+            seg_call = ToolCall(
+                tool_name=tool_call.tool_name,
+                arguments=seg_args,
+                agent_id=tool_call.agent_id,
+                session_id=tool_call.session_id,
+                metadata=tool_call.metadata,
+            )
+
+            try:
+                decision = self._engine.evaluate(seg_call)
+            except RateLimitExceeded:
+                # Let the caller handle rate limits on the full command
+                continue
+
+            if not decision.allowed:
+                return Decision(
+                    allowed=False,
+                    action=decision.action,
+                    policy_name=decision.policy_name,
+                    reason=f"[compound-segment] {decision.reason}",
+                    overridable=decision.overridable,
+                )
+
+        return None
 
     def _record(
         self,

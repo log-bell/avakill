@@ -689,10 +689,88 @@ _T2_RULES: list[RuleDef] = [
 ]
 
 # ---------------------------------------------------------------------------
+# T3 rules — compound command splitting (&&, ||, ;, |, subshells)
+# ---------------------------------------------------------------------------
+
+_T3_RULES: list[RuleDef] = [
+    RuleDef(
+        id="detect-command-chaining",
+        label="Command chaining detection",
+        description="Deny rm -rf, sudo, chmod 777 in compound commands (split by &&/||/;/|)",
+        category="shell",
+        tier=3,
+        rule_data={
+            "name": "detect-command-chaining",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["rm -rf", "sudo", "chmod 777", "mkfs", "dd if="],
+                },
+            },
+            "message": "Dangerous command detected in compound expression.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="detect-obfuscation",
+        label="Obfuscation detection",
+        description="Deny base64 -d, xxd -r decode patterns in compound commands",
+        category="shell",
+        tier=3,
+        rule_data={
+            "name": "detect-obfuscation",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "base64 -d",
+                        "base64 --decode",
+                        "xxd -r",
+                        "openssl enc -d",
+                    ],
+                },
+            },
+            "message": "Obfuscated command execution detected.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="detect-pipe-to-shell",
+        label="Pipe-to-shell detection",
+        description="Deny piping to sh/bash/zsh/python/perl/ruby interpreters",
+        category="shell",
+        tier=3,
+        rule_data={
+            "name": "detect-pipe-to-shell",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "| sh",
+                        "| bash",
+                        "| zsh",
+                        "| python",
+                        "| python3",
+                        "| perl",
+                        "| ruby",
+                        "| node",
+                    ],
+                },
+            },
+            "message": "Piping to shell interpreter detected.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Combined catalog
 # ---------------------------------------------------------------------------
 
-ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES + _T2_RULES
+ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES + _T2_RULES + _T3_RULES
 
 _RULES_BY_ID: dict[str, RuleDef] = {r.id: r for r in ALL_RULES}
 
@@ -713,18 +791,18 @@ def get_base_rules() -> list[RuleDef]:
 
 
 def get_optional_rules() -> list[RuleDef]:
-    """Return all optional rules (user-selectable), including T2."""
-    return list(_OPTIONAL_RULES) + list(_T2_RULES)
+    """Return all optional rules (user-selectable), including T2 and T3."""
+    return list(_OPTIONAL_RULES) + list(_T2_RULES) + list(_T3_RULES)
 
 
 def get_optional_rule_ids() -> list[str]:
     """Return IDs of all optional rules in catalog order."""
-    return [r.id for r in _OPTIONAL_RULES] + [r.id for r in _T2_RULES]
+    return [r.id for r in _OPTIONAL_RULES] + [r.id for r in _T2_RULES] + [r.id for r in _T3_RULES]
 
 
 def get_default_on_ids() -> set[str]:
     """Return IDs of optional rules that are on by default."""
-    return {r.id for r in (_OPTIONAL_RULES + _T2_RULES) if r.default_on}
+    return {r.id for r in (_OPTIONAL_RULES + _T2_RULES + _T3_RULES) if r.default_on}
 
 
 def build_policy_dict(
@@ -753,10 +831,8 @@ def build_policy_dict(
     for rule in _BASE_RULES:
         policies.append(copy.deepcopy(rule.rule_data))
 
-    # Selected optional rules in catalog order (T1 + T2; skip T3+)
-    for rule in _OPTIONAL_RULES + _T2_RULES:
-        if rule.tier > 2:
-            continue
+    # Selected optional rules in catalog order (T1 + T2 + T3)
+    for rule in _OPTIONAL_RULES + _T2_RULES + _T3_RULES:
         if rule.id in selected_set:
             policies.append(copy.deepcopy(rule.rule_data))
 

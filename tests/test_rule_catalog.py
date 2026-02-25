@@ -33,13 +33,13 @@ class TestRuleDefs:
         assert len(names) == len(set(names)), f"Duplicate names: {names}"
 
     def test_catalog_size(self):
-        assert len(ALL_RULES) == 26  # 3 base + 9 T1 optional + 14 T2
+        assert len(ALL_RULES) == 29  # 3 base + 9 T1 optional + 14 T2 + 3 T3
 
     def test_base_rules_count(self):
         assert len(get_base_rules()) == 3
 
     def test_optional_rules_count(self):
-        assert len(get_optional_rules()) == 23  # 9 T1 + 14 T2
+        assert len(get_optional_rules()) == 26  # 9 T1 + 14 T2 + 3 T3
 
     def test_base_rules_are_marked_base(self):
         for rule in get_base_rules():
@@ -73,7 +73,7 @@ class TestGetRuleById:
 class TestGetOptionalRuleIds:
     def test_returns_all_optional_ids(self):
         ids = get_optional_rule_ids()
-        assert len(ids) == 23  # 9 T1 + 14 T2
+        assert len(ids) == 26  # 9 T1 + 14 T2 + 3 T3
         assert "block-dangerous-shell" in ids
         assert "block-catastrophic-shell" not in ids  # base rule
         # T2 rules included
@@ -241,3 +241,55 @@ class TestGenerateYaml:
         parsed = yaml.safe_load(output)
         names = [p["name"] for p in parsed["policies"]]
         assert "custom-rule" in names
+
+
+class TestT3Rules:
+    """T3 command-parsing rules have correct structure."""
+
+    def test_t3_rules_count(self):
+        t3_rules = [r for r in ALL_RULES if r.tier == 3]
+        assert len(t3_rules) == 3
+
+    def test_t3_rules_have_args_match(self):
+        """All tier=3 rules use args_match conditions."""
+        t3_rules = [r for r in ALL_RULES if r.tier == 3]
+        for rule in t3_rules:
+            conditions = rule.rule_data.get("conditions", {})
+            assert "args_match" in conditions, f"T3 rule {rule.id} lacks args_match"
+
+    def test_t3_rules_are_default_on(self):
+        t3_rules = [r for r in ALL_RULES if r.tier == 3]
+        for rule in t3_rules:
+            assert rule.default_on, f"T3 rule {rule.id} should be default_on"
+
+    def test_t3_rule_ids(self):
+        t3_ids = {r.id for r in ALL_RULES if r.tier == 3}
+        assert t3_ids == {
+            "detect-command-chaining",
+            "detect-obfuscation",
+            "detect-pipe-to-shell",
+        }
+
+    def test_t3_rules_generate_valid_yaml(self):
+        """generate_yaml() with T3 rules produces valid PolicyConfig."""
+        t3_ids = [r.id for r in ALL_RULES if r.tier == 3]
+        output = generate_yaml(t3_ids)
+        parsed = yaml.safe_load(output)
+        PolicyConfig.model_validate(parsed)
+
+    def test_t3_rules_included_in_build_policy_dict(self):
+        result = build_policy_dict(["detect-command-chaining", "detect-pipe-to-shell"])
+        names = [p["name"] for p in result["policies"]]
+        assert "detect-command-chaining" in names
+        assert "detect-pipe-to-shell" in names
+
+    def test_t3_rules_in_default_on_ids(self):
+        defaults = get_default_on_ids()
+        assert "detect-command-chaining" in defaults
+        assert "detect-obfuscation" in defaults
+        assert "detect-pipe-to-shell" in defaults
+
+    def test_t3_rule_lookup(self):
+        rule = get_rule_by_id("detect-command-chaining")
+        assert rule is not None
+        assert rule.tier == 3
