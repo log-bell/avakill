@@ -94,6 +94,10 @@ class RuleConditions(BaseModel):
             boundary rules ("outside workspace" detection).
         workspace: Optional workspace root override for ``__workspace__`` sentinel
             replacement. If not set, uses ``detect_workspace_root()``.
+        content_scan: When set, scan all string argument values using the
+            specified scanner types (e.g. ``["secrets"]``,
+            ``["prompt_injection"]``).  If any scanner finds a match, the
+            condition is satisfied.
     """
 
     args_match: dict[str, list[str]] | None = None
@@ -103,6 +107,7 @@ class RuleConditions(BaseModel):
     path_match: dict[str, list[str]] | None = None
     path_not_match: dict[str, list[str]] | None = None
     workspace: str | None = None
+    content_scan: list[str] | None = None
 
 
 _WINDOW_PATTERN = re.compile(r"^\d+[smh]$")

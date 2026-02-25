@@ -323,9 +323,13 @@ class PolicyEngine:
         ):
             return False
 
+        if conditions.path_not_match and self._check_path_match(
+            args, conditions.path_not_match, conditions.workspace
+        ):
+            return False
+
         return not (
-            conditions.path_not_match
-            and self._check_path_match(args, conditions.path_not_match, conditions.workspace)
+            conditions.content_scan and not self._check_content_scan(args, conditions.content_scan)
         )
 
     def _check_path_match(
@@ -385,6 +389,30 @@ class PolicyEngine:
                 return False
 
         return True
+
+    def _check_content_scan(
+        self,
+        args: dict[str, Any],
+        scan_types: list[str],
+    ) -> bool:
+        """Scan all string argument values for secrets or prompt injection.
+
+        Args:
+            args: The tool call arguments dict.
+            scan_types: Scanner types to run (e.g. ``["secrets"]``).
+
+        Returns:
+            True if any scanner finds a match in any argument value.
+        """
+        from avakill.core.content_scanner import scan_content
+
+        for value in args.values():
+            text = str(value) if not isinstance(value, str) else value
+            if not text:
+                continue
+            if scan_content(text, scan_types):
+                return True
+        return False
 
     def _check_rate_limit(self, tool_call: ToolCall, rate_limit: RateLimit) -> bool:
         """Check whether a tool call is within the configured rate limit.

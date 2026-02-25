@@ -767,10 +767,51 @@ _T3_RULES: list[RuleDef] = [
 ]
 
 # ---------------------------------------------------------------------------
+# T5 rules — content scanning (secrets, prompt injection)
+# ---------------------------------------------------------------------------
+
+_T5_RULES: list[RuleDef] = [
+    RuleDef(
+        id="detect-secrets-outbound",
+        label="Secret detection",
+        description="Regex + entropy scan of outbound data for API keys, tokens, private keys",
+        category="access",
+        tier=5,
+        rule_data={
+            "name": "detect-secrets-outbound",
+            "tools": ["all"],
+            "action": "deny",
+            "conditions": {
+                "content_scan": ["secrets"],
+            },
+            "message": "Secret or API key detected in tool call arguments.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="detect-prompt-injection",
+        label="Prompt injection detection",
+        description="Detect instruction-override patterns in argument values",
+        category="access",
+        tier=5,
+        rule_data={
+            "name": "detect-prompt-injection",
+            "tools": ["all"],
+            "action": "deny",
+            "conditions": {
+                "content_scan": ["prompt_injection"],
+            },
+            "message": "Prompt injection pattern detected in tool call arguments.",
+        },
+        default_on=False,
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Combined catalog
 # ---------------------------------------------------------------------------
 
-ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES + _T2_RULES + _T3_RULES
+ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES + _T2_RULES + _T3_RULES + _T5_RULES
 
 _RULES_BY_ID: dict[str, RuleDef] = {r.id: r for r in ALL_RULES}
 
@@ -791,18 +832,23 @@ def get_base_rules() -> list[RuleDef]:
 
 
 def get_optional_rules() -> list[RuleDef]:
-    """Return all optional rules (user-selectable), including T2 and T3."""
-    return list(_OPTIONAL_RULES) + list(_T2_RULES) + list(_T3_RULES)
+    """Return all optional rules (user-selectable), including T2, T3, and T5."""
+    return list(_OPTIONAL_RULES) + list(_T2_RULES) + list(_T3_RULES) + list(_T5_RULES)
 
 
 def get_optional_rule_ids() -> list[str]:
     """Return IDs of all optional rules in catalog order."""
-    return [r.id for r in _OPTIONAL_RULES] + [r.id for r in _T2_RULES] + [r.id for r in _T3_RULES]
+    return (
+        [r.id for r in _OPTIONAL_RULES]
+        + [r.id for r in _T2_RULES]
+        + [r.id for r in _T3_RULES]
+        + [r.id for r in _T5_RULES]
+    )
 
 
 def get_default_on_ids() -> set[str]:
     """Return IDs of optional rules that are on by default."""
-    return {r.id for r in (_OPTIONAL_RULES + _T2_RULES + _T3_RULES) if r.default_on}
+    return {r.id for r in (_OPTIONAL_RULES + _T2_RULES + _T3_RULES + _T5_RULES) if r.default_on}
 
 
 def build_policy_dict(
@@ -831,8 +877,8 @@ def build_policy_dict(
     for rule in _BASE_RULES:
         policies.append(copy.deepcopy(rule.rule_data))
 
-    # Selected optional rules in catalog order (T1 + T2 + T3)
-    for rule in _OPTIONAL_RULES + _T2_RULES + _T3_RULES:
+    # Selected optional rules in catalog order (T1 + T2 + T3 + T5)
+    for rule in _OPTIONAL_RULES + _T2_RULES + _T3_RULES + _T5_RULES:
         if rule.id in selected_set:
             policies.append(copy.deepcopy(rule.rule_data))
 

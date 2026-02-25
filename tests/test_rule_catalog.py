@@ -33,13 +33,13 @@ class TestRuleDefs:
         assert len(names) == len(set(names)), f"Duplicate names: {names}"
 
     def test_catalog_size(self):
-        assert len(ALL_RULES) == 29  # 3 base + 9 T1 optional + 14 T2 + 3 T3
+        assert len(ALL_RULES) == 31  # 3 base + 9 T1 optional + 14 T2 + 3 T3 + 2 T5
 
     def test_base_rules_count(self):
         assert len(get_base_rules()) == 3
 
     def test_optional_rules_count(self):
-        assert len(get_optional_rules()) == 26  # 9 T1 + 14 T2 + 3 T3
+        assert len(get_optional_rules()) == 28  # 9 T1 + 14 T2 + 3 T3 + 2 T5
 
     def test_base_rules_are_marked_base(self):
         for rule in get_base_rules():
@@ -73,7 +73,7 @@ class TestGetRuleById:
 class TestGetOptionalRuleIds:
     def test_returns_all_optional_ids(self):
         ids = get_optional_rule_ids()
-        assert len(ids) == 26  # 9 T1 + 14 T2 + 3 T3
+        assert len(ids) == 28  # 9 T1 + 14 T2 + 3 T3 + 2 T5
         assert "block-dangerous-shell" in ids
         assert "block-catastrophic-shell" not in ids  # base rule
         # T2 rules included
@@ -96,12 +96,15 @@ class TestGetDefaultOnIds:
         assert "block-catastrophic-deletion" in defaults
         assert "block-ssh-key-access" in defaults
         assert "block-cloud-credentials" in defaults
+        # T5 default-on rules
+        assert "detect-secrets-outbound" in defaults
 
     def test_excludes_default_off(self):
         defaults = get_default_on_ids()
         assert "approve-package-installs" not in defaults
         assert "rate-limit-web-search" not in defaults
         assert "enforce-workspace-boundary" not in defaults
+        assert "detect-prompt-injection" not in defaults
 
 
 class TestT2Rules:
@@ -130,7 +133,7 @@ class TestT2Rules:
             assert rule.tier == 2, f"{rule.id} has tier={rule.tier}"
 
     def test_t1_rules_have_tier_1(self):
-        """All non-T2 rules default to tier=1."""
+        """All T1 rules have tier=1."""
         t1_rules = [r for r in ALL_RULES if r.tier == 1]
         assert len(t1_rules) == 12  # 3 base + 9 optional
 
@@ -293,3 +296,53 @@ class TestT3Rules:
         rule = get_rule_by_id("detect-command-chaining")
         assert rule is not None
         assert rule.tier == 3
+
+
+class TestT5Rules:
+    """T5 content-scanning rules have correct structure."""
+
+    def test_t5_rules_count(self):
+        t5_rules = [r for r in ALL_RULES if r.tier == 5]
+        assert len(t5_rules) == 2
+
+    def test_t5_rules_have_content_scan(self):
+        """All tier=5 rules use content_scan conditions."""
+        t5_rules = [r for r in ALL_RULES if r.tier == 5]
+        for rule in t5_rules:
+            conditions = rule.rule_data.get("conditions", {})
+            assert "content_scan" in conditions, f"T5 rule {rule.id} lacks content_scan"
+
+    def test_t5_rule_ids(self):
+        t5_ids = {r.id for r in ALL_RULES if r.tier == 5}
+        assert t5_ids == {
+            "detect-secrets-outbound",
+            "detect-prompt-injection",
+        }
+
+    def test_t5_rules_generate_valid_yaml(self):
+        """generate_yaml() with T5 rules produces valid PolicyConfig."""
+        t5_ids = [r.id for r in ALL_RULES if r.tier == 5]
+        output = generate_yaml(t5_ids)
+        parsed = yaml.safe_load(output)
+        PolicyConfig.model_validate(parsed)
+
+    def test_t5_rules_included_in_build_policy_dict(self):
+        result = build_policy_dict(["detect-secrets-outbound", "detect-prompt-injection"])
+        names = [p["name"] for p in result["policies"]]
+        assert "detect-secrets-outbound" in names
+        assert "detect-prompt-injection" in names
+
+    def test_t5_secrets_is_default_on(self):
+        rule = get_rule_by_id("detect-secrets-outbound")
+        assert rule is not None
+        assert rule.default_on is True
+
+    def test_t5_injection_is_default_off(self):
+        rule = get_rule_by_id("detect-prompt-injection")
+        assert rule is not None
+        assert rule.default_on is False
+
+    def test_t5_rule_lookup(self):
+        rule = get_rule_by_id("detect-secrets-outbound")
+        assert rule is not None
+        assert rule.tier == 5
