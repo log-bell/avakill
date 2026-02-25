@@ -91,6 +91,12 @@ class TestCompoundCommandDeny:
         decision = guard.evaluate("Bash", {"command": "echo x && base64 -d payload"})
         assert not decision.allowed
 
+    def test_subshell_rm_rf_denied(self, compound_policy):
+        guard = Guard(policy=compound_policy, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "echo $(rm -rf /)"})
+        assert not decision.allowed
+        assert "[compound-segment]" in decision.reason
+
 
 class TestCompoundCommandAllow:
     """Safe compound commands and quoted operators must be allowed."""
