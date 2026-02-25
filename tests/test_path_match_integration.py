@@ -306,3 +306,185 @@ class TestPerformance:
 
         avg_ms = elapsed / 100
         assert avg_ms < 1.0, f"Average evaluation took {avg_ms:.3f}ms (budget: <1ms)"
+
+
+class TestCatalogT1BaseRules:
+    """Integration tests for T1 base rules (always included)."""
+
+    def test_catastrophic_shell_blocks_rm_rf_root(self):
+        """block-catastrophic-shell blocks rm -rf /."""
+        policy_dict = build_policy_dict([], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "rm -rf /"})
+        assert decision.allowed is False
+
+    def test_catastrophic_shell_allows_safe_rm(self):
+        """block-catastrophic-shell allows safe rm."""
+        policy_dict = build_policy_dict([], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "rm file.txt"})
+        assert decision.allowed is True
+
+    def test_catastrophic_sql_shell_blocks_drop_database(self):
+        """block-catastrophic-sql-shell blocks DROP DATABASE via shell."""
+        policy_dict = build_policy_dict([], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "DROP DATABASE prod"})
+        assert decision.allowed is False
+
+    def test_catastrophic_sql_db_blocks_drop_database(self):
+        """block-catastrophic-sql-db blocks DROP DATABASE via database tools."""
+        policy_dict = build_policy_dict([], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("execute_sql", {"query": "DROP DATABASE prod"})
+        assert decision.allowed is False
+
+
+class TestCatalogT1OptionalRules:
+    """Integration tests for T1 optional rules."""
+
+    def test_dangerous_shell_blocks_sudo(self):
+        """block-dangerous-shell blocks sudo."""
+        policy_dict = build_policy_dict(["block-dangerous-shell"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "sudo rm -rf /tmp"})
+        assert decision.allowed is False
+
+    def test_dangerous_shell_allows_ls(self):
+        """block-dangerous-shell allows safe commands."""
+        policy_dict = build_policy_dict(["block-dangerous-shell"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "ls -la"})
+        assert decision.allowed is True
+
+    def test_destructive_tools_blocks_delete_tool(self):
+        """block-destructive-tools blocks delete_* tool names."""
+        policy_dict = build_policy_dict(["block-destructive-tools"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("delete_file", {"path": "/tmp/foo"})
+        assert decision.allowed is False
+
+    def test_destructive_sql_blocks_truncate(self):
+        """block-destructive-sql blocks TRUNCATE."""
+        policy_dict = build_policy_dict(["block-destructive-sql"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("execute_sql", {"query": "TRUNCATE TABLE users"})
+        assert decision.allowed is False
+
+    def test_package_install_requires_approval(self):
+        """approve-package-installs blocks pip install (require_approval)."""
+        policy_dict = build_policy_dict(["approve-package-installs"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "pip install requests"})
+        assert decision.allowed is False
+
+    def test_sensitive_files_blocks_env(self):
+        """block-sensitive-file-access blocks .env reads."""
+        policy_dict = build_policy_dict(["block-sensitive-file-access"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Read", {"file_path": ".env"})
+        assert decision.allowed is False
+
+    def test_sensitive_files_allows_normal_read(self):
+        """block-sensitive-file-access allows normal file reads."""
+        policy_dict = build_policy_dict(["block-sensitive-file-access"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Read", {"file_path": "src/main.py"})
+        assert decision.allowed is True
+
+    def test_web_rate_limit_allows_within_limit(self):
+        """rate-limit-web-search allows calls within rate limit."""
+        policy_dict = build_policy_dict(["rate-limit-web-search"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("WebSearch", {})
+        assert decision.allowed is True
+
+    def test_shell_allowlist_allows_safe_command(self):
+        """shell-command-allowlist allows allowlisted commands."""
+        policy_dict = build_policy_dict(["shell-command-allowlist"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "echo hello"})
+        assert decision.allowed is True
+
+    def test_agent_rate_limit_allows_within_limit(self):
+        """rate-limit-agent-spawn allows calls within rate limit."""
+        policy_dict = build_policy_dict(["rate-limit-agent-spawn"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Task", {})
+        assert decision.allowed is True
+
+    def test_file_write_approval_requires_approval(self):
+        """require-file-write-approval blocks writes (require_approval)."""
+        policy_dict = build_policy_dict(["require-file-write-approval"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Write", {"file_path": "foo.txt"})
+        assert decision.allowed is False
+
+
+class TestCatalogT2RulesExtended:
+    """Integration tests for T2 rules not covered by existing tests."""
+
+    def test_deletion_outside_workspace_blocked(self, tmp_path):
+        """block-deletion-outside-workspace blocks rm -rf outside workspace."""
+        policy_dict = build_policy_dict(
+            ["block-deletion-outside-workspace"], default_action="allow"
+        )
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "rm -rf /tmp/other"})
+        assert decision.allowed is False
+
+    def test_symlink_escape_blocks_etc_read(self):
+        """block-symlink-escape blocks reads resolving to /etc/."""
+        policy_dict = build_policy_dict(["block-symlink-escape"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Read", {"file_path": "/etc/passwd"})
+        assert decision.allowed is False
+
+    def test_ownership_changes_blocked(self):
+        """block-ownership-changes blocks chown outside workspace."""
+        policy_dict = build_policy_dict(["block-ownership-changes"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Bash", {"command": "chown root /etc/hosts"})
+        assert decision.allowed is False
+
+    def test_profile_modification_blocked(self):
+        """block-profile-modification blocks writes to ~/.bashrc."""
+        policy_dict = build_policy_dict(["block-profile-modification"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Write", {"file_path": "~/.bashrc"})
+        assert decision.allowed is False
+
+    def test_startup_persistence_blocked(self):
+        """block-startup-persistence blocks writes to LaunchAgents."""
+        policy_dict = build_policy_dict(["block-startup-persistence"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Write", {"file_path": "~/Library/LaunchAgents/evil.plist"})
+        assert decision.allowed is False
+
+    def test_env_outside_workspace_blocked(self):
+        """block-env-outside-workspace blocks .env access outside workspace."""
+        policy_dict = build_policy_dict(["block-env-outside-workspace"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Read", {"file_path": "/other/project/.env"})
+        assert decision.allowed is False
+
+    def test_launchagent_creation_blocked(self):
+        """block-launchagent-creation blocks plist writes to LaunchAgents."""
+        policy_dict = build_policy_dict(["block-launchagent-creation"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Write", {"file_path": "~/Library/LaunchAgents/evil.plist"})
+        assert decision.allowed is False
+
+    def test_systemd_persistence_blocked(self):
+        """block-systemd-persistence blocks writes to systemd dirs."""
+        policy_dict = build_policy_dict(["block-systemd-persistence"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Write", {"file_path": "/etc/systemd/system/evil.service"})
+        assert decision.allowed is False
+
+    def test_system_file_modification_blocked(self):
+        """block-system-file-modification blocks writes to /etc/passwd."""
+        policy_dict = build_policy_dict(["block-system-file-modification"], default_action="allow")
+        guard = Guard(policy=policy_dict, self_protection=False)
+        decision = guard.evaluate("Write", {"file_path": "/etc/passwd"})
+        assert decision.allowed is False

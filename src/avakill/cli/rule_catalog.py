@@ -127,7 +127,7 @@ class RuleDef:
 
 _BASE_RULES: list[RuleDef] = [
     RuleDef(
-        id="catastrophic-shell",
+        id="block-catastrophic-shell",
         label="Catastrophic shell commands",
         description="Block rm -rf /, mkfs, dd if=, > /dev/, fork bombs",
         category="shell",
@@ -152,7 +152,7 @@ _BASE_RULES: list[RuleDef] = [
         base=True,
     ),
     RuleDef(
-        id="catastrophic-sql-shell",
+        id="block-catastrophic-sql-shell",
         label="Catastrophic SQL (shell)",
         description="Block DROP DATABASE/SCHEMA via shell tools",
         category="sql",
@@ -170,7 +170,7 @@ _BASE_RULES: list[RuleDef] = [
         base=True,
     ),
     RuleDef(
-        id="catastrophic-sql-db",
+        id="block-catastrophic-sql-db",
         label="Catastrophic SQL (database)",
         description="Block DROP DATABASE/SCHEMA via database tools",
         category="sql",
@@ -195,7 +195,7 @@ _BASE_RULES: list[RuleDef] = [
 
 _OPTIONAL_RULES: list[RuleDef] = [
     RuleDef(
-        id="dangerous-shell",
+        id="block-dangerous-shell",
         label="Dangerous shell commands",
         description="Block rm -rf, sudo, chmod 777",
         category="shell",
@@ -213,7 +213,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=True,
     ),
     RuleDef(
-        id="destructive-sql",
+        id="block-destructive-sql",
         label="Destructive SQL operations",
         description="Block DELETE, TRUNCATE, ALTER, DROP TABLE",
         category="sql",
@@ -231,7 +231,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=True,
     ),
     RuleDef(
-        id="destructive-tools",
+        id="block-destructive-tools",
         label="Destructive tool patterns",
         description="Block delete_*, remove_*, destroy_* tools",
         category="tools",
@@ -253,7 +253,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=True,
     ),
     RuleDef(
-        id="package-install",
+        id="approve-package-installs",
         label="Package install approval",
         description="Require approval for pip install, npm install -g, brew install",
         category="shell",
@@ -271,7 +271,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=False,
     ),
     RuleDef(
-        id="web-rate-limit",
+        id="rate-limit-web-search",
         label="Web search rate limit",
         description="Rate limit web search calls (default: 30/min)",
         category="rate-limit",
@@ -292,7 +292,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=False,
     ),
     RuleDef(
-        id="agent-rate-limit",
+        id="rate-limit-agent-spawn",
         label="Agent spawning rate limit",
         description="Rate limit agent/task spawning (default: 20/min)",
         category="rate-limit",
@@ -312,7 +312,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=False,
     ),
     RuleDef(
-        id="file-write-approval",
+        id="require-file-write-approval",
         label="File write approval",
         description="Require human approval for all write/edit tools",
         category="access",
@@ -325,7 +325,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=False,
     ),
     RuleDef(
-        id="shell-allowlist",
+        id="shell-command-allowlist",
         label="Shell command allowlist",
         description="Only allow approved shell commands (echo, ls, git, python, ...)",
         category="shell",
@@ -363,7 +363,7 @@ _OPTIONAL_RULES: list[RuleDef] = [
         default_on=False,
     ),
     RuleDef(
-        id="sensitive-files",
+        id="block-sensitive-file-access",
         label="Sensitive file access",
         description="Block reads to .env, .ssh/, credentials, API keys",
         category="access",
@@ -401,7 +401,7 @@ _T2_RULES: list[RuleDef] = [
     RuleDef(
         id="block-catastrophic-deletion",
         label="Catastrophic deletion (path-aware)",
-        description="Block rm -rf targeting root or home (resolves ~/,$HOME)",
+        description="Block rm -rf targeting any resolved absolute path (resolves ~/,$HOME,../)",
         category="filesystem",
         tier=2,
         rule_data={

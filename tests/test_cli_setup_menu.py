@@ -43,7 +43,7 @@ class TestToggleRuleOff:
     def test_removing_default_on_rule(self):
         """Toggling dangerous-shell off should exclude it."""
         defaults = set(get_default_on_ids())
-        defaults.discard("dangerous-shell")
+        defaults.discard("block-dangerous-shell")
         output = generate_yaml(list(defaults))
         parsed = yaml.safe_load(output)
         names = [p["name"] for p in parsed["policies"]]
@@ -62,12 +62,12 @@ class TestToggleRuleOff:
 
 class TestDefaultActionDeny:
     def test_deny_reflected_in_yaml(self):
-        output = generate_yaml(["dangerous-shell"], default_action="deny")
+        output = generate_yaml(["block-dangerous-shell"], default_action="deny")
         parsed = yaml.safe_load(output)
         assert parsed["default_action"] == "deny"
 
     def test_deny_has_no_log_all(self):
-        output = generate_yaml(["dangerous-shell"], default_action="deny")
+        output = generate_yaml(["block-dangerous-shell"], default_action="deny")
         parsed = yaml.safe_load(output)
         names = [p["name"] for p in parsed["policies"]]
         assert "log-all" not in names
@@ -84,7 +84,7 @@ class TestScanIntegration:
                 "message": "Detected env file(s)",
             }
         ]
-        output = generate_yaml(["dangerous-shell"], extra_rules=extra)
+        output = generate_yaml(["block-dangerous-shell"], extra_rules=extra)
         parsed = yaml.safe_load(output)
         names = [p["name"] for p in parsed["policies"]]
         assert "protect-env-files" in names
@@ -92,7 +92,7 @@ class TestScanIntegration:
 
     def test_scan_rules_come_after_optional_before_log_all(self):
         extra = [{"name": "scan-rule", "tools": ["file_write"], "action": "deny"}]
-        output = generate_yaml(["dangerous-shell"], default_action="allow", extra_rules=extra)
+        output = generate_yaml(["block-dangerous-shell"], default_action="allow", extra_rules=extra)
         parsed = yaml.safe_load(output)
         names = [p["name"] for p in parsed["policies"]]
         scan_idx = names.index("scan-rule")

@@ -132,7 +132,7 @@ class TestInitRuleFlags:
     def test_rule_flag_produces_policy_with_that_rule(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(init, ["--rule", "dangerous-shell", "--output", "test.yaml"])
+        result = runner.invoke(init, ["--rule", "block-dangerous-shell", "--output", "test.yaml"])
         assert result.exit_code == 0
         policy = yaml.safe_load((tmp_path / "test.yaml").read_text())
         names = [r["name"] for r in policy["policies"]]
@@ -146,7 +146,14 @@ class TestInitRuleFlags:
         runner = CliRunner()
         result = runner.invoke(
             init,
-            ["--rule", "dangerous-shell", "--rule", "web-rate-limit", "--output", "test.yaml"],
+            [
+                "--rule",
+                "block-dangerous-shell",
+                "--rule",
+                "rate-limit-web-search",
+                "--output",
+                "test.yaml",
+            ],
         )
         assert result.exit_code == 0
         policy = yaml.safe_load((tmp_path / "test.yaml").read_text())
@@ -170,15 +177,23 @@ class TestInitRuleFlags:
         runner = CliRunner()
         result = runner.invoke(init, ["--list-rules"])
         assert result.exit_code == 0
-        assert "dangerous-shell" in result.output
-        assert "catastrophic-shell" in result.output
-        assert "web-rate-limit" in result.output
+        assert "block-dangerous-shell" in result.output
+        assert "block-catastrophic-shell" in result.output
+        assert "rate-limit-web-search" in result.output
 
     def test_rule_plus_template_errors(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(
-            init, ["--rule", "dangerous-shell", "--template", "hooks", "--output", "test.yaml"]
+            init,
+            [
+                "--rule",
+                "block-dangerous-shell",
+                "--template",
+                "hooks",
+                "--output",
+                "test.yaml",
+            ],
         )
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output.lower()
@@ -200,7 +215,14 @@ class TestInitRuleFlags:
         runner = CliRunner()
         result = runner.invoke(
             init,
-            ["--rule", "dangerous-shell", "--default-action", "deny", "--output", "test.yaml"],
+            [
+                "--rule",
+                "block-dangerous-shell",
+                "--default-action",
+                "deny",
+                "--output",
+                "test.yaml",
+            ],
         )
         assert result.exit_code == 0
         policy = yaml.safe_load((tmp_path / "test.yaml").read_text())

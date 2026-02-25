@@ -52,15 +52,15 @@ class TestRuleDefs:
 
 class TestGetRuleById:
     def test_returns_correct_rule(self):
-        rule = get_rule_by_id("dangerous-shell")
+        rule = get_rule_by_id("block-dangerous-shell")
         assert rule is not None
-        assert rule.id == "dangerous-shell"
+        assert rule.id == "block-dangerous-shell"
 
     def test_returns_none_for_unknown(self):
         assert get_rule_by_id("nonexistent-rule") is None
 
     def test_base_rule_lookup(self):
-        rule = get_rule_by_id("catastrophic-shell")
+        rule = get_rule_by_id("block-catastrophic-shell")
         assert rule is not None
         assert rule.base is True
 
@@ -74,8 +74,8 @@ class TestGetOptionalRuleIds:
     def test_returns_all_optional_ids(self):
         ids = get_optional_rule_ids()
         assert len(ids) == 23  # 9 T1 + 14 T2
-        assert "dangerous-shell" in ids
-        assert "catastrophic-shell" not in ids  # base rule
+        assert "block-dangerous-shell" in ids
+        assert "block-catastrophic-shell" not in ids  # base rule
         # T2 rules included
         assert "block-catastrophic-deletion" in ids
         assert "enforce-workspace-boundary" in ids
@@ -89,9 +89,9 @@ class TestGetOptionalRuleIds:
 class TestGetDefaultOnIds:
     def test_returns_default_on_rules(self):
         defaults = get_default_on_ids()
-        assert "dangerous-shell" in defaults
-        assert "destructive-sql" in defaults
-        assert "destructive-tools" in defaults
+        assert "block-dangerous-shell" in defaults
+        assert "block-destructive-sql" in defaults
+        assert "block-destructive-tools" in defaults
         # T2 default-on rules
         assert "block-catastrophic-deletion" in defaults
         assert "block-ssh-key-access" in defaults
@@ -99,8 +99,8 @@ class TestGetDefaultOnIds:
 
     def test_excludes_default_off(self):
         defaults = get_default_on_ids()
-        assert "package-install" not in defaults
-        assert "web-rate-limit" not in defaults
+        assert "approve-package-installs" not in defaults
+        assert "rate-limit-web-search" not in defaults
         assert "enforce-workspace-boundary" not in defaults
 
 
@@ -146,7 +146,7 @@ class TestBuildPolicyDict:
         assert "block-catastrophic-sql-db" in names
 
     def test_selected_rules_included(self):
-        result = build_policy_dict(["dangerous-shell", "web-rate-limit"])
+        result = build_policy_dict(["block-dangerous-shell", "rate-limit-web-search"])
         names = [p["name"] for p in result["policies"]]
         assert "block-dangerous-shell" in names
         assert "rate-limit-web-search" in names
@@ -158,8 +158,8 @@ class TestBuildPolicyDict:
         assert "block-ssh-key-access" in names
 
     def test_selected_in_catalog_order(self):
-        # web-rate-limit comes after dangerous-shell in catalog
-        result = build_policy_dict(["web-rate-limit", "dangerous-shell"])
+        # rate-limit-web-search comes after block-dangerous-shell in catalog
+        result = build_policy_dict(["rate-limit-web-search", "block-dangerous-shell"])
         names = [p["name"] for p in result["policies"]]
         shell_idx = names.index("block-dangerous-shell")
         web_idx = names.index("rate-limit-web-search")
@@ -177,7 +177,7 @@ class TestBuildPolicyDict:
 
     def test_extra_rules_after_optional(self):
         extra = [{"name": "scan-env", "tools": ["file_write"], "action": "deny"}]
-        result = build_policy_dict(["dangerous-shell"], extra_rules=extra)
+        result = build_policy_dict(["block-dangerous-shell"], extra_rules=extra)
         names = [p["name"] for p in result["policies"]]
         shell_idx = names.index("block-dangerous-shell")
         scan_idx = names.index("scan-env")
@@ -189,11 +189,11 @@ class TestBuildPolicyDict:
 
     def test_deepcopy_prevents_mutation(self):
         """Calling build_policy_dict should not mutate the original rule_data."""
-        original_rule = get_rule_by_id("web-rate-limit")
+        original_rule = get_rule_by_id("rate-limit-web-search")
         assert original_rule is not None
         original_max = original_rule.rule_data["rate_limit"]["max_calls"]
 
-        result = build_policy_dict(["web-rate-limit"])
+        result = build_policy_dict(["rate-limit-web-search"])
         # Mutate the result
         for p in result["policies"]:
             if p["name"] == "rate-limit-web-search":
@@ -217,13 +217,13 @@ class TestGenerateYaml:
 
     def test_header_includes_base_rule_ids(self):
         output = generate_yaml([])
-        assert "catastrophic-shell" in output
-        assert "catastrophic-sql-shell" in output
-        assert "catastrophic-sql-db" in output
+        assert "block-catastrophic-shell" in output
+        assert "block-catastrophic-sql-shell" in output
+        assert "block-catastrophic-sql-db" in output
 
     def test_header_includes_selected_ids(self):
-        output = generate_yaml(["dangerous-shell", "web-rate-limit"])
-        assert "Selected rules: dangerous-shell, web-rate-limit" in output
+        output = generate_yaml(["block-dangerous-shell", "rate-limit-web-search"])
+        assert "Selected rules: block-dangerous-shell, rate-limit-web-search" in output
 
     def test_default_action_allow(self):
         output = generate_yaml([], default_action="allow")
@@ -237,7 +237,7 @@ class TestGenerateYaml:
 
     def test_with_extra_rules(self):
         extra = [{"name": "custom-rule", "tools": ["all"], "action": "deny"}]
-        output = generate_yaml(["dangerous-shell"], extra_rules=extra)
+        output = generate_yaml(["block-dangerous-shell"], extra_rules=extra)
         parsed = yaml.safe_load(output)
         names = [p["name"] for p in parsed["policies"]]
         assert "custom-rule" in names
