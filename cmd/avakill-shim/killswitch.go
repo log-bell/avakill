@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -74,3 +75,75 @@ func (ks *KillSwitch) Disengage() {
 	// Remove sentinel file if it exists
 	os.Remove(ks.filePath)
 }
+
+// Start performs a synchronous initial file check, then begins background
+// polling and signal handling. If the sentinel file exists at startup,
+// the kill switch starts engaged.
+func (ks *KillSwitch) Start() {
+	ks.checkFile()
+	go ks.pollLoop()
+	ks.startSignalHandler()
+}
+
+// Stop stops the background polling goroutine.
+func (ks *KillSwitch) Stop() {
+	close(ks.stopCh)
+}
+
+// pollLoop runs checkFile periodically until stopped.
+func (ks *KillSwitch) pollLoop() {
+	ticker := time.NewTicker(ks.fileCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			ks.checkFile()
+		case <-ks.stopCh:
+			return
+		}
+	}
+}
+
+// checkFile checks the sentinel file and updates ONLY the file-engagement state.
+// Does not affect manual (signal/programmatic) engagement.
+// Fail-closed: any stat error other than "not exist" engages the switch.
+func (ks *KillSwitch) checkFile() {
+	_, err := os.Stat(ks.filePath)
+
+	if os.IsNotExist(err) {
+		ks.mu.Lock()
+		ks.fileEngaged = false
+		ks.fileReason = ""
+		ks.mu.Unlock()
+		return
+	}
+
+	// File exists (err == nil) OR stat failed (fail-closed) — engage
+	reason := ks.readSentinelReason()
+
+	ks.mu.Lock()
+	ks.fileEngaged = true
+	ks.fileReason = reason
+	if ks.engagedAt.IsZero() {
+		ks.engagedAt = time.Now()
+	}
+	ks.mu.Unlock()
+}
+
+// readSentinelReason reads the sentinel file contents as the denial reason.
+// Returns a default reason on any read error.
+func (ks *KillSwitch) readSentinelReason() string {
+	data, err := os.ReadFile(ks.filePath)
+	if err != nil {
+		return "kill switch engaged (sentinel file unreadable)"
+	}
+	reason := strings.TrimSpace(string(data))
+	if reason == "" {
+		return "kill switch engaged via sentinel file"
+	}
+	return reason
+}
+
+// startSignalHandler is a placeholder — signal handling added in Task 3.
+func (ks *KillSwitch) startSignalHandler() {}
