@@ -303,3 +303,79 @@ func TestKillSwitch_EvaluatorIntegration_NilKillSwitch(t *testing.T) {
 		t.Fatalf("expected fail-closed deny, got %q", resp.Decision)
 	}
 }
+
+func BenchmarkKillSwitch_IsEngaged(b *testing.B) {
+	dir := b.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ks.IsEngaged()
+	}
+}
+
+func TestKillSwitch_IsEngaged_Performance(t *testing.T) {
+	dir := t.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+
+	start := time.Now()
+	iterations := 1_000_000
+	for i := 0; i < iterations; i++ {
+		ks.IsEngaged()
+	}
+	elapsed := time.Since(start)
+	nsPerOp := float64(elapsed.Nanoseconds()) / float64(iterations)
+
+	if nsPerOp > 100 {
+		t.Fatalf("IsEngaged() too slow: %.1f ns/op (target: <100ns)", nsPerOp)
+	}
+	t.Logf("IsEngaged() performance: %.1f ns/op", nsPerOp)
+}
+
+func TestKillSwitch_MultiInstance_SharedFile(t *testing.T) {
+	dir := t.TempDir()
+	sentinelPath := filepath.Join(dir, "killswitch")
+
+	ks1 := NewKillSwitch(sentinelPath)
+	ks1.fileCheckInterval = 50 * time.Millisecond
+	ks1.Start()
+	defer ks1.Stop()
+
+	ks2 := NewKillSwitch(sentinelPath)
+	ks2.fileCheckInterval = 50 * time.Millisecond
+	ks2.Start()
+	defer ks2.Stop()
+
+	// Create sentinel — both instances should engage
+	os.WriteFile(sentinelPath, []byte("shared kill"), 0644)
+	time.Sleep(150 * time.Millisecond)
+
+	engaged1, _ := ks1.IsEngaged()
+	engaged2, _ := ks2.IsEngaged()
+	if !engaged1 || !engaged2 {
+		t.Fatalf("expected both engaged, got ks1=%v ks2=%v", engaged1, engaged2)
+	}
+
+	// Remove sentinel — both should disengage
+	os.Remove(sentinelPath)
+	time.Sleep(150 * time.Millisecond)
+
+	engaged1, _ = ks1.IsEngaged()
+	engaged2, _ = ks2.IsEngaged()
+	if engaged1 || engaged2 {
+		t.Fatalf("expected both disengaged, got ks1=%v ks2=%v", engaged1, engaged2)
+	}
+}
+
+func TestDefaultKillSwitchPath(t *testing.T) {
+	path := defaultKillSwitchPath()
+	if path == "" {
+		t.Skip("no home directory available")
+	}
+
+	home, _ := os.UserHomeDir()
+	expected := filepath.Join(home, ".avakill", "killswitch")
+	if path != expected {
+		t.Fatalf("expected %q, got %q", expected, path)
+	}
+}
