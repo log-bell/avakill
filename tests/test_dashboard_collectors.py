@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -186,3 +187,34 @@ class TestHealthCollector:
         result = run_health_check("go_build", Path("."))
         assert result["status"] == "fail"
         assert "cfg.ToolHash" in result.get("error", "")
+
+
+class TestSnapshotAssembler:
+    """Tests for build_snapshot()."""
+
+    def test_returns_all_sections(self) -> None:
+        from avakill.cli.dashboard_cmd import build_snapshot
+
+        root = Path(__file__).resolve().parent.parent
+        result = build_snapshot(root)
+        assert "timestamp" in result
+        assert "project" in result
+        assert "git" in result
+        assert "modules" in result
+        assert "health" in result
+
+    def test_project_has_name_and_version(self) -> None:
+        from avakill.cli.dashboard_cmd import build_snapshot
+
+        root = Path(__file__).resolve().parent.parent
+        result = build_snapshot(root)
+        assert result["project"]["name"] == "avakill"
+        assert "version" in result["project"]
+
+    def test_snapshot_is_json_serializable(self) -> None:
+        from avakill.cli.dashboard_cmd import build_snapshot
+
+        root = Path(__file__).resolve().parent.parent
+        result = build_snapshot(root)
+        serialized = json.dumps(result)
+        assert len(serialized) > 100

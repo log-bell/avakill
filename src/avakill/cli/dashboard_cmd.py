@@ -242,6 +242,36 @@ def run_health_check(check_name: str, root: Path) -> dict:
         }
 
 
+def build_snapshot(root: Path, health_state: dict | None = None) -> dict:
+    """Build a complete dashboard snapshot."""
+    name = root.name
+    version = "unknown"
+    pyproject = root / "pyproject.toml"
+    if pyproject.exists():
+        for line in pyproject.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith("version") and "=" in stripped:
+                version = stripped.split("=", 1)[1].strip().strip('"')
+            elif stripped.startswith("name") and "=" in stripped:
+                name = stripped.split("=", 1)[1].strip().strip('"')
+
+    package_root = root / "src" / "avakill"
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "project": {
+            "name": name,
+            "version": version,
+            "root": str(root),
+        },
+        "git": collect_git_state(root),
+        "modules": collect_module_graph(package_root)
+        if package_root.exists()
+        else {"nodes": [], "edges": [], "subpackages": []},
+        "health": health_state if health_state is not None else collect_health(),
+    }
+
+
 def _make_header(stats: dict[str, Any]) -> Panel:
     """Build the safety overview stats panel."""
     total = stats.get("total_events", 0)
