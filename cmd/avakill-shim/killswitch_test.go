@@ -315,6 +315,10 @@ func BenchmarkKillSwitch_IsEngaged(b *testing.B) {
 }
 
 func TestKillSwitch_IsEngaged_Performance(t *testing.T) {
+	if raceDetectorEnabled {
+		t.Skip("skipping performance test under race detector (adds ~10x overhead)")
+	}
+
 	dir := t.TempDir()
 	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
 
