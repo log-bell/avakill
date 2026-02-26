@@ -1,5 +1,29 @@
 # AvaKill
 
+## Core Product Flow
+
+Everything we add or fix in this project must assimilate to this core flow:
+
+```
+avakill.yaml (one policy file)
+    |
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex)
+    |     → work standalone, evaluate in-process
+    |
+    ├── MCP Proxy (wraps MCP servers)
+    |     → works standalone, evaluate in-process
+    |
+    ├── OS Sandbox (launch + profiles)
+    |     → works standalone, OS-level enforcement
+    |
+    └── Daemon (optional)
+          → shared evaluation, audit logging
+          → hooks/proxy CAN talk to it if running
+          → enables: logs, fix, tracking, approvals, metrics
+```
+
+The YAML policy file is the single source of truth. The three enforcement paths (hooks, MCP proxy, OS sandbox) all work independently without the daemon. The daemon is an optional layer that adds audit logging, shared evaluation, and visibility tooling.
+
 ## Release Process
 
 Version is single-sourced from `pyproject.toml` via `importlib.metadata`. Never hardcode versions elsewhere.
