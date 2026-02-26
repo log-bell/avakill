@@ -36,6 +36,8 @@ type RuleConditions struct {
 	ArgsNotMatch     map[string][]string `yaml:"args_not_match,omitempty"`
 	ShellSafe        bool                `yaml:"shell_safe,omitempty"`
 	CommandAllowlist []string            `yaml:"command_allowlist,omitempty"`
+	PathMatch        []string            `yaml:"path_match,omitempty"`
+	PathNotMatch     []string            `yaml:"path_not_match,omitempty"`
 }
 
 // RateLimit configures a sliding-window rate limit for a rule.
@@ -175,6 +177,42 @@ func checkConditions(args map[string]interface{}, conds *RuleConditions) bool {
 			if strings.Contains(value, strings.ToLower(s)) {
 				return false
 			}
+		}
+	}
+
+	// path_match: extract paths from args, normalize, check if ANY matches ANY pattern
+	if len(conds.PathMatch) > 0 {
+		workspace := cachedWorkspaceRoot()
+		rawPaths := extractPaths(args)
+		matched := false
+		for _, raw := range rawPaths {
+			normalized := normalizePath(raw, workspace)
+			if matchPath(normalized, conds.PathMatch, workspace) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	// path_not_match: forbidden path patterns. The rule fires when ANY extracted
+	// path matches ANY pattern (i.e., a blacklist). If no path matches, the
+	// condition fails and the rule is skipped.
+	if len(conds.PathNotMatch) > 0 {
+		workspace := cachedWorkspaceRoot()
+		rawPaths := extractPaths(args)
+		matched := false
+		for _, raw := range rawPaths {
+			normalized := normalizePath(raw, workspace)
+			if matchPath(normalized, conds.PathNotMatch, workspace) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
 		}
 	}
 

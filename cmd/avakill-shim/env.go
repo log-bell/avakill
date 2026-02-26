@@ -108,6 +108,12 @@ func EnvToSlice(env map[string]string) []string {
 
 // expandHome replaces a leading "~/" with the user's home directory.
 func expandHome(path string) string {
+	if path == "~" {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home
+		}
+		return path
+	}
 	if !strings.HasPrefix(path, "~/") {
 		return path
 	}

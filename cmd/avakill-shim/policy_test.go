@@ -962,3 +962,186 @@ policies:
 		t.Errorf("expected deny for quote-bypass whoami, got %q", resp.Decision)
 	}
 }
+
+// --- Path condition integration tests ---
+
+func TestEvaluate_PathNotMatch_BlocksSensitivePath(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: allow
+policies:
+  - name: block-sensitive
+    tools: ["write_file"]
+    action: deny
+    conditions:
+      path_not_match: ["/etc/", "~/.ssh/"]
+    message: "Write to sensitive path blocked"
+`)
+
+	cache := NewPolicyCache(path, false)
+	resp, err := cache.Evaluate("write_file", map[string]interface{}{"path": "/etc/passwd"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny for /etc/passwd, got %q: %s", resp.Decision, resp.Reason)
+	}
+}
+
+func TestEvaluate_PathNotMatch_AllowsSafePath(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: allow
+policies:
+  - name: block-sensitive
+    tools: ["write_file"]
+    action: deny
+    conditions:
+      path_not_match: ["/etc/", "~/.ssh/"]
+    message: "Write to sensitive path blocked"
+`)
+
+	cache := NewPolicyCache(path, false)
+	resp, err := cache.Evaluate("write_file", map[string]interface{}{"path": "/home/user/project/file.txt"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// path_not_match condition fails (no pattern matches), so rule is skipped → default allow
+	if resp.Decision != "allow" {
+		t.Errorf("expected allow for safe path, got %q: %s", resp.Decision, resp.Reason)
+	}
+}
+
+func TestEvaluate_PathMatch_TraversalResistance(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: deny
+policies:
+  - name: allow-tmp
+    tools: ["write_file"]
+    action: allow
+    conditions:
+      path_match: ["/tmp/"]
+`)
+
+	cache := NewPolicyCache(path, false)
+	// /tmp/../../etc/passwd normalizes to /etc/passwd — should NOT match /tmp/
+	resp, err := cache.Evaluate("write_file", map[string]interface{}{"path": "/tmp/../../etc/passwd"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny for traversal path (normalizes to /etc/passwd), got %q", resp.Decision)
+	}
+}
+
+func TestEvaluate_PathMatch_DirectoryBoundary(t *testing.T) {
+	// CVE-2025-53110 resistance: /etc/ must NOT match /etcetera/safe.txt
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: allow
+policies:
+  - name: block-etc
+    tools: ["write_file"]
+    action: deny
+    conditions:
+      path_not_match: ["/etc/"]
+    message: "blocked"
+`)
+
+	cache := NewPolicyCache(path, false)
+	resp, err := cache.Evaluate("write_file", map[string]interface{}{"path": "/etcetera/safe.txt"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "allow" {
+		t.Errorf("expected allow for /etcetera/safe.txt (directory boundary), got %q", resp.Decision)
+	}
+}
+
+func TestEvaluate_PathConditions_NoPathArgs(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: deny
+policies:
+  - name: allow-in-tmp
+    tools: ["write_file"]
+    action: allow
+    conditions:
+      path_match: ["/tmp/"]
+`)
+
+	cache := NewPolicyCache(path, false)
+	// No path-like arguments → path_match condition fails → rule skipped → default deny
+	resp, err := cache.Evaluate("write_file", map[string]interface{}{"content": "hello"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny when no path args present, got %q", resp.Decision)
+	}
+}
+
+func TestEvaluate_PathConditions_MultipleKeys(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: allow
+policies:
+  - name: block-etc-writes
+    tools: ["copy_file"]
+    action: deny
+    conditions:
+      path_not_match: ["/etc/"]
+    message: "blocked sensitive destination"
+`)
+
+	cache := NewPolicyCache(path, false)
+	// destination matches /etc/ → path_not_match triggers → deny
+	resp, err := cache.Evaluate("copy_file", map[string]interface{}{
+		"source":      "/safe/a.txt",
+		"destination": "/etc/passwd",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny when destination is in /etc/, got %q", resp.Decision)
+	}
+}
+
+func TestCheckConditions_PathMatch_ANDWithArgsMatch(t *testing.T) {
+	// Verify path conditions AND with other conditions
+	conds := &RuleConditions{
+		ArgsMatch: map[string][]string{
+			"mode": {"overwrite"},
+		},
+		PathMatch: []string{"/tmp/"},
+	}
+
+	// Both match → true
+	args := map[string]interface{}{
+		"path": "/tmp/file.txt",
+		"mode": "overwrite",
+	}
+	if !checkConditions(args, conds) {
+		t.Error("expected conditions to pass when both args_match and path_match are satisfied")
+	}
+
+	// args_match passes but path_match fails → false
+	args2 := map[string]interface{}{
+		"path": "/etc/passwd",
+		"mode": "overwrite",
+	}
+	if checkConditions(args2, conds) {
+		t.Error("expected conditions to fail when path_match is not satisfied")
+	}
+
+	// path_match passes but args_match fails → false
+	args3 := map[string]interface{}{
+		"path": "/tmp/file.txt",
+		"mode": "readonly",
+	}
+	if checkConditions(args3, conds) {
+		t.Error("expected conditions to fail when args_match is not satisfied")
+	}
+}

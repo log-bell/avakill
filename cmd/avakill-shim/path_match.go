@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // normalizePath resolves a raw path string to a canonical absolute path.
@@ -21,12 +22,6 @@ func normalizePath(raw string, workspaceRoot string) string {
 
 	// Expand ~ (reuse existing expandHome from env.go)
 	expanded := expandHome(raw)
-	// Also handle bare "~" (expandHome only handles "~/")
-	if expanded == "~" {
-		if home, err := os.UserHomeDir(); err == nil {
-			expanded = home
-		}
-	}
 
 	// Clean: collapse ., .., multiple slashes
 	cleaned := filepath.Clean(expanded)
@@ -282,6 +277,7 @@ func isPathLike(s string) bool {
 //
 // Not cached — called per-evaluation. Use AVAKILL_WORKSPACE env var
 // for zero-cost resolution in performance-sensitive contexts.
+// For cached access, use cachedWorkspaceRoot() instead.
 func detectWorkspaceRoot() string {
 	if ws := os.Getenv("AVAKILL_WORKSPACE"); ws != "" {
 		return filepath.Clean(ws)
@@ -305,4 +301,17 @@ func detectWorkspaceRoot() string {
 	}
 
 	return cwd
+}
+
+var (
+	workspaceOnce sync.Once
+	workspaceRoot string
+)
+
+// cachedWorkspaceRoot returns the workspace root, resolving it only once per process.
+func cachedWorkspaceRoot() string {
+	workspaceOnce.Do(func() {
+		workspaceRoot = detectWorkspaceRoot()
+	})
+	return workspaceRoot
 }
