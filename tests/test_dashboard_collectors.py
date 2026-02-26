@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 
 class TestGitCollector:
@@ -124,3 +125,64 @@ class TestModuleCollector:
         ids = [n["id"] for n in result["nodes"]]
         assert "module" in ids
         assert "readme" not in ids
+
+
+class TestHealthCollector:
+    """Tests for collect_health() and run_health_check()."""
+
+    def test_returns_four_checks(self) -> None:
+        from avakill.cli.dashboard_cmd import collect_health
+
+        result = collect_health()
+        assert "tests" in result
+        assert "lint" in result
+        assert "typecheck" in result
+        assert "go_build" in result
+
+    def test_check_has_required_fields(self) -> None:
+        from avakill.cli.dashboard_cmd import collect_health
+
+        result = collect_health()
+        for key, check in result.items():
+            assert "status" in check, f"{key} missing status"
+            assert "last_run" in check, f"{key} missing last_run"
+
+    def test_initial_status_is_stale(self) -> None:
+        from avakill.cli.dashboard_cmd import collect_health
+
+        result = collect_health()
+        for check in result.values():
+            assert check["status"] == "stale"
+
+    @patch("avakill.cli.dashboard_cmd.subprocess.run")
+    def test_run_check_tests_success(self, mock_run: MagicMock) -> None:
+        from avakill.cli.dashboard_cmd import run_health_check
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="4 passed", stderr="")
+        result = run_health_check("tests", Path("."))
+        assert result["status"] == "pass"
+
+    @patch("avakill.cli.dashboard_cmd.subprocess.run")
+    def test_run_check_tests_failure(self, mock_run: MagicMock) -> None:
+        from avakill.cli.dashboard_cmd import run_health_check
+
+        mock_run.return_value = MagicMock(returncode=1, stdout="2 failed, 10 passed", stderr="")
+        result = run_health_check("tests", Path("."))
+        assert result["status"] == "fail"
+
+    @patch("avakill.cli.dashboard_cmd.subprocess.run")
+    def test_run_check_lint_success(self, mock_run: MagicMock) -> None:
+        from avakill.cli.dashboard_cmd import run_health_check
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="All checks passed!", stderr="")
+        result = run_health_check("lint", Path("."))
+        assert result["status"] == "pass"
+
+    @patch("avakill.cli.dashboard_cmd.subprocess.run")
+    def test_run_check_go_build_failure(self, mock_run: MagicMock) -> None:
+        from avakill.cli.dashboard_cmd import run_health_check
+
+        mock_run.return_value = MagicMock(returncode=2, stdout="", stderr="cfg.ToolHash undefined")
+        result = run_health_check("go_build", Path("."))
+        assert result["status"] == "fail"
+        assert "cfg.ToolHash" in result.get("error", "")

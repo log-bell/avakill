@@ -8,6 +8,7 @@ import contextlib
 import logging
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 if sys.platform != "win32":
     import termios
@@ -182,6 +183,63 @@ def collect_module_graph(package_root: Path) -> dict:
         "edges": unique_edges,
         "subpackages": sorted(subpackages),
     }
+
+
+def collect_health() -> dict:
+    """Return initial (stale) health state for all four checks."""
+    stale = {"status": "stale", "last_run": None}
+    return {
+        "tests": {**stale},
+        "lint": {**stale},
+        "typecheck": {**stale},
+        "go_build": {**stale},
+    }
+
+
+_CHECK_COMMANDS: dict[str, list[str]] = {
+    "tests": ["python", "-m", "pytest", "--tb=short", "-q"],
+    "lint": ["python", "-m", "ruff", "check", "."],
+    "typecheck": ["python", "-m", "mypy", "src/avakill"],
+    "go_build": ["go", "build", "./cmd/avakill-shim/..."],
+}
+
+
+def run_health_check(check_name: str, root: Path) -> dict:
+    """Run a single health check and return its result."""
+    cmd = _CHECK_COMMANDS.get(check_name)
+    if not cmd:
+        return {"status": "fail", "error": f"Unknown check: {check_name}", "last_run": None}
+
+    try:
+        result = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=120)
+        now = datetime.now(timezone.utc).isoformat()
+
+        if result.returncode == 0:
+            return {
+                "status": "pass",
+                "output": result.stdout[-500:] if result.stdout else "",
+                "last_run": now,
+            }
+        else:
+            error = result.stderr[-500:] if result.stderr else result.stdout[-500:]
+            return {
+                "status": "fail",
+                "error": error,
+                "output": result.stdout[-500:] if result.stdout else "",
+                "last_run": now,
+            }
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "fail",
+            "error": f"{check_name} timed out after 120s",
+            "last_run": datetime.now(timezone.utc).isoformat(),
+        }
+    except FileNotFoundError:
+        return {
+            "status": "fail",
+            "error": f"Command not found: {cmd[0]}",
+            "last_run": datetime.now(timezone.utc).isoformat(),
+        }
 
 
 def _make_header(stats: dict[str, Any]) -> Panel:
