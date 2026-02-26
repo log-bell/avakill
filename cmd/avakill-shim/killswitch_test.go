@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -209,5 +210,40 @@ func TestKillSwitch_SignalSurvivesFilePoll(t *testing.T) {
 	}
 	if reason != "SIGUSR1 simulation" {
 		t.Fatalf("expected manual reason, got %q", reason)
+	}
+}
+
+func TestKillSwitch_SignalUSR1Engages(t *testing.T) {
+	dir := t.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+	ks.Start()
+	defer ks.Stop()
+
+	syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+	time.Sleep(50 * time.Millisecond)
+
+	engaged, reason := ks.IsEngaged()
+	if !engaged {
+		t.Fatal("expected engaged after SIGUSR1")
+	}
+	if reason == "" {
+		t.Fatal("expected non-empty reason after SIGUSR1")
+	}
+}
+
+func TestKillSwitch_SignalUSR2Disengages(t *testing.T) {
+	dir := t.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+	ks.Start()
+	defer ks.Stop()
+
+	ks.Engage("test")
+
+	syscall.Kill(syscall.Getpid(), syscall.SIGUSR2)
+	time.Sleep(50 * time.Millisecond)
+
+	engaged, _ := ks.IsEngaged()
+	if engaged {
+		t.Fatal("expected disengaged after SIGUSR2")
 	}
 }

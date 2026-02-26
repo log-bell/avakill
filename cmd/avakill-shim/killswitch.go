@@ -2,8 +2,10 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -145,5 +147,25 @@ func (ks *KillSwitch) readSentinelReason() string {
 	return reason
 }
 
-// startSignalHandler is a placeholder — signal handling added in Task 3.
-func (ks *KillSwitch) startSignalHandler() {}
+// startSignalHandler registers SIGUSR1 (engage) and SIGUSR2 (disengage).
+func (ks *KillSwitch) startSignalHandler() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGUSR1, syscall.SIGUSR2)
+
+	go func() {
+		for {
+			select {
+			case sig := <-sigCh:
+				switch sig {
+				case syscall.SIGUSR1:
+					ks.Engage("kill switch engaged via SIGUSR1")
+				case syscall.SIGUSR2:
+					ks.Disengage()
+				}
+			case <-ks.stopCh:
+				signal.Stop(sigCh)
+				return
+			}
+		}
+	}()
+}
