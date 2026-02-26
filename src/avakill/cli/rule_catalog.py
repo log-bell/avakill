@@ -60,6 +60,29 @@ _WRITE_TOOLS: list[str] = [
     "*_edit",
 ]
 
+_GIT_TOOLS: list[str] = [
+    *_SHELL_TOOLS,  # git commands run via shell
+]
+
+_DOCKER_TOOLS: list[str] = [
+    *_SHELL_TOOLS,  # docker/kubectl commands run via shell
+]
+
+_CLOUD_TOOLS: list[str] = [
+    *_SHELL_TOOLS,  # aws/gcloud/az commands run via shell
+    "cloud_*",
+    "aws_*",
+    "gcloud_*",
+    "azure_*",
+]
+
+_NETWORK_TOOLS: list[str] = [
+    *_SHELL_TOOLS,  # curl/wget/ssh run via shell
+    "http_*",
+    "fetch_*",
+    "web_*",
+]
+
 _READ_TOOLS: list[str] = [
     # Claude Code
     "Read",
@@ -767,6 +790,55 @@ _T3_RULES: list[RuleDef] = [
 ]
 
 # ---------------------------------------------------------------------------
+# T4 rules — cross-call correlation (session-level behavioral analysis)
+# ---------------------------------------------------------------------------
+
+_T4_RULES: list[RuleDef] = [
+    RuleDef(
+        id="detect-encode-transmit",
+        label="Encode-transmit detection",
+        description="Detect read-credential -> encode -> transmit exfiltration chains",
+        category="network",
+        tier=4,
+        rule_data={
+            "name": "detect-encode-transmit",
+            "tools": ["all"],
+            "action": "deny",
+            "message": "Cross-call encode-transmit pattern detected.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="detect-behavioral-anomaly",
+        label="Behavioral anomaly detection",
+        description="Detect rapid file deletion bursts and direct credential exfiltration",
+        category="agent",
+        tier=4,
+        rule_data={
+            "name": "detect-behavioral-anomaly",
+            "tools": ["all"],
+            "action": "deny",
+            "message": "Cross-call behavioral anomaly detected.",
+        },
+        default_on=False,
+    ),
+    RuleDef(
+        id="block-clipboard-exfil",
+        label="Clipboard exfiltration",
+        description="Detect credential read followed by clipboard write (pbcopy/xclip)",
+        category="network",
+        tier=4,
+        rule_data={
+            "name": "block-clipboard-exfil",
+            "tools": ["all"],
+            "action": "deny",
+            "message": "Cross-call clipboard exfiltration pattern detected.",
+        },
+        default_on=False,
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # T5 rules — content scanning (secrets, prompt injection)
 # ---------------------------------------------------------------------------
 
@@ -792,7 +864,7 @@ _T5_RULES: list[RuleDef] = [
         id="detect-prompt-injection",
         label="Prompt injection detection",
         description="Detect instruction-override patterns in argument values",
-        category="access",
+        category="agent",
         tier=5,
         rule_data={
             "name": "detect-prompt-injection",
@@ -808,10 +880,1130 @@ _T5_RULES: list[RuleDef] = [
 ]
 
 # ---------------------------------------------------------------------------
+# Filesystem Protection — extra rules
+# ---------------------------------------------------------------------------
+
+_FILESYSTEM_EXTRA_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-destructive-disk-ops",
+        label="Destructive disk operations",
+        description="Block dd if=/dev/zero, mkfs, fdisk, diskutil eraseDisk, shred /dev/",
+        category="filesystem",
+        rule_data={
+            "name": "block-destructive-disk-ops",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "dd if=/dev/zero",
+                        "mkfs",
+                        "fdisk",
+                        "diskutil eraseDisk",
+                        "diskpart",
+                        "shred /dev/",
+                    ],
+                },
+            },
+            "message": "Destructive disk operation blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-device-writes",
+        label="Device file writes",
+        description="Block writes to /dev/sd*, /dev/nvme*, /dev/mem, /dev/kmem",
+        category="filesystem",
+        rule_data={
+            "name": "block-device-writes",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": ["/dev/sd", "/dev/nvme", "/dev/mem", "/dev/kmem"],
+                },
+            },
+            "message": "Writes to device files blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="require-safe-delete",
+        label="Safe delete suggestion",
+        description="Flag rm/del/Remove-Item and suggest trash alternatives",
+        category="filesystem",
+        rule_data={
+            "name": "require-safe-delete",
+            "tools": list(_SHELL_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": ["rm ", "del ", "Remove-Item"],
+                },
+            },
+            "message": "Consider using trash (trash-cli, gio trash) instead of permanent deletion.",
+        },
+        default_on=False,
+    ),
+    RuleDef(
+        id="block-fork-bombs",
+        label="Fork bomb detection",
+        description="Block fork bombs and infinite loop patterns",
+        category="filesystem",
+        rule_data={
+            "name": "block-fork-bombs",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        ":(){ :|:& };:",
+                        "while true; do",
+                        "fork()",
+                    ],
+                },
+            },
+            "message": "Fork bomb or resource exhaustion pattern blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Shell Safety — extra rules
+# ---------------------------------------------------------------------------
+
+_SHELL_EXTRA_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-privilege-escalation",
+        label="Privilege escalation",
+        description="Require approval for sudo, su, doas, runas, pkexec",
+        category="shell",
+        rule_data={
+            "name": "block-privilege-escalation",
+            "tools": list(_SHELL_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "sudo ",
+                        "su ",
+                        "doas ",
+                        "runas",
+                        "pkexec",
+                        "Start-Process -Verb RunAs",
+                    ],
+                },
+            },
+            "message": "Privilege escalation requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-permission-changes",
+        label="Permission changes",
+        description="Block chmod 777, chmod u+s, chmod -R, icacls",
+        category="shell",
+        rule_data={
+            "name": "block-permission-changes",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["chmod 777", "chmod u+s", "chmod -R", "icacls"],
+                },
+            },
+            "message": "Dangerous permission change blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-pipe-to-shell",
+        label="Pipe-to-shell (T1 substring)",
+        description="Block curl | bash, wget | sh, Invoke-Expression patterns",
+        category="shell",
+        rule_data={
+            "name": "block-pipe-to-shell",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "curl | bash",
+                        "curl |bash",
+                        "wget | sh",
+                        "wget |sh",
+                        "Invoke-Expression",
+                    ],
+                },
+            },
+            "message": "Pipe-to-shell execution blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-critical-process-kill",
+        label="Critical process kill",
+        description="Block kill -9, killall, pkill targeting system processes",
+        category="shell",
+        rule_data={
+            "name": "block-critical-process-kill",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["kill -9", "killall", "pkill"],
+                },
+            },
+            "message": "Killing critical processes blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="limit-command-timeout",
+        label="Command timeout limit",
+        description="Block nohup and long-running background commands",
+        category="shell",
+        rule_data={
+            "name": "limit-command-timeout",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["nohup"],
+                },
+            },
+            "message": "Long-running background command blocked.",
+        },
+        default_on=False,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Database Safety — extra rules
+# ---------------------------------------------------------------------------
+
+_DB_EXTRA_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-unqualified-dml",
+        label="Unqualified DML",
+        description="Block DELETE FROM and UPDATE SET without WHERE clause",
+        category="sql",
+        rule_data={
+            "name": "block-unqualified-dml",
+            "tools": list(_SQL_TOOLS) + list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["DELETE FROM", "UPDATE SET"],
+                    "query": ["DELETE FROM", "UPDATE SET"],
+                },
+            },
+            "message": "Unqualified DELETE/UPDATE blocked. Add a WHERE clause.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-db-permission-changes",
+        label="Database permission changes",
+        description="Block GRANT ALL, REVOKE, ALTER USER, CREATE USER, DROP USER",
+        category="sql",
+        rule_data={
+            "name": "block-db-permission-changes",
+            "tools": list(_SQL_TOOLS) + list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["GRANT ALL", "REVOKE", "ALTER USER", "CREATE USER", "DROP USER"],
+                    "query": ["GRANT ALL", "REVOKE", "ALTER USER", "CREATE USER", "DROP USER"],
+                },
+            },
+            "message": "Database permission change blocked.",
+        },
+        default_on=False,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Version Control — new category
+# ---------------------------------------------------------------------------
+
+_VCS_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-force-push",
+        label="Force push",
+        description="Block git push --force, git filter-branch, bfg",
+        category="vcs",
+        rule_data={
+            "name": "block-force-push",
+            "tools": list(_GIT_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "git push --force",
+                        "git push -f",
+                        "git filter-branch",
+                        "bfg",
+                    ],
+                },
+            },
+            "message": "Force push blocked. Use --force-with-lease or push normally.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-branch-deletion",
+        label="Branch deletion",
+        description="Block deletion of main/master branches",
+        category="vcs",
+        rule_data={
+            "name": "block-branch-deletion",
+            "tools": list(_GIT_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "git branch -D main",
+                        "git branch -D master",
+                        "git push origin --delete main",
+                        "git push origin --delete master",
+                    ],
+                },
+            },
+            "message": "Deletion of protected branches blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="detect-credential-commit",
+        label="Credential commit detection",
+        description="Block git add of .env, *.pem, *.key, id_rsa, credentials.json",
+        category="vcs",
+        rule_data={
+            "name": "detect-credential-commit",
+            "tools": list(_GIT_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "git add .env",
+                        "git add *.pem",
+                        "git add *.key",
+                        "git add id_rsa",
+                        "git add credentials.json",
+                    ],
+                },
+            },
+            "message": "Committing credential files blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Supply Chain — new category
+# ---------------------------------------------------------------------------
+
+_SUPPLY_CHAIN_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-registry-manipulation",
+        label="Registry manipulation",
+        description="Block npm/pip registry URL changes",
+        category="supply-chain",
+        rule_data={
+            "name": "block-registry-manipulation",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "npm config set registry",
+                        "pip config set global.index-url",
+                    ],
+                },
+            },
+            "message": "Package registry manipulation blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="flag-postinstall-scripts",
+        label="Postinstall scripts",
+        description="Flag npm install without --ignore-scripts",
+        category="supply-chain",
+        rule_data={
+            "name": "flag-postinstall-scripts",
+            "tools": list(_SHELL_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": ["npm install"],
+                },
+            },
+            "message": "npm install may run postinstall scripts. Consider --ignore-scripts.",
+        },
+        default_on=False,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Network & Exfiltration — new category
+# ---------------------------------------------------------------------------
+
+_NETWORK_RULES: list[RuleDef] = [
+    RuleDef(
+        id="restrict-outbound-http",
+        label="Outbound HTTP restriction",
+        description="Block curl, wget, Invoke-WebRequest",
+        category="network",
+        rule_data={
+            "name": "restrict-outbound-http",
+            "tools": list(_NETWORK_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["curl", "wget", "Invoke-WebRequest"],
+                },
+            },
+            "message": "Outbound HTTP request blocked.",
+        },
+        default_on=False,
+    ),
+    RuleDef(
+        id="block-dns-exfiltration",
+        label="DNS exfiltration",
+        description="Block dig/nslookup with encoded subdomains",
+        category="network",
+        rule_data={
+            "name": "block-dns-exfiltration",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["dig", "nslookup"],
+                },
+            },
+            "message": "DNS lookup blocked (potential exfiltration).",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-ssh-unknown-hosts",
+        label="SSH to unknown hosts",
+        description="Require approval for ssh and scp connections",
+        category="network",
+        rule_data={
+            "name": "block-ssh-unknown-hosts",
+            "tools": list(_SHELL_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": ["ssh ", "scp "],
+                },
+            },
+            "message": "SSH/SCP connection requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-port-binding",
+        label="Port binding",
+        description="Block nc -l, socat, python -m http.server",
+        category="network",
+        rule_data={
+            "name": "block-port-binding",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["nc -l", "socat", "python -m http.server"],
+                },
+            },
+            "message": "Port binding blocked.",
+        },
+        default_on=False,
+    ),
+    RuleDef(
+        id="block-firewall-changes",
+        label="Firewall changes",
+        description="Block iptables, ufw, pfctl, netsh advfirewall",
+        category="network",
+        rule_data={
+            "name": "block-firewall-changes",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["iptables", "ufw", "pfctl", "netsh advfirewall"],
+                },
+            },
+            "message": "Firewall modification blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-browser-data-access",
+        label="Browser data access",
+        description="Block access to Chrome/Firefox/Safari profile directories",
+        category="network",
+        rule_data={
+            "name": "block-browser-data-access",
+            "tools": list(_READ_TOOLS) + list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        "Library/Application Support/Google/Chrome/",
+                        ".mozilla/firefox/",
+                        "Library/Safari/",
+                        "AppData/Local/Google/Chrome/",
+                        "AppData/Roaming/Mozilla/Firefox/",
+                    ],
+                },
+            },
+            "message": "Access to browser profile data blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Secrets & Credentials — extra rules
+# ---------------------------------------------------------------------------
+
+_SECRETS_EXTRA_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-credential-stores",
+        label="Credential store access",
+        description="Block access to macOS Keychain, gnupg, Windows Credential Manager",
+        category="access",
+        rule_data={
+            "name": "block-credential-stores",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "security dump-keychain",
+                        "cmdkey",
+                        "vaultcmd",
+                    ],
+                },
+            },
+            "message": "Credential store access blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-path-poisoning",
+        label="PATH poisoning",
+        description="Block untrusted PATH prepends like /tmp: or .:",
+        category="access",
+        rule_data={
+            "name": "block-path-poisoning",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "export PATH=/tmp:",
+                        "export PATH=.:",
+                    ],
+                },
+            },
+            "message": "PATH poisoning blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-env-secret-exposure",
+        label="Environment secret exposure",
+        description="Block printenv/env/set piped to other commands",
+        category="access",
+        rule_data={
+            "name": "block-env-secret-exposure",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["printenv |", "env |", "set |"],
+                },
+            },
+            "message": "Environment variable exposure blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Cloud & Infrastructure — new category
+# ---------------------------------------------------------------------------
+
+_CLOUD_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-cloud-resource-deletion",
+        label="Cloud resource deletion",
+        description="Require approval for aws s3 rm, ec2 terminate, terraform destroy",
+        category="cloud",
+        rule_data={
+            "name": "block-cloud-resource-deletion",
+            "tools": list(_CLOUD_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "aws s3 rm",
+                        "aws s3 rb",
+                        "aws ec2 terminate-instances",
+                        "gcloud compute instances delete",
+                        "terraform destroy",
+                    ],
+                },
+            },
+            "message": "Cloud resource deletion requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-iam-changes",
+        label="IAM changes",
+        description="Block aws iam, gcloud iam, az role modifications",
+        category="cloud",
+        rule_data={
+            "name": "block-iam-changes",
+            "tools": list(_CLOUD_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["aws iam", "gcloud iam", "az role"],
+                },
+            },
+            "message": "IAM modification blocked.",
+        },
+        default_on=False,
+    ),
+    RuleDef(
+        id="block-backup-deletion",
+        label="Backup deletion",
+        description="Block deletion of cloud snapshots and backups",
+        category="cloud",
+        rule_data={
+            "name": "block-backup-deletion",
+            "tools": list(_CLOUD_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "aws rds delete-db-snapshot",
+                        "aws ec2 delete-snapshot",
+                    ],
+                },
+            },
+            "message": "Backup/snapshot deletion blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-destructive-docker",
+        label="Destructive Docker operations",
+        description="Require approval for docker system prune, docker volume rm",
+        category="cloud",
+        rule_data={
+            "name": "block-destructive-docker",
+            "tools": list(_DOCKER_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": ["docker system prune", "docker volume rm"],
+                },
+            },
+            "message": "Destructive Docker operation requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-container-escape",
+        label="Container escape",
+        description="Block docker run --privileged, -v /:/host, nsenter --target 1",
+        category="cloud",
+        rule_data={
+            "name": "block-container-escape",
+            "tools": list(_DOCKER_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "docker run --privileged",
+                        "-v /:/host",
+                        "nsenter --target 1",
+                    ],
+                },
+            },
+            "message": "Container escape attempt blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-k8s-destruction",
+        label="Kubernetes destruction",
+        description="Block kubectl delete namespace/deployment/pvc, helm uninstall",
+        category="cloud",
+        rule_data={
+            "name": "block-k8s-destruction",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "kubectl delete namespace",
+                        "kubectl delete deployment",
+                        "kubectl delete pvc",
+                        "helm uninstall",
+                    ],
+                },
+            },
+            "message": "Kubernetes resource destruction blocked.",
+        },
+        default_on=False,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# AI Agent Safety — new category
+# ---------------------------------------------------------------------------
+
+_AGENT_RULES: list[RuleDef] = [
+    RuleDef(
+        id="detect-mcp-tool-poisoning",
+        label="MCP tool poisoning",
+        description="Detect invisible Unicode and instruction patterns in tool descriptions",
+        category="agent",
+        rule_data={
+            "name": "detect-mcp-tool-poisoning",
+            "tools": ["all"],
+            "action": "deny",
+            "conditions": {
+                "content_scan": ["mcp_poisoning"],
+            },
+            "message": "MCP tool poisoning pattern detected.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-agent-self-modification",
+        label="Agent self-modification",
+        description="Block agent config modifications (.claude/, .cursor/, avakill.yaml)",
+        category="agent",
+        rule_data={
+            "name": "block-agent-self-modification",
+            "tools": list(_WRITE_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "path_match": {
+                    "file_path": [
+                        ".claude/settings.json",
+                        ".cursor/mcp.json",
+                        ".gemini/settings.json",
+                        "avakill.yaml",
+                    ],
+                },
+            },
+            "message": "Agent self-modification blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="rate-limit-tool-calls",
+        label="Tool call rate limit",
+        description="Rate limit all tool calls (default: 500/60min)",
+        category="agent",
+        rule_data={
+            "name": "rate-limit-tool-calls",
+            "tools": ["all"],
+            "action": "allow",
+            "rate_limit": {
+                "max_calls": 500,
+                "window": "60m",
+            },
+        },
+        configurable=["rate_limit.max_calls"],
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# OS Hardening — macOS
+# ---------------------------------------------------------------------------
+
+_OS_MACOS_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-sip-changes",
+        label="SIP changes (macOS)",
+        description="Block csrutil disable, csrutil authenticated-root disable",
+        category="os",
+        rule_data={
+            "name": "block-sip-changes",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "csrutil disable",
+                        "csrutil authenticated-root disable",
+                    ],
+                },
+            },
+            "message": "System Integrity Protection modification blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-tcc-manipulation",
+        label="TCC manipulation (macOS)",
+        description="Block tccutil reset, TCC.db direct access",
+        category="os",
+        rule_data={
+            "name": "block-tcc-manipulation",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["tccutil reset", "TCC.db"],
+                },
+            },
+            "message": "TCC database manipulation blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-gatekeeper-bypass",
+        label="Gatekeeper bypass (macOS)",
+        description="Require approval for xattr quarantine removal, spctl disable",
+        category="os",
+        rule_data={
+            "name": "block-gatekeeper-bypass",
+            "tools": list(_SHELL_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "xattr -d com.apple.quarantine",
+                        "spctl --master-disable",
+                    ],
+                },
+            },
+            "message": "Gatekeeper bypass requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-osascript-abuse",
+        label="osascript abuse (macOS)",
+        description="Require approval for osascript -e, do shell script",
+        category="os",
+        rule_data={
+            "name": "block-osascript-abuse",
+            "tools": list(_SHELL_TOOLS),
+            "action": "require_approval",
+            "conditions": {
+                "args_match": {
+                    "command": ["osascript -e", "do shell script"],
+                },
+            },
+            "message": "osascript execution requires approval.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-defaults-security",
+        label="Security defaults (macOS)",
+        description="Block defaults write targeting security domains",
+        category="os",
+        rule_data={
+            "name": "block-defaults-security",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["defaults write"],
+                },
+            },
+            "message": "Modification of macOS security defaults blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# OS Hardening — Linux
+# ---------------------------------------------------------------------------
+
+_OS_LINUX_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-library-injection",
+        label="Library injection (Linux)",
+        description="Block LD_PRELOAD, /etc/ld.so.preload, LD_LIBRARY_PATH manipulation",
+        category="os",
+        rule_data={
+            "name": "block-library-injection",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "LD_PRELOAD=",
+                        "/etc/ld.so.preload",
+                        "LD_LIBRARY_PATH",
+                    ],
+                },
+            },
+            "message": "Library injection blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-mac-disablement",
+        label="MAC disablement (Linux)",
+        description="Block setenforce 0, aa-complain, aa-disable",
+        category="os",
+        rule_data={
+            "name": "block-mac-disablement",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["setenforce 0", "aa-complain", "aa-disable"],
+                },
+            },
+            "message": "Mandatory access control disablement blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-kernel-modification",
+        label="Kernel modification (Linux)",
+        description="Block sysctl -w, modprobe, insmod",
+        category="os",
+        rule_data={
+            "name": "block-kernel-modification",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": ["sysctl -w", "modprobe", "insmod"],
+                },
+            },
+            "message": "Kernel modification blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# OS Hardening — Windows
+# ---------------------------------------------------------------------------
+
+_OS_WINDOWS_RULES: list[RuleDef] = [
+    RuleDef(
+        id="block-defender-manipulation",
+        label="Defender manipulation (Windows)",
+        description="Block Set-MpPreference disabling, sc stop WinDefend",
+        category="os",
+        rule_data={
+            "name": "block-defender-manipulation",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "Set-MpPreference -DisableRealtimeMonitoring",
+                        "sc stop WinDefend",
+                    ],
+                },
+            },
+            "message": "Windows Defender manipulation blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-shadow-copy-deletion",
+        label="Shadow copy deletion (Windows)",
+        description="Block vssadmin delete shadows, wmic shadowcopy delete",
+        category="os",
+        rule_data={
+            "name": "block-shadow-copy-deletion",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "vssadmin delete shadows",
+                        "wmic shadowcopy delete",
+                    ],
+                },
+            },
+            "message": "Shadow copy deletion blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-boot-config-changes",
+        label="Boot config changes (Windows)",
+        description="Block bcdedit modifying recovery and test signing",
+        category="os",
+        rule_data={
+            "name": "block-boot-config-changes",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "bcdedit /set recoveryenabled",
+                        "bcdedit /set testsigning",
+                    ],
+                },
+            },
+            "message": "Boot configuration change blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-uac-bypass",
+        label="UAC bypass (Windows)",
+        description="Block fodhelper.exe, eventvwr.exe, DelegateExecute techniques",
+        category="os",
+        rule_data={
+            "name": "block-uac-bypass",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "fodhelper.exe",
+                        "eventvwr.exe",
+                        "DelegateExecute",
+                    ],
+                },
+            },
+            "message": "UAC bypass technique blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-powershell-cradles",
+        label="PowerShell cradles (Windows)",
+        description="Block IEX, powershell -e, powershell -EncodedCommand",
+        category="os",
+        rule_data={
+            "name": "block-powershell-cradles",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "IEX",
+                        "powershell -e",
+                        "powershell -EncodedCommand",
+                    ],
+                },
+            },
+            "message": "PowerShell download cradle blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-event-log-clearing",
+        label="Event log clearing (Windows)",
+        description="Block wevtutil cl, Clear-EventLog, ConsoleHost_history.txt deletion",
+        category="os",
+        rule_data={
+            "name": "block-event-log-clearing",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "wevtutil cl",
+                        "Clear-EventLog",
+                        "ConsoleHost_history.txt",
+                    ],
+                },
+            },
+            "message": "Event log clearing blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-lsass-sam-access",
+        label="LSASS/SAM access (Windows)",
+        description="Block procdump -ma lsass, mimikatz, reg save HKLM\\SAM",
+        category="os",
+        rule_data={
+            "name": "block-lsass-sam-access",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "procdump -ma lsass",
+                        "mimikatz",
+                        "reg save HKLM\\SAM",
+                    ],
+                },
+            },
+            "message": "LSASS/SAM credential access blocked.",
+        },
+        default_on=True,
+    ),
+    RuleDef(
+        id="block-hidden-accounts",
+        label="Hidden accounts (Windows)",
+        description="Block net user /add, net localgroup administrators /add",
+        category="os",
+        rule_data={
+            "name": "block-hidden-accounts",
+            "tools": list(_SHELL_TOOLS),
+            "action": "deny",
+            "conditions": {
+                "args_match": {
+                    "command": [
+                        "net user /add",
+                        "net localgroup administrators /add",
+                    ],
+                },
+            },
+            "message": "Hidden account creation blocked.",
+        },
+        default_on=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Combined catalog
 # ---------------------------------------------------------------------------
 
-ALL_RULES: list[RuleDef] = _BASE_RULES + _OPTIONAL_RULES + _T2_RULES + _T3_RULES + _T5_RULES
+_ALL_OPTIONAL: list[RuleDef] = (
+    _OPTIONAL_RULES
+    + _T2_RULES
+    + _T3_RULES
+    + _T4_RULES
+    + _T5_RULES
+    + _FILESYSTEM_EXTRA_RULES
+    + _SHELL_EXTRA_RULES
+    + _DB_EXTRA_RULES
+    + _VCS_RULES
+    + _SUPPLY_CHAIN_RULES
+    + _NETWORK_RULES
+    + _SECRETS_EXTRA_RULES
+    + _CLOUD_RULES
+    + _AGENT_RULES
+    + _OS_MACOS_RULES
+    + _OS_LINUX_RULES
+    + _OS_WINDOWS_RULES
+)
+
+ALL_RULES: list[RuleDef] = _BASE_RULES + _ALL_OPTIONAL
 
 _RULES_BY_ID: dict[str, RuleDef] = {r.id: r for r in ALL_RULES}
 
@@ -832,23 +2024,18 @@ def get_base_rules() -> list[RuleDef]:
 
 
 def get_optional_rules() -> list[RuleDef]:
-    """Return all optional rules (user-selectable), including T2, T3, and T5."""
-    return list(_OPTIONAL_RULES) + list(_T2_RULES) + list(_T3_RULES) + list(_T5_RULES)
+    """Return all optional rules (user-selectable)."""
+    return list(_ALL_OPTIONAL)
 
 
 def get_optional_rule_ids() -> list[str]:
     """Return IDs of all optional rules in catalog order."""
-    return (
-        [r.id for r in _OPTIONAL_RULES]
-        + [r.id for r in _T2_RULES]
-        + [r.id for r in _T3_RULES]
-        + [r.id for r in _T5_RULES]
-    )
+    return [r.id for r in _ALL_OPTIONAL]
 
 
 def get_default_on_ids() -> set[str]:
     """Return IDs of optional rules that are on by default."""
-    return {r.id for r in (_OPTIONAL_RULES + _T2_RULES + _T3_RULES + _T5_RULES) if r.default_on}
+    return {r.id for r in _ALL_OPTIONAL if r.default_on}
 
 
 def build_policy_dict(
@@ -877,8 +2064,8 @@ def build_policy_dict(
     for rule in _BASE_RULES:
         policies.append(copy.deepcopy(rule.rule_data))
 
-    # Selected optional rules in catalog order (T1 + T2 + T3 + T5)
-    for rule in _OPTIONAL_RULES + _T2_RULES + _T3_RULES + _T5_RULES:
+    # Selected optional rules in catalog order
+    for rule in _ALL_OPTIONAL:
         if rule.id in selected_set:
             policies.append(copy.deepcopy(rule.rule_data))
 
@@ -902,6 +2089,37 @@ def build_policy_dict(
         "default_action": default_action,
         "policies": policies,
     }
+
+
+def get_optional_rules_by_category() -> dict[str, list[RuleDef]]:
+    """Return optional rules grouped by category in display order.
+
+    Returns:
+        OrderedDict mapping category key to list of RuleDef instances.
+        Keys are ordered per CATEGORY_DISPLAY.
+    """
+    all_optional = get_optional_rules()
+    grouped: dict[str, list[RuleDef]] = {key: [] for key in CATEGORY_DISPLAY}
+    for rule in all_optional:
+        if rule.category in grouped:
+            grouped[rule.category].append(rule)
+    return grouped
+
+
+CATEGORY_DISPLAY: dict[str, tuple[str, str]] = {
+    "shell": ("Shell Safety", "Dangerous commands, privilege escalation, obfuscation"),
+    "sql": ("Database Safety", "Destructive SQL operations"),
+    "filesystem": ("Filesystem Protection", "Path-aware deletion, system dirs, persistence"),
+    "tools": ("Tool Safety", "Destructive tool name patterns"),
+    "access": ("Secrets & Access", "Credentials, sensitive files, content scanning"),
+    "rate-limit": ("Rate Limits", "Throttle agent activity"),
+    "vcs": ("Version Control", "Force pushes, branch deletion, credential commits"),
+    "supply-chain": ("Supply Chain", "Registry manipulation, postinstall scripts"),
+    "network": ("Network & Exfiltration", "Outbound HTTP, DNS, SSH, ports, firewalls"),
+    "cloud": ("Cloud & Infrastructure", "Cloud resources, IAM, Docker, Kubernetes"),
+    "agent": ("AI Agent Safety", "MCP poisoning, self-modification, tool rate limits"),
+    "os": ("OS Hardening", "Platform-specific security (macOS, Linux, Windows)"),
+}
 
 
 def generate_yaml(

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rule Catalog — AvaKill</title>
-  <meta name="description" content="AvaKill's complete rule catalog: 80+ safety rules across 10 categories protecting AI coding agents from catastrophic operations.">
+  <meta name="description" content="AvaKill's complete rule catalog: 84 safety rules across 12 categories protecting AI coding agents from catastrophic operations.">
   <meta name="theme-color" content="#0A0F1E">
   <meta property="og:title" content="Rule Catalog — AvaKill">
   <meta property="og:description" content="Every rule AvaKill enforces to keep AI agents from destroying your system, data, and credentials.">
@@ -757,16 +757,16 @@
   <section class="page-hero">
     <h1><span class="accent">Rule Catalog</span>: Product Vision &amp; Roadmap</h1>
     <p class="subtitle">
-      Every rule AvaKill will enforce &mdash; organized by category, tagged by engine tier, and mapped to real-world incidents.
-      This is what ships now, what ships next, and what we're building toward.
+      Every rule AvaKill enforces &mdash; organized by category, tagged by engine tier, and mapped to real-world incidents.
+      84 rules across 12 categories, all implemented and shipping.
     </p>
     <div class="hero-stats">
       <div class="stat-item">
-        <span class="stat-number">80+</span>
+        <span class="stat-number">84</span>
         <span class="stat-label">Rules</span>
       </div>
       <div class="stat-item">
-        <span class="stat-number">10</span>
+        <span class="stat-number">12</span>
         <span class="stat-label">Categories</span>
       </div>
       <div class="stat-item">
@@ -900,32 +900,37 @@
               <td><span class="tier tier--2">T2</span></td>
               <td class="rule-name">path-resolve</td>
               <td>Expand <code>~/</code>, <code>$HOME</code>, <code>%USERPROFILE%</code>, resolve <code>../</code> and symlinks before matching</td>
-              <td><span class="default-badge" style="background: rgba(239,68,68,0.15); color: #EF4444;">v1 Blocker</span></td>
+              <td><span class="default-badge default--on">Shipped</span></td>
             </tr>
             <tr>
               <td><span class="tier tier--3">T3</span></td>
               <td class="rule-name">command-parse</td>
               <td>Split compound commands on <code>&amp;&amp;</code>, <code>;</code>, <code>|</code>, <code>$()</code> and evaluate each segment</td>
-              <td><span class="default-badge default--off">Planned</span></td>
+              <td><span class="default-badge default--on">Shipped</span></td>
             </tr>
             <tr>
               <td><span class="tier tier--4">T4</span></td>
               <td class="rule-name">cross-call</td>
               <td>Correlate across multiple tool calls in a session (read-encode-transmit patterns)</td>
-              <td><span class="default-badge default--off">Planned</span></td>
+              <td><span class="default-badge default--on">Shipped</span></td>
             </tr>
             <tr>
               <td><span class="tier tier--5">T5</span></td>
               <td class="rule-name">heuristic</td>
               <td>ML/entropy-based detection (prompt injection, secret scanning)</td>
-              <td><span class="default-badge default--off">Research</span></td>
+              <td><span class="default-badge default--on">Shipped</span></td>
             </tr>
           </tbody>
         </table>
       </div>
 
+      <div class="info-card" style="opacity: 1; transform: none; margin-bottom: 24px;">
+        <h3><span class="dot" style="background: var(--color-allowed);"></span>84 Rules Across 12 Categories</h3>
+        <p>All rules are <strong>implemented and shipping</strong> in the current release, covering shell safety, filesystem protection, database safety, version control, supply chain, network security, secrets management, cloud infrastructure, AI agent threats, and OS hardening.</p>
+      </div>
+
       <p class="section-desc" style="margin-top: 0;">
-        <strong style="color: var(--color-denied);">T2 is a v1 blocker.</strong> If AvaKill ships without expanding <code style="color: var(--neon-blue); background: rgba(0,212,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.85rem;">~/</code> and <code style="color: var(--neon-blue); background: rgba(0,212,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.85rem;">$HOME</code> before evaluation, someone will hit exactly the Claude Code bug. That&rsquo;s an unacceptable blind spot for a safety product.
+        All five engine tiers are shipped. AvaKill expands <code style="color: var(--neon-blue); background: rgba(0,212,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.85rem;">~/</code> and <code style="color: var(--neon-blue); background: rgba(0,212,255,0.06); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.85rem;">$HOME</code> before evaluation, splits compound commands, correlates cross-call patterns, and scans content for secrets and prompt injection.
       </p>
 
       <!-- Action Mapping -->
@@ -1384,7 +1389,7 @@
         <div class="section-num" style="background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.2);">&rarr;</div>
         <h2>Implementation Roadmap</h2>
       </div>
-      <p class="section-desc">Five engine tiers, from what&rsquo;s shipped to what&rsquo;s in research. Each tier unlocks a new class of rules.</p>
+      <p class="section-desc">All five engine tiers are shipped. Each tier unlocks a new class of rules.</p>
 
       <div class="roadmap">
         <div class="roadmap-item shipped">
@@ -1394,36 +1399,36 @@
           <div class="roadmap-desc">12 rules in <code>rule_catalog.py</code> (3 base + 9 optional). All use <code>args_match</code> substring matching. Covers catastrophic shell/SQL, dangerous shell, destructive SQL/tools, package install approval, rate limits, file write approval, shell allowlist, sensitive file access.</div>
         </div>
 
-        <div class="roadmap-item blocker">
+        <div class="roadmap-item shipped">
           <div class="roadmap-dot"></div>
-          <div class="roadmap-tier">Tier 2 &mdash; v1 Blocker</div>
+          <div class="roadmap-tier">Tier 2 &mdash; Shipped</div>
           <div class="roadmap-title">Path Resolution</div>
-          <div class="roadmap-desc">Expand <code>~/</code>, <code>$HOME</code>, <code>$USERPROFILE</code>, resolve <code>../</code>, resolve symlinks before matching. Without it, AvaKill has the same tilde-expansion blind spot that caused Claude Code&rsquo;s worst incident.</div>
-          <div class="roadmap-rules">Unblocks ~15 rules: <code>block-catastrophic-deletion</code>, <code>block-deletion-outside-workspace</code>, <code>enforce-workspace-boundary</code>, <code>block-system-dir-writes</code>, <code>block-ssh-key-access</code>, <code>block-cloud-credentials</code>, <code>block-env-outside-workspace</code>, <code>block-symlink-escape</code>, <code>block-profile-modification</code>, <code>block-startup-persistence</code>, <code>block-launchagent-creation</code>, <code>block-systemd-persistence</code>, <code>block-ownership-changes</code>, <code>block-system-file-modification</code></div>
+          <div class="roadmap-desc">Expands <code>~/</code>, <code>$HOME</code>, <code>$USERPROFILE</code>, resolves <code>../</code>, resolves symlinks before matching. Eliminates the tilde-expansion blind spot that caused Claude Code&rsquo;s worst incident.</div>
+          <div class="roadmap-rules">14 rules: <code>block-catastrophic-deletion</code>, <code>block-deletion-outside-workspace</code>, <code>enforce-workspace-boundary</code>, <code>block-system-dir-writes</code>, <code>block-ssh-key-access</code>, <code>block-cloud-credentials</code>, <code>block-env-outside-workspace</code>, <code>block-symlink-escape</code>, <code>block-profile-modification</code>, <code>block-startup-persistence</code>, <code>block-launchagent-creation</code>, <code>block-systemd-persistence</code>, <code>block-ownership-changes</code>, <code>block-system-file-modification</code></div>
         </div>
 
-        <div class="roadmap-item planned">
+        <div class="roadmap-item shipped">
           <div class="roadmap-dot"></div>
-          <div class="roadmap-tier">Tier 3 &mdash; Planned</div>
+          <div class="roadmap-tier">Tier 3 &mdash; Shipped</div>
           <div class="roadmap-title">Command Parsing</div>
-          <div class="roadmap-desc">Split compound commands on <code>&amp;&amp;</code>, <code>;</code>, <code>||</code>, <code>|</code>, <code>$()</code>, backticks. Evaluate each segment against rules independently.</div>
-          <div class="roadmap-rules">Unblocks ~12 rules: <code>detect-obfuscation</code>, <code>detect-command-chaining</code>, <code>block-unqualified-dml</code>, <code>detect-mcp-tool-poisoning</code>, <code>block-uac-bypass</code>, <code>block-powershell-cradles</code>, <code>block-hidden-accounts</code>, <code>block-osascript-abuse</code>, <code>flag-postinstall-scripts</code>, <code>block-env-secret-exposure</code></div>
+          <div class="roadmap-desc">Splits compound commands on <code>&amp;&amp;</code>, <code>;</code>, <code>||</code>, <code>|</code>, <code>$()</code>, backticks. Evaluates each segment against rules independently.</div>
+          <div class="roadmap-rules">3 rules: <code>detect-obfuscation</code>, <code>detect-command-chaining</code>, <code>detect-pipe-to-shell</code></div>
         </div>
 
-        <div class="roadmap-item planned">
+        <div class="roadmap-item shipped">
           <div class="roadmap-dot"></div>
-          <div class="roadmap-tier">Tier 4 &mdash; Planned</div>
+          <div class="roadmap-tier">Tier 4 &mdash; Shipped</div>
           <div class="roadmap-title">Cross-Call Analysis</div>
-          <div class="roadmap-desc">Maintain session state across tool calls. Detect multi-step attack patterns: read credential file, encode contents, transmit via HTTP/DNS. Only Invariant Labs offers this capability &mdash; implementing it is a key differentiator.</div>
-          <div class="roadmap-rules">Unblocks ~3 rules: <code>detect-encode-transmit</code>, <code>detect-behavioral-anomaly</code>, <code>block-clipboard-exfil</code></div>
+          <div class="roadmap-desc">Maintains session state across tool calls. Detects multi-step attack patterns: read credential file, encode contents, transmit via HTTP/DNS.</div>
+          <div class="roadmap-rules">3 rules: <code>detect-encode-transmit</code>, <code>detect-behavioral-anomaly</code>, <code>block-clipboard-exfil</code></div>
         </div>
 
-        <div class="roadmap-item planned">
+        <div class="roadmap-item shipped">
           <div class="roadmap-dot"></div>
-          <div class="roadmap-tier">Tier 5 &mdash; Research</div>
+          <div class="roadmap-tier">Tier 5 &mdash; Shipped</div>
           <div class="roadmap-title">Heuristic / ML Detection</div>
-          <div class="roadmap-desc">Entropy-based secret scanning, prompt injection detection in file contents, content-level credential commit scanning. Research-grade &mdash; high false positive rates need tuning per project. Ship as experimental/opt-in.</div>
-          <div class="roadmap-rules">Unblocks: <code>detect-prompt-injection</code>, <code>detect-secrets-outbound</code>, <code>detect-credential-commit</code> content upgrade</div>
+          <div class="roadmap-desc">Entropy-based secret scanning and prompt injection detection in file contents. Tunable per project.</div>
+          <div class="roadmap-rules">2 rules: <code>detect-secrets-outbound</code>, <code>detect-prompt-injection</code></div>
         </div>
       </div>
 
