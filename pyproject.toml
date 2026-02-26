@@ -44,6 +44,7 @@ hardened = []
 otel = ["opentelemetry-api>=1.0,<2.0"]
 metrics = ["prometheus-client>=0.20.0"]
 watch = ["watchfiles>=1.0.0"]
+dashboard = ["aiohttp>=3.9", "watchfiles>=1.0.0"]
 all = [
     "avakill[openai]",
     "avakill[anthropic]",
@@ -54,6 +55,7 @@ all = [
     "avakill[otel]",
     "avakill[metrics]",
     "avakill[watch]",
+    "avakill[dashboard]",
 ]
 dev = [
     "pytest",
