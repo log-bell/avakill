@@ -158,10 +158,12 @@ func main() {
 		KillSwitch: ks,
 	}
 
-	// Set up tool hash detection
+	// Set up tool hash detection and response scanning
 	var toolHasher *ToolHasher
 	var toolHashCfg *ToolHashConfig
 	var pinToolsDone chan struct{}
+	var scanner *Scanner
+	var scanCfg *ScanConfig
 
 	// Build the full server command string for manifest keying
 	serverCommand := strings.Join(remaining, " ")
@@ -179,11 +181,26 @@ func main() {
 		toolHasher = NewToolHasher(manifestDir, *verbose)
 		pinToolsDone = make(chan struct{})
 	} else if *policyPath != "" {
-		// Load tool_hash config from policy YAML
 		cfg, err := loadPolicyFile(*policyPath)
-		if err == nil && cfg.ToolHash != nil && cfg.ToolHash.Enabled {
-			toolHashCfg = cfg.ToolHash
-			toolHasher = NewToolHasher(cfg.ToolHash.ManifestDir, *verbose)
+		if err == nil {
+			// Tool hashing
+			if cfg.ToolHash != nil && cfg.ToolHash.Enabled {
+				toolHashCfg = cfg.ToolHash
+				toolHasher = NewToolHasher(cfg.ToolHash.ManifestDir, *verbose)
+			}
+			// Response scanning
+			if cfg.ResponseScan != nil && cfg.ResponseScan.Enabled {
+				scanCfg = cfg.ResponseScan
+				s, serr := NewScanner(cfg.ResponseScan)
+				if serr != nil {
+					fmt.Fprintf(os.Stderr, "avakill-shim: fatal: bad scanner config: %v\n", serr)
+					os.Exit(1)
+				}
+				scanner = s
+				if *verbose {
+					fmt.Fprintf(os.Stderr, "avakill-shim: response scanning enabled (action=%s)\n", scanCfg.Action)
+				}
+			}
 		}
 	}
 
@@ -196,11 +213,13 @@ func main() {
 		ServerCommand:   serverCommand,
 		PinToolsMode:    *pinTools,
 		PinToolsDone:    pinToolsDone,
+		Scanner:         scanner,
+		ScanCfg:         scanCfg,
 		pendingRequests: make(map[string]string),
 	}
 
-	// Only initialize pendingRequests when tool hashing is active
-	if toolHasher == nil {
+	// Only initialize pendingRequests when tool hashing or scanning is active
+	if toolHasher == nil && scanner == nil {
 		proxy.pendingRequests = nil
 	}
 

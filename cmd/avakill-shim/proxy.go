@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -22,6 +23,10 @@ type Proxy struct {
 	ServerCommand string
 	PinToolsMode  bool
 	PinToolsDone  chan struct{} // closed after first tools/list pinned in pin-tools mode
+
+	// Response scanning
+	Scanner *Scanner    // nil = disabled
+	ScanCfg *ScanConfig // nil = disabled
 
 	// Request tracking: maps stringified JSON-RPC IDs to method names
 	pendingMu       sync.Mutex
@@ -130,9 +135,16 @@ func (p *Proxy) relayClientToUpstream(clientIn io.Reader, upstreamOut io.Writer,
 			continue
 		}
 
-		// Track tools/list requests for response interception
-		if method, _ := msg["method"].(string); method == "tools/list" {
-			p.trackRequest(msg["id"], method)
+		// Track requests for response interception
+		if method, _ := msg["method"].(string); method != "" {
+			switch method {
+			case "tools/list":
+				p.trackRequest(msg["id"], method)
+			case "tools/call":
+				if p.Scanner != nil {
+					p.trackRequest(msg["id"], method)
+				}
+			}
 		}
 
 		// Allowed or non-tools/call — forward to upstream
@@ -156,11 +168,19 @@ func (p *Proxy) relayUpstreamToClient(upstreamIn io.Reader, clientOut io.Writer)
 			return err
 		}
 
-		// Check if this is a response to a tracked tools/list request
+		// Check if this is a response to a tracked request
 		if id, hasID := msg["id"]; hasID {
-			if method, tracked := p.popRequest(id); tracked && method == "tools/list" {
-				p.handleToolsListResponse(msg, clientOut)
-				// Always forward the response to the client
+			if method, tracked := p.popRequest(id); tracked {
+				switch method {
+				case "tools/list":
+					p.handleToolsListResponse(msg, clientOut)
+				case "tools/call":
+					modified := p.handleToolsCallResponse(msg, clientOut)
+					if modified == nil {
+						continue // blocked; replacement already sent
+					}
+					msg = modified
+				}
 				if err := p.writeToClient(clientOut, msg); err != nil {
 					return err
 				}
@@ -368,6 +388,166 @@ func (p *Proxy) handleToolsCall(msg map[string]interface{}) map[string]interface
 			"isError": true,
 		},
 	}
+}
+
+// handleToolsCallResponse scans a tools/call response for sensitive content.
+// Returns the (possibly modified) message, or nil if blocked (replacement already sent).
+func (p *Proxy) handleToolsCallResponse(msg map[string]interface{}, clientOut io.Writer) map[string]interface{} {
+	if p.Scanner == nil || p.ScanCfg == nil {
+		return msg
+	}
+
+	texts := extractResponseTexts(msg)
+	if len(texts) == 0 {
+		return msg
+	}
+
+	// Scan all text content
+	var allFindings []ScanFinding
+	for _, text := range texts {
+		findings := p.Scanner.ScanContent(text)
+		allFindings = append(allFindings, findings...)
+	}
+
+	if len(allFindings) == 0 {
+		return msg
+	}
+
+	// Log all findings
+	for _, f := range allFindings {
+		fmt.Fprintf(os.Stderr, "avakill-shim: scan: [%s] %s matched %q\n",
+			f.Category, f.PatternName, f.MatchedText)
+	}
+
+	action := resolveAction(allFindings)
+
+	switch action {
+	case "log":
+		return msg
+	case "redact":
+		return p.redactResponse(msg)
+	case "block":
+		// Collect unique categories
+		cats := make(map[string]bool)
+		for _, f := range allFindings {
+			cats[f.Category] = true
+		}
+		var catList []string
+		for c := range cats {
+			catList = append(catList, c)
+		}
+		sort.Strings(catList)
+
+		blocked := map[string]interface{}{
+			"jsonrpc": "2.0",
+			"id":      msg["id"],
+			"result": map[string]interface{}{
+				"content": []interface{}{
+					map[string]interface{}{
+						"type": "text",
+						"text": fmt.Sprintf("⛔ AvaKill blocked this response: sensitive content detected (%s)",
+							strings.Join(catList, ", ")),
+					},
+				},
+				"isError": true,
+			},
+		}
+		if err := p.writeToClient(clientOut, blocked); err != nil && p.Verbose {
+			fmt.Fprintf(os.Stderr, "avakill-shim: scan: failed to send block response: %v\n", err)
+		}
+		return nil
+	}
+
+	return msg
+}
+
+// extractResponseTexts extracts text strings from a tools/call response.
+// Navigates msg → result → content → filters type=="text" → collects text values.
+// Returns nil for any non-standard structure (fail-open).
+func extractResponseTexts(msg map[string]interface{}) []string {
+	result, ok := msg["result"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	contentRaw, ok := result["content"]
+	if !ok {
+		return nil
+	}
+	contentArr, ok := contentRaw.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	var texts []string
+	for _, item := range contentArr {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if itemMap["type"] != "text" {
+			continue
+		}
+		text, ok := itemMap["text"].(string)
+		if !ok {
+			continue
+		}
+		texts = append(texts, text)
+	}
+	return texts
+}
+
+// redactResponse creates a shallow copy of the message with redacted text content.
+func (p *Proxy) redactResponse(msg map[string]interface{}) map[string]interface{} {
+	result, ok := msg["result"].(map[string]interface{})
+	if !ok {
+		return msg
+	}
+	contentRaw, ok := result["content"]
+	if !ok {
+		return msg
+	}
+	contentArr, ok := contentRaw.([]interface{})
+	if !ok {
+		return msg
+	}
+
+	// Shallow-copy msg and result, deep-copy content array
+	newMsg := make(map[string]interface{}, len(msg))
+	for k, v := range msg {
+		newMsg[k] = v
+	}
+	newResult := make(map[string]interface{}, len(result))
+	for k, v := range result {
+		newResult[k] = v
+	}
+	newContent := make([]interface{}, len(contentArr))
+	for i, item := range contentArr {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			newContent[i] = item
+			continue
+		}
+		if itemMap["type"] != "text" {
+			newContent[i] = item
+			continue
+		}
+		text, ok := itemMap["text"].(string)
+		if !ok {
+			newContent[i] = item
+			continue
+		}
+		// Copy the item map and replace text
+		newItem := make(map[string]interface{}, len(itemMap))
+		for k, v := range itemMap {
+			newItem[k] = v
+		}
+		newItem["text"] = p.Scanner.RedactAll(text)
+		newContent[i] = newItem
+	}
+
+	newResult["content"] = newContent
+	newMsg["result"] = newResult
+	return newMsg
 }
 
 // printPinInventory prints the pinned tool inventory to stderr.

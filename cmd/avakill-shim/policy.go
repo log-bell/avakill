@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,7 +18,8 @@ type PolicyConfig struct {
 	Version       string          `yaml:"version"`
 	DefaultAction string          `yaml:"default_action"`
 	Policies      []PolicyRule    `yaml:"policies"`
-	ToolHash      *ToolHashConfig `yaml:"tool_hash,omitempty"`
+	ToolHash     *ToolHashConfig `yaml:"tool_hash,omitempty"`
+	ResponseScan *ScanConfig     `yaml:"response_scan,omitempty"`
 }
 
 // PolicyRule mirrors a single rule inside the policies list.
@@ -100,6 +102,37 @@ func validateConfig(cfg *PolicyConfig) error {
 			home, err := os.UserHomeDir()
 			if err == nil {
 				cfg.ToolHash.ManifestDir = filepath.Join(home, ".avakill", "tool-manifests")
+			}
+		}
+	}
+
+	// Validate response_scan config
+	if cfg.ResponseScan != nil && cfg.ResponseScan.Enabled {
+		switch cfg.ResponseScan.Action {
+		case "log", "redact", "block":
+			// ok
+		case "":
+			cfg.ResponseScan.Action = "log"
+		default:
+			return fmt.Errorf("response_scan: invalid action %q (expected \"log\", \"redact\", or \"block\")", cfg.ResponseScan.Action)
+		}
+		for i, cp := range cfg.ResponseScan.CustomPatterns {
+			if cp.Name == "" {
+				return fmt.Errorf("response_scan: custom_patterns[%d]: name is required", i)
+			}
+			if cp.Pattern == "" {
+				return fmt.Errorf("response_scan: custom_patterns[%d] %q: pattern is required", i, cp.Name)
+			}
+			if _, err := regexp.Compile(cp.Pattern); err != nil {
+				return fmt.Errorf("response_scan: custom_patterns[%d] %q: invalid regex: %w", i, cp.Name, err)
+			}
+			if cp.Action != "" {
+				switch cp.Action {
+				case "log", "redact", "block":
+					// ok
+				default:
+					return fmt.Errorf("response_scan: custom_patterns[%d] %q: invalid action %q", i, cp.Name, cp.Action)
+				}
 			}
 		}
 	}
