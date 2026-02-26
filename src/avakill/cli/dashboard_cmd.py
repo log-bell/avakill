@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import subprocess
 import sys
 
 if sys.platform != "win32":
@@ -35,6 +36,79 @@ _ACTION_STYLE: dict[str, tuple[str, str]] = {
     "deny": ("bold red", "DENY"),
     "require_approval": ("bold yellow", "PEND"),
 }
+
+
+def _git(args: list[str], cwd: Path) -> str:
+    """Run a git command and return stripped stdout. Empty string on failure."""
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return ""
+
+
+def collect_git_state(root: Path) -> dict:
+    """Collect current git working tree state."""
+    branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], root)
+    head_sha = _git(["rev-parse", "--short", "HEAD"], root)
+    head_message = _git(["log", "-1", "--format=%s"], root)
+
+    status_raw = _git(["status", "--porcelain"], root)
+    staged: list[str] = []
+    modified: list[str] = []
+    untracked: list[str] = []
+    for line in status_raw.splitlines():
+        if len(line) < 4:
+            continue
+        index_status = line[0]
+        worktree_status = line[1]
+        filepath = line[3:]
+        if index_status == "?":
+            untracked.append(filepath)
+        elif index_status != " ":
+            staged.append(filepath)
+        if worktree_status == "M":
+            modified.append(filepath)
+
+    dirty = bool(staged or modified or untracked)
+
+    log_raw = _git(["log", "--format=%H|%h|%s|%ar", "-10"], root)
+    recent_commits = []
+    for line in log_raw.splitlines():
+        parts = line.split("|", 3)
+        if len(parts) == 4:
+            recent_commits.append(
+                {
+                    "sha": parts[1],
+                    "message": parts[2],
+                    "age": parts[3],
+                }
+            )
+
+    stash_raw = _git(["stash", "list", "--format=%gd|%gs"], root)
+    stashes = []
+    for line in stash_raw.splitlines():
+        parts = line.split("|", 1)
+        if len(parts) == 2:
+            stashes.append({"ref": parts[0], "message": parts[1]})
+
+    return {
+        "branch": branch,
+        "head_sha": head_sha,
+        "head_message": head_message,
+        "dirty": dirty,
+        "staged": staged,
+        "modified": modified,
+        "untracked": untracked,
+        "recent_commits": recent_commits,
+        "stashes": stashes,
+    }
 
 
 def _make_header(stats: dict[str, Any]) -> Panel:
