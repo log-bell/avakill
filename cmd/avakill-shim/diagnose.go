@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 )
 
 // DiagnoseResult is the output of a preflight check.
 type DiagnoseResult struct {
-	Check   string `json:"check"`
-	Status  string `json:"status"` // "ok", "warn", "fail"
-	Detail  string `json:"detail,omitempty"`
+	Check  string `json:"check"`
+	Status string `json:"status"` // "ok", "warn", "fail"
+	Detail string `json:"detail,omitempty"`
 }
 
 // DiagnoseOutput is the complete diagnose output.
@@ -22,7 +22,7 @@ type DiagnoseOutput struct {
 }
 
 // RunDiagnose runs all preflight checks and prints JSON to stdout.
-func RunDiagnose(socketPath, upstreamCmd, policyPath string) {
+func RunDiagnose(socketPath, upstreamCmd, policyPath, killswitchFile string) {
 	output := DiagnoseOutput{
 		Version: Version,
 		Checks:  make([]DiagnoseResult, 0),
@@ -43,14 +43,14 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath string) {
 			output.Checks = append(output.Checks, DiagnoseResult{
 				Check:  "daemon",
 				Status: "warn",
-				Detail: fmt.Sprintf("not reachable at %s (subprocess fallback will be used)", socketPath),
+				Detail: fmt.Sprintf("not reachable at %s (in-process policy will be used if --policy is set)", socketPath),
 			})
 		}
 	} else {
 		output.Checks = append(output.Checks, DiagnoseResult{
 			Check:  "daemon",
-			Status: "warn",
-			Detail: "no socket path configured",
+			Status: "info",
+			Detail: "no socket path configured (not needed when using --policy)",
 		})
 	}
 
@@ -80,36 +80,28 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath string) {
 		})
 	}
 
-	// 3. Check avakill CLI available (for subprocess fallback)
-	avakillPath, err := exec.LookPath("avakill")
-	if err == nil {
-		output.Checks = append(output.Checks, DiagnoseResult{
-			Check:  "avakill-cli",
-			Status: "ok",
-			Detail: avakillPath,
-		})
-	} else {
-		output.Checks = append(output.Checks, DiagnoseResult{
-			Check:  "avakill-cli",
-			Status: "warn",
-			Detail: "avakill not found in PATH (subprocess fallback unavailable)",
-		})
-	}
+	// 3. Check avakill CLI available (informational — subprocess fallback removed)
+	output.Checks = append(output.Checks, DiagnoseResult{
+		Check:  "avakill-cli",
+		Status: "info",
+		Detail: "subprocess fallback removed; in-process policy evaluation is used instead",
+	})
 
-	// 4. Check policy file exists (if specified)
+	// 4. Check policy file (if specified): parse and validate YAML
 	if policyPath != "" {
-		if _, err := os.Stat(policyPath); err == nil {
-			output.Checks = append(output.Checks, DiagnoseResult{
-				Check:  "policy",
-				Status: "ok",
-				Detail: policyPath,
-			})
-		} else {
+		cfg, err := loadPolicyFile(policyPath)
+		if err != nil {
 			allOK = false
 			output.Checks = append(output.Checks, DiagnoseResult{
 				Check:  "policy",
 				Status: "fail",
 				Detail: fmt.Sprintf("%s: %v", policyPath, err),
+			})
+		} else {
+			output.Checks = append(output.Checks, DiagnoseResult{
+				Check:  "policy",
+				Status: "ok",
+				Detail: fmt.Sprintf("%s (%d rules, default_action=%s)", policyPath, len(cfg.Policies), cfg.DefaultAction),
 			})
 		}
 	}
@@ -130,6 +122,50 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath string) {
 			Status: "warn",
 			Detail: fmt.Sprintf("recovery failed: %v (system PATH will be used)", err),
 		})
+	}
+
+	// 6. Check tool manifests
+	home, homeErr := os.UserHomeDir()
+	if homeErr == nil {
+		manifestDir := filepath.Join(home, ".avakill", "tool-manifests")
+		entries, err := os.ReadDir(manifestDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				output.Checks = append(output.Checks, DiagnoseResult{
+					Check:  "tool-manifests",
+					Status: "info",
+					Detail: "no tool manifests found (tool hashing not yet used)",
+				})
+			} else {
+				output.Checks = append(output.Checks, DiagnoseResult{
+					Check:  "tool-manifests",
+					Status: "warn",
+					Detail: fmt.Sprintf("cannot read manifest dir: %v", err),
+				})
+			}
+		} else {
+			count := 0
+			for _, e := range entries {
+				if !e.IsDir() && filepath.Ext(e.Name()) == ".json" {
+					count++
+				}
+			}
+			detail := fmt.Sprintf("%d manifest(s) in %s", count, manifestDir)
+			// If upstream command provided, show its manifest details
+			if upstreamCmd != "" {
+				serverCmd := upstreamCmd
+				mPath := manifestPath(manifestDir, serverCmd)
+				m, err := loadManifest(mPath)
+				if err == nil {
+					detail += fmt.Sprintf("; server %q: %d tools pinned", serverCmd, len(m.Tools))
+				}
+			}
+			output.Checks = append(output.Checks, DiagnoseResult{
+				Check:  "tool-manifests",
+				Status: "ok",
+				Detail: detail,
+			})
+		}
 	}
 
 	output.OK = allOK

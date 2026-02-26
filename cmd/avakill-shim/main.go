@@ -7,7 +7,9 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"time"
 )
 
 // Version is injected at build time via -ldflags.
@@ -19,11 +21,41 @@ func main() {
 	diagnose := flag.Bool("diagnose", false, "Run preflight checks and exit")
 	version := flag.Bool("version", false, "Print version and exit")
 	verbose := flag.Bool("verbose", false, "Detailed stderr diagnostics")
+	pinTools := flag.Bool("pin-tools", false, "Pin tool definitions on first tools/list and exit")
+	killFlag := flag.Bool("kill", false, "Create kill switch sentinel file and exit")
+	killReason := flag.String("kill-reason", "", "Reason for kill switch activation (used with --kill)")
+	unkillFlag := flag.Bool("unkill", false, "Remove kill switch sentinel file and exit")
+	killswitchFile := flag.String("killswitch-file", defaultKillSwitchPath(), "Kill switch sentinel file path")
 
 	flag.Parse()
 
 	if *version {
 		fmt.Fprintf(os.Stdout, "avakill-shim %s\n", Version)
+		os.Exit(0)
+	}
+
+	if *killFlag {
+		path := expandHome(*killswitchFile)
+		os.MkdirAll(filepath.Dir(path), 0700)
+		reason := *killReason
+		if reason == "" {
+			reason = "kill switch engaged via --kill"
+		}
+		if err := os.WriteFile(path, []byte(reason), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "avakill-shim: failed to create sentinel file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "avakill-shim: kill switch ENGAGED (%s)\n", path)
+		os.Exit(0)
+	}
+
+	if *unkillFlag {
+		path := expandHome(*killswitchFile)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "avakill-shim: failed to remove sentinel file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "avakill-shim: kill switch DISENGAGED (%s)\n", path)
 		os.Exit(0)
 	}
 
@@ -35,7 +67,7 @@ func main() {
 		if len(remaining) > 0 {
 			upstreamCmd = remaining[0]
 		}
-		RunDiagnose(*socketPath, upstreamCmd, *policyPath)
+		RunDiagnose(*socketPath, upstreamCmd, *policyPath, *killswitchFile)
 		return
 	}
 
@@ -111,17 +143,82 @@ func main() {
 		cmd.Process.Signal(sig)
 	}()
 
+	// Set up kill switch
+	ks := NewKillSwitch(expandHome(*killswitchFile))
+	ks.Start()
+	defer ks.Stop()
+
 	// Set up evaluator
 	evaluator := &Evaluator{
 		SocketPath: *socketPath,
 		PolicyPath: *policyPath,
 		Verbose:    *verbose,
+		KillSwitch: ks,
+	}
+
+	// Set up tool hash detection
+	var toolHasher *ToolHasher
+	var toolHashCfg *ToolHashConfig
+	var pinToolsDone chan struct{}
+
+	// Build the full server command string for manifest keying
+	serverCommand := strings.Join(remaining, " ")
+
+	if *pinTools {
+		// --pin-tools mode: create config for one-shot pinning
+		home, _ := os.UserHomeDir()
+		manifestDir := filepath.Join(home, ".avakill", "tool-manifests")
+		toolHashCfg = &ToolHashConfig{
+			Enabled:        true,
+			Action:         "log",
+			ManifestDir:    manifestDir,
+			PinOnFirstSeen: true,
+		}
+		toolHasher = NewToolHasher(manifestDir, *verbose)
+		pinToolsDone = make(chan struct{})
+	} else if *policyPath != "" {
+		// Load tool_hash config from policy YAML
+		cfg, err := loadPolicyFile(*policyPath)
+		if err == nil && cfg.ToolHash != nil && cfg.ToolHash.Enabled {
+			toolHashCfg = cfg.ToolHash
+			toolHasher = NewToolHasher(cfg.ToolHash.ManifestDir, *verbose)
+		}
 	}
 
 	// Run proxy
 	proxy := &Proxy{
-		Evaluator: evaluator,
-		Verbose:   *verbose,
+		Evaluator:       evaluator,
+		Verbose:         *verbose,
+		ToolHasher:      toolHasher,
+		ToolHashCfg:     toolHashCfg,
+		ServerCommand:   serverCommand,
+		PinToolsMode:    *pinTools,
+		PinToolsDone:    pinToolsDone,
+		pendingRequests: make(map[string]string),
+	}
+
+	// Only initialize pendingRequests when tool hashing is active
+	if toolHasher == nil {
+		proxy.pendingRequests = nil
+	}
+
+	if *pinTools {
+		// Run proxy in background, wait for pin or timeout
+		go func() {
+			proxy.Run(os.Stdin, os.Stdout, upstreamStdout, upstreamStdin)
+		}()
+
+		select {
+		case <-pinToolsDone:
+			fmt.Fprintln(os.Stderr, "avakill-shim: tool definitions pinned successfully")
+		case <-time.After(30 * time.Second):
+			fmt.Fprintln(os.Stderr, "avakill-shim: timeout waiting for tools/list response")
+		}
+
+		// Kill upstream and exit
+		cmd.Process.Kill()
+		cmd.Wait()
+		return
 	}
 
 	proxyErr := proxy.Run(os.Stdin, os.Stdout, upstreamStdout, upstreamStdin)
@@ -140,6 +237,15 @@ func main() {
 		}
 		os.Exit(1)
 	}
+}
+
+// defaultKillSwitchPath returns the default kill switch sentinel file path.
+func defaultKillSwitchPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".avakill", "killswitch")
 }
 
 // defaultSocketPath returns the default daemon socket path.
