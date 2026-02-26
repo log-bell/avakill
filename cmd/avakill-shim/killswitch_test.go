@@ -248,6 +248,72 @@ func TestKillSwitch_SignalUSR2Disengages(t *testing.T) {
 	}
 }
 
+func TestKillSwitch_SignalUSR2_PreservesFileEngagement(t *testing.T) {
+	dir := t.TempDir()
+	sentinelPath := filepath.Join(dir, "killswitch")
+
+	ks := NewKillSwitch(sentinelPath)
+	ks.fileCheckInterval = 50 * time.Millisecond
+	ks.Start()
+	defer ks.Stop()
+
+	// Engage manually (simulates SIGUSR1)
+	ks.Engage("manual engage")
+
+	// Create sentinel file separately (machine-wide engagement)
+	os.WriteFile(sentinelPath, []byte("file engage"), 0644)
+	time.Sleep(150 * time.Millisecond)
+
+	// Both sources should be active
+	engaged, _ := ks.IsEngaged()
+	if !engaged {
+		t.Fatal("expected engaged with both sources active")
+	}
+
+	// Send SIGUSR2 — should only clear manual, not file
+	syscall.Kill(syscall.Getpid(), syscall.SIGUSR2)
+	time.Sleep(50 * time.Millisecond)
+
+	// Should still be engaged via file
+	engaged, reason := ks.IsEngaged()
+	if !engaged {
+		t.Fatal("expected still engaged via file after SIGUSR2")
+	}
+	if reason != "file engage" {
+		t.Fatalf("expected file reason 'file engage', got %q", reason)
+	}
+
+	// Verify sentinel file still exists (SIGUSR2 must not delete it)
+	if _, err := os.Stat(sentinelPath); os.IsNotExist(err) {
+		t.Fatal("SIGUSR2 deleted sentinel file — should only affect per-process state")
+	}
+}
+
+func TestKillSwitch_EngagedAt(t *testing.T) {
+	dir := t.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+
+	// Not engaged — zero time
+	if !ks.EngagedAt().IsZero() {
+		t.Fatal("expected zero time when not engaged")
+	}
+
+	before := time.Now()
+	ks.Engage("test")
+	after := time.Now()
+
+	at := ks.EngagedAt()
+	if at.Before(before) || at.After(after) {
+		t.Fatalf("EngagedAt %v not between %v and %v", at, before, after)
+	}
+
+	// Disengage resets timestamp
+	ks.Disengage()
+	if !ks.EngagedAt().IsZero() {
+		t.Fatal("expected zero time after Disengage()")
+	}
+}
+
 func TestKillSwitch_EvaluatorIntegration_Engaged(t *testing.T) {
 	dir := t.TempDir()
 	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))

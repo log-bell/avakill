@@ -14,14 +14,16 @@ import (
 // ToolDefinition represents a single tool from a tools/list response.
 type ToolDefinition struct {
 	Name        string      `json:"name"`
-	Description string      `json:"description"`
+	Description string      `json:"description,omitempty"`
 	InputSchema interface{} `json:"inputSchema"`
 }
 
 // ToolEntry is a stored hash for a single tool in a manifest.
 type ToolEntry struct {
-	Hash    string `json:"hash"`
-	FirstAt string `json:"first_seen_at"`
+	Hash        string `json:"hash"`
+	Description string `json:"description"`
+	FirstAt     string `json:"first_seen_at"`
+	LastAt      string `json:"last_seen_at"`
 }
 
 // ToolManifest is the persisted set of tool hashes for one MCP server.
@@ -38,6 +40,8 @@ type ToolChange struct {
 	Type    string `json:"type"` // "modified", "added", "removed"
 	OldHash string `json:"old_hash,omitempty"`
 	NewHash string `json:"new_hash,omitempty"`
+	OldDesc string `json:"old_desc,omitempty"`
+	NewDesc string `json:"new_desc,omitempty"`
 }
 
 // ToolHasher compares tool definitions against stored manifests.
@@ -193,7 +197,7 @@ func (th *ToolHasher) ProcessToolsList(serverCmd string, tools []ToolDefinition)
 				if herr != nil {
 					return nil, nil, herr
 				}
-				manifest.Tools[tool.Name] = ToolEntry{Hash: hash, FirstAt: now}
+				manifest.Tools[tool.Name] = ToolEntry{Hash: hash, Description: tool.Description, FirstAt: now, LastAt: now}
 			}
 			return nil, manifest, nil
 		}
@@ -219,10 +223,12 @@ func (th *ToolHasher) ProcessToolsList(serverCmd string, tools []ToolDefinition)
 					Type:    "modified",
 					OldHash: entry.Hash,
 					NewHash: hash,
+					OldDesc: entry.Description,
+					NewDesc: tool.Description,
 				})
-				newTools[tool.Name] = ToolEntry{Hash: hash, FirstAt: entry.FirstAt}
+				newTools[tool.Name] = ToolEntry{Hash: hash, Description: tool.Description, FirstAt: entry.FirstAt, LastAt: now}
 			} else {
-				newTools[tool.Name] = entry
+				newTools[tool.Name] = ToolEntry{Hash: entry.Hash, Description: entry.Description, FirstAt: entry.FirstAt, LastAt: now}
 			}
 		} else {
 			changes = append(changes, ToolChange{
@@ -230,7 +236,7 @@ func (th *ToolHasher) ProcessToolsList(serverCmd string, tools []ToolDefinition)
 				Type:    "added",
 				NewHash: hash,
 			})
-			newTools[tool.Name] = ToolEntry{Hash: hash, FirstAt: now}
+			newTools[tool.Name] = ToolEntry{Hash: hash, Description: tool.Description, FirstAt: now, LastAt: now}
 		}
 	}
 

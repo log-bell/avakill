@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // DiagnoseResult is the output of a preflight check.
@@ -23,7 +24,9 @@ type DiagnoseOutput struct {
 }
 
 // RunDiagnose runs all preflight checks and prints JSON to stdout.
-func RunDiagnose(socketPath, upstreamCmd, policyPath, killswitchFile string) {
+// upstreamCmd is the first arg (for binary resolution), serverCommand is
+// the full "cmd arg1 arg2..." string (for manifest path keying).
+func RunDiagnose(socketPath, upstreamCmd, serverCommand, policyPath, killswitchFile string) {
 	output := DiagnoseOutput{
 		Version: Version,
 		Checks:  make([]DiagnoseResult, 0),
@@ -80,10 +83,11 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath, killswitchFile string) {
 					reason = strings.TrimSpace(string(data))
 				}
 			}
+			since := info.ModTime().Format(time.RFC3339)
 			output.Checks = append(output.Checks, DiagnoseResult{
 				Check:  "killswitch",
 				Status: "fail",
-				Detail: fmt.Sprintf("ENGAGED — %s (sentinel: %s)", reason, ksPath),
+				Detail: fmt.Sprintf("ENGAGED since %s — %s (sentinel: %s)", since, reason, ksPath),
 			})
 		}
 	}
@@ -185,13 +189,12 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath, killswitchFile string) {
 				}
 			}
 			detail := fmt.Sprintf("%d manifest(s) in %s", count, manifestDir)
-			// If upstream command provided, show its manifest details
-			if upstreamCmd != "" {
-				serverCmd := upstreamCmd
-				mPath := manifestPath(manifestDir, serverCmd)
+			// If server command provided, show its manifest details
+			if serverCommand != "" {
+				mPath := manifestPath(manifestDir, serverCommand)
 				m, err := loadManifest(mPath)
 				if err == nil {
-					detail += fmt.Sprintf("; server %q: %d tools pinned", serverCmd, len(m.Tools))
+					detail += fmt.Sprintf("; server %q: %d tools pinned", serverCommand, len(m.Tools))
 				}
 			}
 			output.Checks = append(output.Checks, DiagnoseResult{

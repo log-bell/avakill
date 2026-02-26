@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"sync"
 	"sync/atomic"
 )
@@ -206,6 +207,7 @@ func (p *Proxy) handleToolsListResponse(msg map[string]interface{}, clientOut io
 		}
 		// Signal pin-tools mode completion
 		if p.PinToolsMode && p.PinToolsDone != nil {
+			p.printPinInventory(manifest)
 			select {
 			case <-p.PinToolsDone:
 			default:
@@ -238,6 +240,9 @@ func (p *Proxy) handleToolsListResponse(msg map[string]interface{}, clientOut io
 		}
 		if ch.NewHash != "" {
 			fmt.Fprintf(os.Stderr, " (now %s…)", ch.NewHash[:12])
+		}
+		if ch.OldDesc != "" || ch.NewDesc != "" {
+			fmt.Fprintf(os.Stderr, "\n    desc was: %s\n    desc now: %s", ch.OldDesc, ch.NewDesc)
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -362,5 +367,24 @@ func (p *Proxy) handleToolsCall(msg map[string]interface{}) map[string]interface
 			},
 			"isError": true,
 		},
+	}
+}
+
+// printPinInventory prints the pinned tool inventory to stderr.
+func (p *Proxy) printPinInventory(manifest *ToolManifest) {
+	names := make([]string, 0, len(manifest.Tools))
+	for name := range manifest.Tools {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	fmt.Fprintf(os.Stderr, "Pinned %d tools from %s:\n", len(manifest.Tools), p.ServerCommand)
+	for _, name := range names {
+		entry := manifest.Tools[name]
+		short := entry.Hash
+		if len(short) > 12 {
+			short = short[:12]
+		}
+		fmt.Fprintf(os.Stderr, "  %s  sha256:%s...\n", name, short)
 	}
 }

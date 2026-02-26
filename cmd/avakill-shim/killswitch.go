@@ -25,7 +25,6 @@ type KillSwitch struct {
 	engagedAt         time.Time
 	fileCheckInterval time.Duration
 	stopCh            chan struct{}
-	verbose           bool
 }
 
 // NewKillSwitch creates a new KillSwitch monitoring the given sentinel file path.
@@ -63,8 +62,8 @@ func (ks *KillSwitch) Engage(reason string) {
 	ks.mu.Unlock()
 }
 
-// Disengage deactivates the kill switch (clears BOTH sources) and removes
-// the sentinel file if it exists.
+// Disengage fully deactivates the kill switch (clears BOTH sources) and removes
+// the sentinel file. Use for --unkill and programmatic full disarm.
 func (ks *KillSwitch) Disengage() {
 	ks.mu.Lock()
 	ks.manualEngaged = false
@@ -76,6 +75,29 @@ func (ks *KillSwitch) Disengage() {
 
 	// Remove sentinel file if it exists
 	os.Remove(ks.filePath)
+}
+
+// disengageManual clears only the per-process manual engagement without
+// touching file-based state. Used by the SIGUSR2 handler so that
+// disengaging one shim process does not affect other instances watching
+// the same sentinel file.
+func (ks *KillSwitch) disengageManual() {
+	ks.mu.Lock()
+	ks.manualEngaged = false
+	ks.manualReason = ""
+	// Reset engagedAt only if file is also disengaged
+	if !ks.fileEngaged {
+		ks.engagedAt = time.Time{}
+	}
+	ks.mu.Unlock()
+}
+
+// EngagedAt returns the time when the kill switch was first engaged.
+// Returns the zero time if not currently engaged.
+func (ks *KillSwitch) EngagedAt() time.Time {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+	return ks.engagedAt
 }
 
 // Start performs a synchronous initial file check, then begins background
@@ -160,7 +182,7 @@ func (ks *KillSwitch) startSignalHandler() {
 				case syscall.SIGUSR1:
 					ks.Engage("kill switch engaged via SIGUSR1")
 				case syscall.SIGUSR2:
-					ks.Disengage()
+					ks.disengageManual()
 				}
 			case <-ks.stopCh:
 				signal.Stop(sigCh)

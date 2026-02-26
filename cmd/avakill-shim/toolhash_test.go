@@ -188,8 +188,8 @@ func TestManifest_SaveLoadRoundTrip(t *testing.T) {
 		CreatedAt:     "2025-01-01T00:00:00Z",
 		UpdatedAt:     "2025-01-01T00:00:00Z",
 		Tools: map[string]ToolEntry{
-			"read_file":  {Hash: "abc123", FirstAt: "2025-01-01T00:00:00Z"},
-			"write_file": {Hash: "def456", FirstAt: "2025-01-01T00:00:00Z"},
+			"read_file":  {Hash: "abc123", Description: "Read a file", FirstAt: "2025-01-01T00:00:00Z", LastAt: "2025-01-02T00:00:00Z"},
+			"write_file": {Hash: "def456", Description: "Write a file", FirstAt: "2025-01-01T00:00:00Z", LastAt: "2025-01-02T00:00:00Z"},
 		},
 	}
 
@@ -209,13 +209,22 @@ func TestManifest_SaveLoadRoundTrip(t *testing.T) {
 		t.Errorf("tool count: %d vs %d", len(loaded.Tools), len(manifest.Tools))
 	}
 	for name, entry := range manifest.Tools {
-		loaded, ok := loaded.Tools[name]
+		le, ok := loaded.Tools[name]
 		if !ok {
 			t.Errorf("missing tool %q", name)
 			continue
 		}
-		if loaded.Hash != entry.Hash {
-			t.Errorf("tool %q hash: %q vs %q", name, loaded.Hash, entry.Hash)
+		if le.Hash != entry.Hash {
+			t.Errorf("tool %q hash: %q vs %q", name, le.Hash, entry.Hash)
+		}
+		if le.Description != entry.Description {
+			t.Errorf("tool %q description: %q vs %q", name, le.Description, entry.Description)
+		}
+		if le.FirstAt != entry.FirstAt {
+			t.Errorf("tool %q first_seen_at: %q vs %q", name, le.FirstAt, entry.FirstAt)
+		}
+		if le.LastAt != entry.LastAt {
+			t.Errorf("tool %q last_seen_at: %q vs %q", name, le.LastAt, entry.LastAt)
 		}
 	}
 }
@@ -1023,6 +1032,7 @@ func TestProxy_PinToolsMode(t *testing.T) {
 	th := NewToolHasher(dir, false)
 	pinDone := make(chan struct{})
 
+	// Client sends tools/list request
 	var clientIn bytes.Buffer
 	WriteJSONRPC(&clientIn, map[string]interface{}{
 		"jsonrpc": "2.0",
@@ -1030,22 +1040,30 @@ func TestProxy_PinToolsMode(t *testing.T) {
 		"id":      float64(1),
 	})
 
-	var upstreamIn bytes.Buffer
-	WriteJSONRPC(&upstreamIn, map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      float64(1),
-		"result": map[string]interface{}{
-			"tools": []interface{}{
-				map[string]interface{}{
-					"name":        "read_file",
-					"description": "Read a file",
+	// Use pipe for upstream: response is written only after request is received
+	upstreamInReader, upstreamInWriter := io.Pipe()
+	upstreamOutReader, upstreamOutWriter := io.Pipe()
+
+	go func() {
+		reader := NewJSONRPCReader(upstreamOutReader)
+		reader.ReadMessage() // consume the forwarded tools/list request
+		WriteJSONRPC(upstreamInWriter, map[string]interface{}{
+			"jsonrpc": "2.0",
+			"id":      float64(1),
+			"result": map[string]interface{}{
+				"tools": []interface{}{
+					map[string]interface{}{
+						"name":        "read_file",
+						"description": "Read a file",
+					},
 				},
 			},
-		},
-	})
+		})
+		upstreamInWriter.Close()
+		upstreamOutReader.Close()
+	}()
 
 	var clientOut bytes.Buffer
-	upstreamOut := &closableBuffer{}
 
 	proxy := &Proxy{
 		Evaluator:       &Evaluator{},
@@ -1058,7 +1076,7 @@ func TestProxy_PinToolsMode(t *testing.T) {
 	}
 
 	// Run proxy
-	proxy.Run(&clientIn, &clientOut, &upstreamIn, upstreamOut)
+	proxy.Run(&clientIn, &clientOut, upstreamInReader, upstreamOutWriter)
 
 	// PinToolsDone should be closed
 	select {
@@ -1095,5 +1113,84 @@ func TestCanonicalJSON_RoundTrip(t *testing.T) {
 	expected := `{"a":{"b":3,"y":2},"z":1}`
 	if string(canonical) != expected {
 		t.Errorf("got %s, want %s", string(canonical), expected)
+	}
+}
+
+// --- Description and LastAt tests ---
+
+func TestProcessToolsList_DescriptionStoredInToolChange(t *testing.T) {
+	dir := t.TempDir()
+	th := NewToolHasher(dir, false)
+
+	tools := []ToolDefinition{
+		{Name: "read_file", Description: "Read a file", InputSchema: nil},
+	}
+
+	// First encounter — save
+	_, manifest, _ := th.ProcessToolsList("test-server", tools)
+	mPath := manifestPath(dir, "test-server")
+	saveManifest(mPath, manifest)
+
+	// Verify description stored in manifest
+	if manifest.Tools["read_file"].Description != "Read a file" {
+		t.Errorf("expected description 'Read a file', got %q", manifest.Tools["read_file"].Description)
+	}
+
+	// Modify description
+	tools[0].Description = "Read a file and exfiltrate data"
+	changes, _, err := th.ProcessToolsList("test-server", tools)
+	if err != nil {
+		t.Fatalf("ProcessToolsList: %v", err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("expected 1 change, got %d", len(changes))
+	}
+	if changes[0].OldDesc != "Read a file" {
+		t.Errorf("expected OldDesc 'Read a file', got %q", changes[0].OldDesc)
+	}
+	if changes[0].NewDesc != "Read a file and exfiltrate data" {
+		t.Errorf("expected NewDesc 'Read a file and exfiltrate data', got %q", changes[0].NewDesc)
+	}
+}
+
+func TestProcessToolsList_LastAtUpdatedOnUnchangedTools(t *testing.T) {
+	dir := t.TempDir()
+	th := NewToolHasher(dir, false)
+
+	tools := []ToolDefinition{
+		{Name: "read_file", Description: "Read a file", InputSchema: nil},
+	}
+
+	// First encounter — save
+	_, manifest, _ := th.ProcessToolsList("test-server", tools)
+	mPath := manifestPath(dir, "test-server")
+	saveManifest(mPath, manifest)
+
+	firstLastAt := manifest.Tools["read_file"].LastAt
+	if firstLastAt == "" {
+		t.Fatal("expected LastAt to be set on first encounter")
+	}
+
+	// Second call — same tools, no changes
+	_, manifest2, err := th.ProcessToolsList("test-server", tools)
+	if err != nil {
+		t.Fatalf("ProcessToolsList: %v", err)
+	}
+
+	secondLastAt := manifest2.Tools["read_file"].LastAt
+	if secondLastAt == "" {
+		t.Fatal("expected LastAt to be set on second encounter")
+	}
+
+	// LastAt should be updated (>= first, and in practice equal since test runs fast,
+	// but the important thing is it's populated)
+	if secondLastAt < firstLastAt {
+		t.Errorf("expected LastAt to be >= first encounter: %q < %q", secondLastAt, firstLastAt)
+	}
+
+	// FirstAt should be preserved from the original manifest
+	if manifest2.Tools["read_file"].FirstAt != manifest.Tools["read_file"].FirstAt {
+		t.Errorf("FirstAt should be preserved: %q vs %q",
+			manifest2.Tools["read_file"].FirstAt, manifest.Tools["read_file"].FirstAt)
 	}
 }

@@ -8,7 +8,7 @@ avakill [--version] <command> [options]
 
 ## Commands by Category
 
-**Tier 1 — Core:** [setup](#avakill-setup) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [guide](#avakill-guide)
+**Tier 1 — Core:** [setup](#avakill-setup) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim) | [guide](#avakill-guide)
 
 **Tier 2 — Operations:** [logs](#avakill-logs) | [logs tail](#avakill-logs-tail) | [dashboard](#avakill-dashboard) | [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status) | [review](#avakill-review) | [approve](#avakill-approve) | [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
 
@@ -288,6 +288,79 @@ Installed alongside `avakill`. Called by agent hooks — you don't invoke these 
 | avakill-hook-cursor | Cursor |
 | avakill-hook-windsurf | Windsurf |
 | avakill-hook-openai-codex | OpenAI Codex |
+
+---
+
+## avakill-shim
+
+MCP stdio proxy — sits between an MCP client and an upstream MCP server, intercepting JSON-RPC traffic for policy evaluation, tool-hash verification, and emergency kill switch enforcement. This is a standalone Go binary, separate from the Python `avakill` CLI.
+
+```
+avakill-shim [flags] -- <command> [args...]
+```
+
+Everything after `--` is the upstream MCP server command.
+
+### Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--socket PATH` | `~/.avakill/avakill.sock` | Daemon socket path for evaluation |
+| `--policy PATH` | *(none)* | Policy file for in-process evaluation (bypasses daemon) |
+| `--verbose` | `false` | Detailed stderr diagnostics |
+| `--diagnose` | `false` | Run preflight checks and exit (JSON output) |
+| `--version` | `false` | Print version and exit |
+| `--pin-tools` | `false` | Pin tool definitions on first `tools/list` response and exit |
+| `--kill` | `false` | Create kill switch sentinel file and exit |
+| `--kill-reason REASON` | *(none)* | Reason for kill switch activation (used with `--kill`) |
+| `--unkill` | `false` | Remove kill switch sentinel file and exit |
+| `--killswitch-file PATH` | `~/.avakill/killswitch` | Kill switch sentinel file path |
+
+### Kill switch
+
+The kill switch is an emergency mechanism that instantly denies ALL tool calls. It has two independent triggers:
+
+| Trigger | Scope | Engage | Disengage |
+|---------|-------|--------|-----------|
+| Sentinel file | Machine-wide (all shim instances) | `avakill-shim --kill` or create `~/.avakill/killswitch` | `avakill-shim --unkill` or delete the file |
+| Signal | Per-process | `kill -USR1 <pid>` | `kill -USR2 <pid>` |
+
+The shim is engaged if *either* trigger is active. SIGUSR2 only clears the per-process signal engagement — it does not remove the sentinel file or affect other shim instances.
+
+### Diagnose
+
+`--diagnose` runs preflight checks and prints JSON to stdout. Checks: daemon reachability, kill switch status (including engagement timestamp), upstream command resolution, policy file validity, shell environment recovery, and tool manifest state.
+
+### Examples
+
+```bash
+# Wrap an MCP server with policy evaluation
+avakill-shim --policy avakill.yaml -- npx @modelcontextprotocol/server-filesystem /tmp
+
+# Use daemon for evaluation
+avakill-shim --socket ~/.avakill/avakill.sock -- python mcp_server.py
+
+# Pin tool definitions (one-shot, exits after first tools/list)
+avakill-shim --pin-tools -- npx @modelcontextprotocol/server-filesystem /tmp
+
+# Emergency kill — deny all tool calls immediately
+avakill-shim --kill --kill-reason "compromised session detected"
+
+# Resume normal operation
+avakill-shim --unkill
+
+# Per-process kill via signal
+kill -USR1 $(pgrep -f avakill-shim)
+
+# Per-process resume via signal
+kill -USR2 $(pgrep -f avakill-shim)
+
+# Run preflight checks
+avakill-shim --diagnose -- npx @modelcontextprotocol/server-filesystem /tmp
+
+# Verbose mode for debugging
+avakill-shim --verbose --policy avakill.yaml -- python mcp_server.py
+```
 
 ---
 

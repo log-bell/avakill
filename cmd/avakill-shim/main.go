@@ -64,10 +64,12 @@ func main() {
 
 	if *diagnose {
 		upstreamCmd := ""
+		serverCommand := ""
 		if len(remaining) > 0 {
 			upstreamCmd = remaining[0]
+			serverCommand = strings.Join(remaining, " ")
 		}
-		RunDiagnose(*socketPath, upstreamCmd, *policyPath, *killswitchFile)
+		RunDiagnose(*socketPath, upstreamCmd, serverCommand, *policyPath, *killswitchFile)
 		return
 	}
 
