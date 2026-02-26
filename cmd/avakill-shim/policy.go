@@ -14,9 +14,10 @@ import (
 
 // PolicyConfig mirrors the top-level YAML policy structure.
 type PolicyConfig struct {
-	Version       string       `yaml:"version"`
-	DefaultAction string       `yaml:"default_action"`
-	Policies      []PolicyRule `yaml:"policies"`
+	Version       string          `yaml:"version"`
+	DefaultAction string          `yaml:"default_action"`
+	Policies      []PolicyRule    `yaml:"policies"`
+	ToolHash      *ToolHashConfig `yaml:"tool_hash,omitempty"`
 }
 
 // PolicyRule mirrors a single rule inside the policies list.
