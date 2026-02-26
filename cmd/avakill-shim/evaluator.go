@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
+	"sync"
 	"time"
 )
 
@@ -28,17 +27,49 @@ type EvaluateResponse struct {
 	LatencyMs float64 `json:"latency_ms,omitempty"`
 }
 
-// Evaluator evaluates tool calls via daemon socket or subprocess fallback.
+// Evaluator evaluates tool calls via in-process policy, daemon socket, or fail-closed deny.
 type Evaluator struct {
-	SocketPath string
-	PolicyPath string
-	Timeout    time.Duration
-	Verbose    bool
+	SocketPath  string
+	PolicyPath  string
+	Timeout     time.Duration
+	Verbose     bool
+	KillSwitch  *KillSwitch
+	policyCache *PolicyCache
+	cacheOnce   sync.Once
 }
 
-// Evaluate runs the fallback chain: daemon → subprocess → deny.
+// Evaluate runs the evaluation chain: kill switch → in-process → daemon → deny.
 func (e *Evaluator) Evaluate(tool string, args map[string]interface{}) EvaluateResponse {
-	// 1. Try daemon socket
+	// 0. Kill switch — instant deny, before all policy evaluation
+	if e.KillSwitch != nil {
+		if engaged, reason := e.KillSwitch.IsEngaged(); engaged {
+			return EvaluateResponse{
+				Decision: "deny",
+				Reason:   fmt.Sprintf("KILL SWITCH ENGAGED: %s", reason),
+			}
+		}
+	}
+
+	// 1. In-process policy evaluation (if --policy set)
+	if e.PolicyPath != "" {
+		e.cacheOnce.Do(func() {
+			e.policyCache = NewPolicyCache(e.PolicyPath, e.Verbose)
+		})
+		resp, err := e.policyCache.Evaluate(tool, args)
+		if err == nil {
+			return resp
+		}
+		// If --policy is set but broken, fail-closed (do NOT fall through to daemon)
+		if e.Verbose {
+			fmt.Fprintf(os.Stderr, "avakill-shim: in-process policy eval failed: %v\n", err)
+		}
+		return EvaluateResponse{
+			Decision: "deny",
+			Reason:   fmt.Sprintf("policy file error (fail-closed): %v", err),
+		}
+	}
+
+	// 2. Daemon socket fallback (if --socket set, no --policy)
 	if e.SocketPath != "" {
 		resp, err := e.evaluateDaemon(tool, args)
 		if err == nil {
@@ -49,21 +80,10 @@ func (e *Evaluator) Evaluate(tool string, args map[string]interface{}) EvaluateR
 		}
 	}
 
-	// 2. Try subprocess fallback
-	if e.PolicyPath != "" {
-		resp, err := e.evaluateSubprocess(tool, args)
-		if err == nil {
-			return resp
-		}
-		if e.Verbose {
-			fmt.Fprintf(os.Stderr, "avakill-shim: subprocess eval failed: %v\n", err)
-		}
-	}
-
 	// 3. Fail-closed: deny
 	return EvaluateResponse{
 		Decision: "deny",
-		Reason:   "all evaluation methods failed (fail-closed)",
+		Reason:   "no evaluation method available (fail-closed)",
 	}
 }
 
@@ -132,66 +152,6 @@ func (e *Evaluator) evaluateDaemon(tool string, args map[string]interface{}) (Ev
 	return resp, nil
 }
 
-// evaluateSubprocess spawns `avakill evaluate --json --policy <path>`,
-// pipes the tool call as JSON on stdin, reads the decision from stdout.
-func (e *Evaluator) evaluateSubprocess(tool string, args map[string]interface{}) (EvaluateResponse, error) {
-	// Try recovered shell env first (handles launchd's restricted PATH)
-	avakillBin, err := ResolveInEnv("avakill")
-	if err != nil {
-		// Fall back to process PATH
-		avakillBin, err = exec.LookPath("avakill")
-		if err != nil {
-			return EvaluateResponse{}, fmt.Errorf("avakill not found in PATH: %w", err)
-		}
-	}
-
-	cmd := exec.Command(avakillBin, "evaluate", "--json", "--policy", e.PolicyPath)
-
-	// Build stdin payload matching EvaluateRequest
-	req := EvaluateRequest{
-		Version: 1,
-		Agent:   "mcp-shim",
-		Event:   "pre_tool_use",
-		Tool:    tool,
-		Args:    args,
-	}
-	stdinData, err := json.Marshal(req)
-	if err != nil {
-		return EvaluateResponse{}, fmt.Errorf("marshal: %w", err)
-	}
-
-	cmd.Stdin = bytes.NewReader(stdinData)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
-
-	// Try to parse JSON from stdout regardless of exit code.
-	// avakill evaluate --json writes the response to stdout even on deny (exit 2).
-	if stdout.Len() > 0 {
-		var resp EvaluateResponse
-		if jsonErr := json.Unmarshal(stdout.Bytes(), &resp); jsonErr == nil {
-			return resp, nil
-		}
-	}
-
-	if err != nil {
-		// Exit code 2 = deny, but we couldn't parse JSON above
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 2 {
-			return EvaluateResponse{
-				Decision: "deny",
-				Reason:   "denied by subprocess (no structured output)",
-			}, nil
-		}
-		return EvaluateResponse{}, fmt.Errorf("subprocess: %w", err)
-	}
-
-	// If we got here, cmd.Run() succeeded but stdout had no valid JSON
-	return EvaluateResponse{}, fmt.Errorf("no valid JSON in subprocess output")
-}
-
 // DaemonReachable checks if the daemon socket is connectable.
 func (e *Evaluator) DaemonReachable() bool {
 	if e.SocketPath == "" {
@@ -205,4 +165,3 @@ func (e *Evaluator) DaemonReachable() bool {
 	conn.Close()
 	return true
 }
-

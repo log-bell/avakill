@@ -247,3 +247,59 @@ func TestKillSwitch_SignalUSR2Disengages(t *testing.T) {
 		t.Fatal("expected disengaged after SIGUSR2")
 	}
 }
+
+func TestKillSwitch_EvaluatorIntegration_Engaged(t *testing.T) {
+	dir := t.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+	ks.Engage("test emergency")
+
+	policyPath := filepath.Join(dir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(`
+version: "1.0"
+default_action: allow
+policies: []
+`), 0644)
+
+	eval := &Evaluator{
+		PolicyPath: policyPath,
+		KillSwitch: ks,
+	}
+
+	resp := eval.Evaluate("read_file", map[string]interface{}{"path": "/tmp/test"})
+	if resp.Decision != "deny" {
+		t.Fatalf("expected deny when kill switch engaged, got %q", resp.Decision)
+	}
+	if resp.Reason == "" || resp.Reason == "no evaluation method available (fail-closed)" {
+		t.Fatalf("expected kill switch reason, got %q", resp.Reason)
+	}
+}
+
+func TestKillSwitch_EvaluatorIntegration_Disengaged(t *testing.T) {
+	dir := t.TempDir()
+	ks := NewKillSwitch(filepath.Join(dir, "killswitch"))
+
+	policyPath := filepath.Join(dir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(`
+version: "1.0"
+default_action: allow
+policies: []
+`), 0644)
+
+	eval := &Evaluator{
+		PolicyPath: policyPath,
+		KillSwitch: ks,
+	}
+
+	resp := eval.Evaluate("read_file", map[string]interface{}{"path": "/tmp/test"})
+	if resp.Decision != "allow" {
+		t.Fatalf("expected allow when kill switch disengaged, got %q (reason: %s)", resp.Decision, resp.Reason)
+	}
+}
+
+func TestKillSwitch_EvaluatorIntegration_NilKillSwitch(t *testing.T) {
+	eval := &Evaluator{}
+	resp := eval.Evaluate("test", nil)
+	if resp.Decision != "deny" {
+		t.Fatalf("expected fail-closed deny, got %q", resp.Decision)
+	}
+}
