@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import contextlib
 import logging
@@ -108,6 +109,78 @@ def collect_git_state(root: Path) -> dict:
         "untracked": untracked,
         "recent_commits": recent_commits,
         "stashes": stashes,
+    }
+
+
+def collect_module_graph(package_root: Path) -> dict:
+    """Build a module dependency graph from AST imports."""
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    subpackages: set[str] = set()
+
+    module_ids: dict[Path, str] = {}
+    for py_file in sorted(package_root.rglob("*.py")):
+        if py_file.name == "__init__.py":
+            continue
+        rel = py_file.relative_to(package_root)
+        parts = list(rel.with_suffix("").parts)
+        module_id = ".".join(parts)
+        module_ids[py_file] = module_id
+
+        if len(parts) > 1:
+            subpackages.add(parts[0])
+
+        loc = len(py_file.read_text(errors="replace").splitlines())
+        mod_type = parts[0] if len(parts) > 1 else "root"
+
+        nodes.append(
+            {
+                "id": module_id,
+                "path": str(py_file.relative_to(package_root.parent.parent)),
+                "loc": loc,
+                "type": mod_type,
+            }
+        )
+
+    known_ids = {n["id"] for n in nodes}
+
+    for py_file, module_id in module_ids.items():
+        try:
+            source = py_file.read_text(errors="replace")
+            tree = ast.parse(source, filename=str(py_file))
+        except SyntaxError:
+            continue
+
+        for node in ast.walk(tree):
+            targets: list[str] = []
+            if isinstance(node, ast.Import):
+                targets = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                targets = [node.module]
+
+            for target in targets:
+                if target.startswith("avakill."):
+                    target = target[len("avakill.") :]
+
+                parts = target.split(".")
+                for i in range(len(parts), 0, -1):
+                    candidate = ".".join(parts[:i])
+                    if candidate in known_ids and candidate != module_id:
+                        edges.append({"from": module_id, "to": candidate})
+                        break
+
+    seen: set[tuple[str, str]] = set()
+    unique_edges = []
+    for e in edges:
+        key = (e["from"], e["to"])
+        if key not in seen:
+            seen.add(key)
+            unique_edges.append(e)
+
+    return {
+        "nodes": nodes,
+        "edges": unique_edges,
+        "subpackages": sorted(subpackages),
     }
 
 
