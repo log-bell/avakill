@@ -31,10 +31,10 @@ type PolicyRule struct {
 
 // RuleConditions holds optional matching conditions for a rule.
 type RuleConditions struct {
-	ArgsMatch    map[string][]string `yaml:"args_match,omitempty"`
-	ArgsNotMatch map[string][]string `yaml:"args_not_match,omitempty"`
-	PathMatch    []string            `yaml:"path_match,omitempty"`
-	PathNotMatch []string            `yaml:"path_not_match,omitempty"`
+	ArgsMatch        map[string][]string `yaml:"args_match,omitempty"`
+	ArgsNotMatch     map[string][]string `yaml:"args_not_match,omitempty"`
+	ShellSafe        bool                `yaml:"shell_safe,omitempty"`
+	CommandAllowlist []string            `yaml:"command_allowlist,omitempty"`
 }
 
 // RateLimit configures a sliding-window rate limit for a rule.
@@ -159,45 +159,30 @@ func checkConditions(args map[string]interface{}, conds *RuleConditions) bool {
 		}
 	}
 
-	// path_match: extract paths from args, normalize, check if any matches.
-	// If set and no extracted path matches any pattern, condition fails.
-	if len(conds.PathMatch) > 0 {
-		ws := detectWorkspaceRoot()
-		extracted := extractPaths(args)
-		if len(extracted) == 0 {
-			return false // no paths to match → condition fails
-		}
-		matched := false
-		for _, raw := range extracted {
-			norm := normalizePath(raw, ws)
-			if matchPath(norm, conds.PathMatch, ws) {
-				matched = true
-				break
+	// shell_safe: check command via AST analysis (AND with other conditions)
+	if conds.ShellSafe {
+		cmd := extractCommand(args)
+		if cmd != "" {
+			safe, _ := isShellSafe(cmd, conds.CommandAllowlist)
+			if !safe {
+				return false
 			}
 		}
-		if !matched {
-			return false
-		}
-	}
-
-	// path_not_match: extract paths, normalize, check if any matches.
-	// If set and any extracted path matches, condition fails (blocks the call).
-	// If no paths extracted, fail-closed: condition passes → rule fires.
-	if len(conds.PathNotMatch) > 0 {
-		ws := detectWorkspaceRoot()
-		extracted := extractPaths(args)
-		if len(extracted) > 0 {
-			for _, raw := range extracted {
-				norm := normalizePath(raw, ws)
-				if matchPath(norm, conds.PathNotMatch, ws) {
-					return false // path IS in the listed set → condition fails
-				}
-			}
-		}
-		// No paths extracted, or no path matched → condition passes (fail-closed)
 	}
 
 	return true
+}
+
+// extractCommand extracts the shell command string from tool call arguments.
+// Tries "command" key first, then "cmd" as fallback.
+func extractCommand(args map[string]interface{}) string {
+	if v, ok := args["command"]; ok {
+		return stringifyArg(v)
+	}
+	if v, ok := args["cmd"]; ok {
+		return stringifyArg(v)
+	}
+	return ""
 }
 
 // stringifyArg converts any argument value to a string, matching

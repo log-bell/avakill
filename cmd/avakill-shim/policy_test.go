@@ -769,377 +769,196 @@ func TestStringifyArg(t *testing.T) {
 	}
 }
 
-// --- Path condition integration tests ---
+// --- shell_safe condition tests ---
 
-func TestCheckConditions_PathMatch_Blocks(t *testing.T) {
+func TestCheckConditions_ShellSafe_SafeCommand(t *testing.T) {
 	conds := &RuleConditions{
-		PathMatch: []string{"/etc/", "~/.ssh/"},
+		ShellSafe: true,
 	}
 	args := map[string]interface{}{
-		"path": "/etc/passwd",
+		"command": "ls -la",
 	}
 	if !checkConditions(args, conds) {
-		t.Error("path_match should pass — path is in /etc/")
+		t.Error("expected shell_safe to pass for safe command")
 	}
 }
 
-func TestCheckConditions_PathMatch_SkipsNonMatching(t *testing.T) {
+func TestCheckConditions_ShellSafe_UnsafeCommand(t *testing.T) {
 	conds := &RuleConditions{
-		PathMatch: []string{"/etc/", "/root/"},
+		ShellSafe: true,
 	}
 	args := map[string]interface{}{
-		"path": "/tmp/safe.txt",
+		"command": "echo $(whoami)",
 	}
 	if checkConditions(args, conds) {
-		t.Error("path_match should fail — /tmp/safe.txt not in /etc/ or /root/")
+		t.Error("expected shell_safe to fail for command substitution")
 	}
 }
 
-func TestCheckConditions_PathNotMatch_BlocksOutside(t *testing.T) {
+func TestCheckConditions_ShellSafe_CmdKey(t *testing.T) {
+	// Falls back to "cmd" key when "command" is absent
 	conds := &RuleConditions{
-		PathNotMatch: []string{"/home/alice/project/"},
+		ShellSafe: true,
 	}
 	args := map[string]interface{}{
-		"path": "/etc/passwd",
+		"cmd": "eval malicious",
 	}
-	// path_not_match: path is NOT in /home/alice/project/ → condition passes
-	if !checkConditions(args, conds) {
-		t.Error("path_not_match should pass — path is outside the listed set")
-	}
-}
-
-func TestCheckConditions_PathNotMatch_AllowsInside(t *testing.T) {
-	conds := &RuleConditions{
-		PathNotMatch: []string{"/home/alice/project/"},
-	}
-	args := map[string]interface{}{
-		"path": "/home/alice/project/src/main.go",
-	}
-	// path_not_match: path IS in /home/alice/project/ → condition fails
 	if checkConditions(args, conds) {
-		t.Error("path_not_match should fail — path is inside the listed set")
+		t.Error("expected shell_safe to fail for eval via 'cmd' key")
 	}
 }
 
-func TestCheckConditions_PathMatch_Traversal(t *testing.T) {
+func TestCheckConditions_ShellSafe_NoCommandKey(t *testing.T) {
+	// No command key at all — shell_safe is vacuously true
 	conds := &RuleConditions{
-		PathMatch: []string{"/etc/"},
+		ShellSafe: true,
 	}
 	args := map[string]interface{}{
-		"path": "/tmp/../etc/passwd",
+		"path": "/tmp",
 	}
 	if !checkConditions(args, conds) {
-		t.Error("path_match should catch traversal: /tmp/../etc/passwd → /etc/passwd")
+		t.Error("expected shell_safe to pass when no command key present")
 	}
 }
 
-func TestCheckConditions_PathNotMatch_NoPaths(t *testing.T) {
+func TestCheckConditions_CommandAllowlist_Pass(t *testing.T) {
 	conds := &RuleConditions{
-		PathNotMatch: []string{"/home/alice/project/"},
+		ShellSafe:        true,
+		CommandAllowlist: []string{"ls", "git", "cat"},
 	}
-	// No path-like arguments at all
 	args := map[string]interface{}{
-		"command": "echo hello",
-		"count":   float64(5),
+		"command": "ls -la",
 	}
-	// Fail-closed: no paths extracted → assume outside safe set → condition passes
 	if !checkConditions(args, conds) {
-		t.Error("path_not_match with no paths should fail-closed (condition passes)")
+		t.Error("expected allowlist to pass for ls")
 	}
 }
 
-func TestCheckConditions_PathMatch_NoPaths(t *testing.T) {
+func TestCheckConditions_CommandAllowlist_Reject(t *testing.T) {
 	conds := &RuleConditions{
-		PathMatch: []string{"/etc/"},
+		ShellSafe:        true,
+		CommandAllowlist: []string{"ls", "git", "cat"},
 	}
-	// No path-like arguments
 	args := map[string]interface{}{
-		"command": "echo hello",
+		"command": "rm -rf /",
 	}
-	// No paths → nothing to match → condition fails → rule skipped
 	if checkConditions(args, conds) {
-		t.Error("path_match with no paths should fail (nothing to match)")
+		t.Error("expected allowlist to reject rm")
 	}
 }
 
-func TestCheckConditions_PathMatchWithArgsMatch(t *testing.T) {
-	// Both path_match and args_match — AND logic
+func TestCheckConditions_ShellSafe_ANDWithArgsMatch(t *testing.T) {
 	conds := &RuleConditions{
+		ShellSafe: true,
 		ArgsMatch: map[string][]string{
-			"command": {"rm"},
+			"command": {"git"},
 		},
-		PathMatch: []string{"/etc/"},
 	}
+	// Both conditions satisfied
 	args := map[string]interface{}{
-		"command": "rm -rf /etc/nginx",
-		"path":    "/etc/nginx",
+		"command": "git status",
 	}
 	if !checkConditions(args, conds) {
-		t.Error("expected both conditions to pass (AND)")
+		t.Error("expected both conditions to pass")
 	}
 
-	// args_match passes but path doesn't match
+	// args_match satisfied but shell_safe fails
 	args2 := map[string]interface{}{
-		"command": "rm -rf /tmp/junk",
-		"path":    "/tmp/junk",
+		"command": "git $(malicious)",
 	}
 	if checkConditions(args2, conds) {
-		t.Error("expected path_match to fail (path not in /etc/)")
+		t.Error("expected shell_safe to fail even when args_match passes")
 	}
 }
 
-// --- End-to-end path matching evaluation tests ---
-
-func TestEvaluate_PathMatch_DenysSensitivePath(t *testing.T) {
-	path := writePolicyFile(t, `
-version: "1.0"
-default_action: allow
-policies:
-  - name: block-sensitive-paths
-    tools: ["read_file", "write_file"]
-    action: deny
-    conditions:
-      path_match:
-        - "/etc/"
-        - "/root/"
-    message: "Access to sensitive path blocked."
-`)
-
-	cache := NewPolicyCache(path, false)
-
-	// Should deny — /etc/passwd is under /etc/
-	resp, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "/etc/passwd",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestCheckConditions_ShellSafe_NotSet(t *testing.T) {
+	// When shell_safe is false (default), it should be a no-op
+	conds := &RuleConditions{
+		ArgsMatch: map[string][]string{
+			"command": {"ls"},
+		},
 	}
-	if resp.Decision != "deny" {
-		t.Errorf("expected deny for /etc/passwd, got %q", resp.Decision)
+	args := map[string]interface{}{
+		"command": "ls $(whoami)", // would fail shell_safe, but it's not enabled
 	}
-	if resp.Policy != "block-sensitive-paths" {
-		t.Errorf("expected policy 'block-sensitive-paths', got %q", resp.Policy)
-	}
-
-	// Should allow — /tmp/safe.txt is not under /etc/ or /root/
-	resp2, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "/tmp/safe.txt",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp2.Decision != "allow" {
-		t.Errorf("expected allow for /tmp/safe.txt, got %q", resp2.Decision)
+	if !checkConditions(args, conds) {
+		t.Error("shell_safe=false should not affect condition checking")
 	}
 }
 
-func TestEvaluate_PathMatch_TraversalAttack(t *testing.T) {
+// --- Full evaluation tests with shell_safe ---
+
+func TestEvaluate_ShellSafe_AllowSafeCommand(t *testing.T) {
 	path := writePolicyFile(t, `
 version: "1.0"
-default_action: allow
+default_action: deny
 policies:
-  - name: block-etc
-    tools: ["read_file"]
-    action: deny
-    conditions:
-      path_match:
-        - "/etc/"
-    message: "blocked"
-`)
-
-	cache := NewPolicyCache(path, false)
-
-	// Traversal attack: /tmp/../etc/passwd → normalizes to /etc/passwd → denied
-	resp, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "/tmp/../etc/passwd",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "deny" {
-		t.Errorf("traversal bypass should be caught: got %q", resp.Decision)
-	}
-}
-
-func TestEvaluate_PathNotMatch_WorkspaceBoundary(t *testing.T) {
-	t.Setenv("AVAKILL_WORKSPACE", "/home/alice/project")
-
-	path := writePolicyFile(t, `
-version: "1.0"
-default_action: allow
-policies:
-  - name: restrict-to-workspace
-    tools: ["write_file"]
-    action: deny
-    conditions:
-      path_not_match:
-        - "${workspace}/"
-        - "/tmp/"
-    message: "Writes restricted to workspace and /tmp."
-`)
-
-	cache := NewPolicyCache(path, false)
-
-	// Inside workspace → path_not_match matches → condition fails → rule skipped → allow
-	resp, err := cache.Evaluate("write_file", map[string]interface{}{
-		"path": "/home/alice/project/src/main.go",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "allow" {
-		t.Errorf("expected allow for workspace path, got %q (%s)", resp.Decision, resp.Reason)
-	}
-
-	// Outside workspace AND /tmp → condition passes → deny
-	resp2, err := cache.Evaluate("write_file", map[string]interface{}{
-		"path": "/etc/crontab",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp2.Decision != "deny" {
-		t.Errorf("expected deny for path outside workspace, got %q", resp2.Decision)
-	}
-}
-
-func TestEvaluate_PathMatch_RecursiveGlob(t *testing.T) {
-	path := writePolicyFile(t, `
-version: "1.0"
-default_action: allow
-policies:
-  - name: block-log-access
-    tools: ["read_file"]
-    action: deny
-    conditions:
-      path_match:
-        - "/var/log/**"
-    message: "Log access blocked."
-`)
-
-	cache := NewPolicyCache(path, false)
-
-	// Nested path under /var/log → deny
-	resp, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "/var/log/nginx/access.log",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "deny" {
-		t.Errorf("expected deny for /var/log/nginx/access.log, got %q", resp.Decision)
-	}
-
-	// Outside /var/log → allow
-	resp2, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "/var/cache/apt/archives/pkg.deb",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp2.Decision != "allow" {
-		t.Errorf("expected allow for /var/cache path, got %q", resp2.Decision)
-	}
-}
-
-func TestEvaluate_PathMatch_PrefixBoundary(t *testing.T) {
-	path := writePolicyFile(t, `
-version: "1.0"
-default_action: allow
-policies:
-  - name: block-etc
-    tools: ["read_file"]
-    action: deny
-    conditions:
-      path_match:
-        - "/etc/"
-    message: "blocked"
-`)
-
-	cache := NewPolicyCache(path, false)
-
-	// CVE-2025-53110: /etcetera/file must NOT match /etc/
-	resp, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "/etcetera/secrets.txt",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "allow" {
-		t.Errorf("/etcetera must not match /etc/ (CVE-2025-53110 pattern): got %q", resp.Decision)
-	}
-}
-
-func TestEvaluate_PathMatch_MultipleSlashes(t *testing.T) {
-	path := writePolicyFile(t, `
-version: "1.0"
-default_action: allow
-policies:
-  - name: block-etc
-    tools: ["read_file"]
-    action: deny
-    conditions:
-      path_match:
-        - "/etc/"
-    message: "blocked"
-`)
-
-	cache := NewPolicyCache(path, false)
-
-	// ///etc///passwd normalizes to /etc/passwd → should be denied
-	resp, err := cache.Evaluate("read_file", map[string]interface{}{
-		"path": "///etc///passwd",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "deny" {
-		t.Errorf("multiple slashes should normalize and match: got %q", resp.Decision)
-	}
-}
-
-func TestEvaluate_PathMatch_WithOtherConditions(t *testing.T) {
-	path := writePolicyFile(t, `
-version: "1.0"
-default_action: allow
-policies:
-  - name: block-dangerous-rm
-    tools: ["shell_execute"]
-    action: deny
-    conditions:
-      args_match:
-        command: ["rm"]
-      path_match:
-        - "/etc/"
-    message: "rm in /etc blocked"
-  - name: allow-all
-    tools: ["all"]
+  - name: safe-shell
+    tools: ["Bash"]
     action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: ["ls", "git", "cat"]
 `)
 
 	cache := NewPolicyCache(path, false)
+	resp, err := cache.Evaluate("Bash", map[string]interface{}{"command": "ls -la"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Decision != "allow" {
+		t.Errorf("expected allow for safe command, got %q: %s", resp.Decision, resp.Reason)
+	}
+}
 
-	// rm + path in /etc → deny (both conditions pass)
-	resp, err := cache.Evaluate("shell_execute", map[string]interface{}{
-		"command": "rm -rf /etc/nginx",
-		"path":    "/etc/nginx",
-	})
+func TestEvaluate_ShellSafe_DenyUnsafeCommand(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: deny
+policies:
+  - name: safe-shell
+    tools: ["Bash"]
+    action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: ["ls", "git"]
+  - name: deny-all-shell
+    tools: ["Bash"]
+    action: deny
+    message: "Unsafe command blocked"
+`)
+
+	cache := NewPolicyCache(path, false)
+	resp, err := cache.Evaluate("Bash", map[string]interface{}{"command": "rm -rf /"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if resp.Decision != "deny" {
-		t.Errorf("expected deny (rm + /etc), got %q", resp.Decision)
+		t.Errorf("expected deny for rm, got %q", resp.Decision)
 	}
+}
 
-	// rm + path in /tmp → first rule skipped (path doesn't match /etc/) → allow
-	resp2, err := cache.Evaluate("shell_execute", map[string]interface{}{
-		"command": "rm -rf /tmp/junk",
-		"path":    "/tmp/junk",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp2.Decision != "allow" {
-		t.Errorf("expected allow (rm but not in /etc), got %q", resp2.Decision)
+func TestEvaluate_ShellSafe_QuoteBypassBlocked(t *testing.T) {
+	path := writePolicyFile(t, `
+version: "1.0"
+default_action: deny
+policies:
+  - name: safe-shell
+    tools: ["Bash"]
+    action: allow
+    conditions:
+      shell_safe: true
+      command_allowlist: ["ls", "git"]
+  - name: deny-all-shell
+    tools: ["Bash"]
+    action: deny
+    message: "Blocked"
+`)
+
+	cache := NewPolicyCache(path, false)
+	// w'h'o'am'i resolves to whoami via AST — not in allowlist
+	resp, _ := cache.Evaluate("Bash", map[string]interface{}{"command": "w'h'o'am'i"})
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny for quote-bypass whoami, got %q", resp.Decision)
 	}
 }
