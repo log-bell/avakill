@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -28,6 +29,7 @@ type ShellAnalysis struct {
 	DangerousBuiltins   []string // e.g. eval, source, exec, xargs
 	Segments            []string // text of each leaf-level command
 	BaseCommands        []string // first word of each simple command (quote-resolved)
+	UnresolvableCommand bool     // true if any command name couldn't be statically resolved
 	ParseError          bool
 }
 
@@ -85,6 +87,8 @@ func analyzeCommand(cmd string) ShellAnalysis {
 						a.DangerousBuiltins = append(a.DangerousBuiltins, name)
 						seen[name] = true
 					}
+				} else {
+					a.UnresolvableCommand = true
 				}
 				// Collect as a segment: reconstruct from the word parts
 				var seg strings.Builder
@@ -117,6 +121,9 @@ func resolveWord(w *syntax.Word) string {
 		case *syntax.Lit:
 			sb.WriteString(p.Value)
 		case *syntax.SglQuoted:
+			if p.Dollar {
+				return ""
+			}
 			sb.WriteString(p.Value)
 		case *syntax.DblQuoted:
 			// Double-quoted: concatenate literal parts only
@@ -164,8 +171,21 @@ func isShellSafe(cmd string, allowlist []string) (bool, string) {
 		return false, "unparseable command (fail-closed)"
 	}
 
-	// Allowlist mode: every base command must be in the list
+	if a.UnresolvableCommand {
+		return false, "unresolvable command name (fail-closed)"
+	}
+
+	// Allowlist mode: structural checks + every base command must be in the list
 	if len(allowlist) > 0 {
+		if a.CommandSubstitution {
+			return false, "command substitution not allowed with allowlist"
+		}
+		if a.ProcessSubstitution {
+			return false, "process substitution not allowed with allowlist"
+		}
+		if a.Subshells {
+			return false, "subshells not allowed with allowlist"
+		}
 		allowed := make(map[string]bool, len(allowlist))
 		for _, c := range allowlist {
 			allowed[c] = true
@@ -185,8 +205,27 @@ func isShellSafe(cmd string, allowlist []string) (bool, string) {
 	if a.ProcessSubstitution {
 		return false, "process substitution detected"
 	}
+	if a.VariableExpansion {
+		return false, "variable expansion detected"
+	}
+	if a.Subshells {
+		return false, "subshell detected"
+	}
+	if a.Redirects {
+		return false, "redirect detected"
+	}
+	if a.BackgroundJobs {
+		return false, "background job detected"
+	}
 	if len(a.DangerousBuiltins) > 0 {
 		return false, "dangerous builtin: " + strings.Join(a.DangerousBuiltins, ", ")
+	}
+
+	// Glob/brace metacharacters in command names
+	for _, base := range a.BaseCommands {
+		if containsShellMetachars(base) {
+			return false, fmt.Sprintf("shell metacharacters in command name: %s", base)
+		}
 	}
 
 	// Pipe to shell interpreter
@@ -216,6 +255,12 @@ func splitCompoundCommand(cmd string) []string {
 	}
 
 	return a.Segments
+}
+
+// containsShellMetachars checks if a string contains glob or brace expansion
+// characters that could be used to bypass command name checks.
+func containsShellMetachars(s string) bool {
+	return strings.ContainsAny(s, "?*[{")
 }
 
 // printWord reconstructs a Word's text representation from its parts.

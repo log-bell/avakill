@@ -211,10 +211,150 @@ func TestIsShellSafe_PipeToShell(t *testing.T) {
 }
 
 func TestIsShellSafe_SimplePipe(t *testing.T) {
-	// Simple pipe without shell interpreter should be safe (no allowlist mode)
+	// Simple pipe without shell interpreter — safe in allowlist mode
+	// but now pipes are checked only for shell interpreters (still safe in non-allowlist)
 	safe, reason := isShellSafe("ls -la | grep foo", nil)
 	if !safe {
 		t.Errorf("expected safe for simple pipe, got unsafe: %s", reason)
+	}
+}
+
+// --- Fix 1: ANSI-C quoting bypass tests ---
+
+func TestIsShellSafe_ANSICQuoting_Unsafe(t *testing.T) {
+	// $'\x72\x6d' is ANSI-C quoting for "rm" — must not resolve, must fail safe
+	safe, _ := isShellSafe(`$'\x72\x6d' -rf /`, nil)
+	if safe {
+		t.Error("expected unsafe for ANSI-C quoted command (non-allowlist)")
+	}
+}
+
+func TestIsShellSafe_ANSICQuoting_Allowlist(t *testing.T) {
+	// $'\x6c\x73' is ANSI-C for "ls" — can't resolve, so not in allowlist
+	safe, _ := isShellSafe(`$'\x6c\x73'`, []string{"ls", "cat"})
+	if safe {
+		t.Error("expected unsafe: ANSI-C quoted command can't be resolved to match allowlist")
+	}
+}
+
+func TestAnalyzeCommand_ANSICQuoting_NoResolve(t *testing.T) {
+	// ANSI-C quoting should not resolve to a base command
+	a := analyzeCommand(`$'\x72\x6d' -rf /`)
+	for _, cmd := range a.BaseCommands {
+		if cmd == "rm" || cmd == `\x72\x6d` {
+			t.Errorf("ANSI-C quoted command should not resolve, got %q in BaseCommands", cmd)
+		}
+	}
+}
+
+// --- Fix 2: Allowlist structural checks tests ---
+
+func TestIsShellSafe_Allowlist_CommandSubstitution(t *testing.T) {
+	safe, reason := isShellSafe("echo $(cat /etc/passwd)", []string{"echo", "cat"})
+	if safe {
+		t.Error("expected unsafe: command substitution should be blocked in allowlist mode")
+	}
+	if !strings.Contains(reason, "command substitution") {
+		t.Errorf("expected reason about command substitution, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_Allowlist_ProcessSubstitution(t *testing.T) {
+	safe, reason := isShellSafe("diff <(echo a) <(echo b)", []string{"diff", "echo"})
+	if safe {
+		t.Error("expected unsafe: process substitution should be blocked in allowlist mode")
+	}
+	if !strings.Contains(reason, "process substitution") {
+		t.Errorf("expected reason about process substitution, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_Allowlist_Subshell(t *testing.T) {
+	safe, reason := isShellSafe("(ls -la)", []string{"ls"})
+	if safe {
+		t.Error("expected unsafe: subshells should be blocked in allowlist mode")
+	}
+	if !strings.Contains(reason, "subshell") {
+		t.Errorf("expected reason about subshells, got %q", reason)
+	}
+}
+
+// --- Fix 3: Variable expansion in non-allowlist mode tests ---
+
+func TestIsShellSafe_VariableExpansion_IFS(t *testing.T) {
+	safe, reason := isShellSafe("cat${IFS}/etc/passwd", nil)
+	if safe {
+		t.Error("expected unsafe for IFS variable expansion bypass")
+	}
+	if !strings.Contains(reason, "variable expansion") {
+		t.Errorf("expected reason about variable expansion, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_VariableExpansion_Target(t *testing.T) {
+	safe, _ := isShellSafe("rm $TARGET", nil)
+	if safe {
+		t.Error("expected unsafe for variable expansion in arguments")
+	}
+}
+
+// --- Fix 4: Glob/brace metacharacter tests ---
+
+func TestIsShellSafe_GlobInCommandName(t *testing.T) {
+	// /???/??t is a glob pattern that could match /bin/cat
+	safe, reason := isShellSafe("/???/??t /???/p??s??", nil)
+	if safe {
+		t.Error("expected unsafe for glob metacharacters in command name")
+	}
+	if !strings.Contains(reason, "metacharacter") {
+		t.Errorf("expected reason about metacharacters, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_BraceExpansion(t *testing.T) {
+	// {cat,/etc/passwd} is brace expansion
+	safe, reason := isShellSafe("{cat,/etc/passwd}", nil)
+	if safe {
+		t.Error("expected unsafe for brace expansion in command name")
+	}
+	if !strings.Contains(reason, "metacharacter") {
+		t.Errorf("expected reason about metacharacters, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_WildcardInCommandName(t *testing.T) {
+	safe, _ := isShellSafe("/bin/c*t /etc/passwd", nil)
+	if safe {
+		t.Error("expected unsafe for wildcard in command name")
+	}
+}
+
+func TestIsShellSafe_BracketInCommandName(t *testing.T) {
+	safe, _ := isShellSafe("/bin/[c]at /etc/passwd", nil)
+	if safe {
+		t.Error("expected unsafe for bracket glob in command name")
+	}
+}
+
+// --- Fix 5: Redirect and background job tests ---
+
+func TestIsShellSafe_Redirect_Unsafe(t *testing.T) {
+	safe, reason := isShellSafe("echo secret > /tmp/exfil", nil)
+	if safe {
+		t.Error("expected unsafe for redirect in non-allowlist mode")
+	}
+	if !strings.Contains(reason, "redirect") {
+		t.Errorf("expected reason about redirect, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_BackgroundJob_Unsafe(t *testing.T) {
+	safe, reason := isShellSafe("sleep 100 &", nil)
+	if safe {
+		t.Error("expected unsafe for background job in non-allowlist mode")
+	}
+	if !strings.Contains(reason, "background") {
+		t.Errorf("expected reason about background job, got %q", reason)
 	}
 }
 
