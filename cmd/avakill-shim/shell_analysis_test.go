@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -159,5 +160,152 @@ func TestAnalyzeCommand_Base64PipeToShell(t *testing.T) {
 	}
 	if !foundBash {
 		t.Errorf("expected bash in BaseCommands, got %v", a.BaseCommands)
+	}
+}
+
+// --- isShellSafe tests ---
+
+func TestIsShellSafe_SimpleCommand(t *testing.T) {
+	safe, reason := isShellSafe("ls -la", nil)
+	if !safe {
+		t.Errorf("expected safe, got unsafe: %s", reason)
+	}
+}
+
+func TestIsShellSafe_GitStatus(t *testing.T) {
+	safe, reason := isShellSafe("git status", nil)
+	if !safe {
+		t.Errorf("expected safe, got unsafe: %s", reason)
+	}
+}
+
+func TestIsShellSafe_CommandSubstitution(t *testing.T) {
+	safe, _ := isShellSafe("echo $(whoami)", nil)
+	if safe {
+		t.Error("expected unsafe for command substitution")
+	}
+}
+
+func TestIsShellSafe_ProcessSubstitution(t *testing.T) {
+	safe, _ := isShellSafe("diff <(echo a) <(echo b)", nil)
+	if safe {
+		t.Error("expected unsafe for process substitution")
+	}
+}
+
+func TestIsShellSafe_DangerousBuiltin(t *testing.T) {
+	safe, reason := isShellSafe(`eval "rm -rf /"`, nil)
+	if safe {
+		t.Error("expected unsafe for eval")
+	}
+	if !strings.Contains(reason, "eval") {
+		t.Errorf("expected reason to mention eval, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_PipeToShell(t *testing.T) {
+	safe, _ := isShellSafe("echo cm0gLXJmIC8= | base64 -d | bash", nil)
+	if safe {
+		t.Error("expected unsafe for pipe to bash")
+	}
+}
+
+func TestIsShellSafe_SimplePipe(t *testing.T) {
+	// Simple pipe without shell interpreter should be safe (no allowlist mode)
+	safe, reason := isShellSafe("ls -la | grep foo", nil)
+	if !safe {
+		t.Errorf("expected safe for simple pipe, got unsafe: %s", reason)
+	}
+}
+
+func TestIsShellSafe_ParseError(t *testing.T) {
+	safe, _ := isShellSafe(`"unterminated`, nil)
+	if safe {
+		t.Error("expected unsafe for parse error (fail-closed)")
+	}
+}
+
+func TestIsShellSafe_Empty(t *testing.T) {
+	safe, _ := isShellSafe("", nil)
+	if !safe {
+		t.Error("expected safe for empty command")
+	}
+}
+
+func TestIsShellSafe_Allowlist_Pass(t *testing.T) {
+	safe, _ := isShellSafe("ls -la", []string{"ls", "git", "cat"})
+	if !safe {
+		t.Error("expected safe when command is in allowlist")
+	}
+}
+
+func TestIsShellSafe_Allowlist_Reject(t *testing.T) {
+	safe, reason := isShellSafe("rm -rf /", []string{"ls", "git", "cat"})
+	if safe {
+		t.Error("expected unsafe when command not in allowlist")
+	}
+	if !strings.Contains(reason, "rm") && !strings.Contains(reason, "allowlist") {
+		t.Errorf("expected reason about rm/allowlist, got %q", reason)
+	}
+}
+
+func TestIsShellSafe_Allowlist_CompoundReject(t *testing.T) {
+	// All commands in a compound must be in the allowlist
+	safe, _ := isShellSafe("ls -la && rm -rf /", []string{"ls", "git"})
+	if safe {
+		t.Error("expected unsafe when any command not in allowlist")
+	}
+}
+
+func TestIsShellSafe_Allowlist_CompoundPass(t *testing.T) {
+	safe, _ := isShellSafe("ls -la && git status", []string{"ls", "git"})
+	if !safe {
+		t.Error("expected safe when all commands in allowlist")
+	}
+}
+
+// --- splitCompoundCommand tests ---
+
+func TestSplitCompoundCommand_Simple(t *testing.T) {
+	segments := splitCompoundCommand("ls -la")
+	if len(segments) != 1 {
+		t.Errorf("expected 1 segment, got %d: %v", len(segments), segments)
+	}
+}
+
+func TestSplitCompoundCommand_AndOr(t *testing.T) {
+	segments := splitCompoundCommand("cmd1 && cmd2 || cmd3")
+	if len(segments) != 3 {
+		t.Errorf("expected 3 segments, got %d: %v", len(segments), segments)
+	}
+}
+
+func TestSplitCompoundCommand_Semicolon(t *testing.T) {
+	segments := splitCompoundCommand("cmd1; cmd2")
+	if len(segments) != 2 {
+		t.Errorf("expected 2 segments, got %d: %v", len(segments), segments)
+	}
+}
+
+func TestSplitCompoundCommand_Pipe(t *testing.T) {
+	segments := splitCompoundCommand("cat file | grep foo | wc -l")
+	// Pipe segments: cat file, grep foo, wc -l
+	if len(segments) < 3 {
+		t.Errorf("expected 3+ segments for pipe, got %d: %v", len(segments), segments)
+	}
+}
+
+func TestSplitCompoundCommand_ParseError(t *testing.T) {
+	segments := splitCompoundCommand(`"unterminated`)
+	// On parse error, return the original command as a single segment
+	if len(segments) != 1 {
+		t.Errorf("expected 1 segment on parse error, got %d: %v", len(segments), segments)
+	}
+}
+
+func TestSplitCompoundCommand_Empty(t *testing.T) {
+	segments := splitCompoundCommand("")
+	if len(segments) != 0 {
+		t.Errorf("expected 0 segments for empty, got %d", len(segments))
 	}
 }

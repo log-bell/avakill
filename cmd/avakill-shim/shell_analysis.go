@@ -137,6 +137,87 @@ func resolveWord(w *syntax.Word) string {
 	return sb.String()
 }
 
+// shellInterpreters is the set of commands that can execute arbitrary
+// code when piped into.
+var shellInterpreters = map[string]bool{
+	"bash": true, "sh": true, "zsh": true, "dash": true, "ksh": true,
+	"python": true, "python3": true, "perl": true, "ruby": true, "node": true,
+}
+
+// isShellSafe checks whether a shell command is safe to execute based on
+// AST analysis and an optional command allowlist.
+//
+// When allowlist is non-empty, every base command in the input must appear
+// in the allowlist. When allowlist is empty, the function checks for
+// dangerous structural features (command substitution, process substitution,
+// dangerous builtins, pipe-to-shell patterns).
+//
+// Returns (safe, reason). reason is empty when safe is true.
+func isShellSafe(cmd string, allowlist []string) (bool, string) {
+	if cmd == "" {
+		return true, ""
+	}
+
+	a := analyzeCommand(cmd)
+
+	if a.ParseError {
+		return false, "unparseable command (fail-closed)"
+	}
+
+	// Allowlist mode: every base command must be in the list
+	if len(allowlist) > 0 {
+		allowed := make(map[string]bool, len(allowlist))
+		for _, c := range allowlist {
+			allowed[c] = true
+		}
+		for _, base := range a.BaseCommands {
+			if !allowed[base] {
+				return false, "command '" + base + "' not in allowlist"
+			}
+		}
+		return true, ""
+	}
+
+	// No allowlist: check for dangerous structural features
+	if a.CommandSubstitution {
+		return false, "command substitution detected"
+	}
+	if a.ProcessSubstitution {
+		return false, "process substitution detected"
+	}
+	if len(a.DangerousBuiltins) > 0 {
+		return false, "dangerous builtin: " + strings.Join(a.DangerousBuiltins, ", ")
+	}
+
+	// Pipe to shell interpreter
+	if a.Pipes {
+		for _, base := range a.BaseCommands {
+			if shellInterpreters[base] {
+				return false, "pipe to shell interpreter: " + base
+			}
+		}
+	}
+
+	return true, ""
+}
+
+// splitCompoundCommand splits a compound shell command into individual
+// segments using AST parsing. Returns the original command as a single
+// segment on parse error.
+func splitCompoundCommand(cmd string) []string {
+	if cmd == "" {
+		return nil
+	}
+
+	a := analyzeCommand(cmd)
+
+	if a.ParseError {
+		return []string{cmd}
+	}
+
+	return a.Segments
+}
+
 // printWord reconstructs a Word's text representation from its parts.
 func printWord(w *syntax.Word) string {
 	var sb strings.Builder
