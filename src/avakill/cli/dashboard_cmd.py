@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import ast
 import asyncio
-import contextlib
+import json
 import logging
 import subprocess
 import sys
+import webbrowser
 from datetime import datetime, timezone
 
 if sys.platform != "win32":
@@ -568,38 +569,148 @@ class _Dashboard:
             logging.getLogger(__name__).warning("Manual policy reload failed", exc_info=True)
 
 
-@click.command()
-@click.option(
-    "--db",
-    default="avakill_audit.db",
-    help="Path to the audit database.",
-)
-@click.option(
-    "--refresh",
-    default=0.5,
-    type=float,
-    help="Refresh interval in seconds.",
-)
-@click.option(
-    "--policy",
-    default=None,
-    help="Path to the policy file to monitor.",
-)
-@click.option(
-    "--watch/--no-watch",
-    default=False,
-    help="Automatically reload policy when the file changes on disk.",
-)
-def dashboard(db: str, refresh: float, policy: str | None, watch: bool) -> None:
-    """Launch the real-time terminal dashboard."""
-    db_path = Path(db).expanduser()
-    if not db_path.exists():
-        console = Console()
-        console.print(
-            f"[yellow]Database not found:[/yellow] {db_path}\n"
-            "[dim]The dashboard will create it and wait for events.[/dim]"
+def _check_deps() -> None:
+    """Check that dashboard dependencies are installed."""
+    missing = []
+    try:
+        import aiohttp  # noqa: F401
+    except ImportError:
+        missing.append("aiohttp")
+    try:
+        import watchfiles  # noqa: F401
+    except ImportError:
+        missing.append("watchfiles")
+    if missing:
+        click.echo(
+            f"Missing dependencies: {', '.join(missing)}\n"
+            'Install with: pip install "avakill[dashboard]"',
+            err=True,
         )
+        raise SystemExit(1)
 
-    dash = _Dashboard(str(db_path), refresh, policy, watch=watch)
-    with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(dash.run())
+
+async def _serve(root: Path, port: int, no_open: bool) -> None:
+    """Run the dashboard aiohttp server with WebSocket and file watcher."""
+    from aiohttp import web
+    from watchfiles import awatch
+
+    health_state = collect_health()
+    clients: set[web.WebSocketResponse] = set()
+
+    async def broadcast(snapshot: dict) -> None:
+        payload = json.dumps(snapshot)
+        closed = set()
+        for ws in clients:
+            try:
+                await ws.send_str(payload)
+            except (ConnectionResetError, Exception):
+                closed.add(ws)
+        clients.difference_update(closed)
+
+    async def ws_handler(request: web.Request) -> web.WebSocketResponse:
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        clients.add(ws)
+
+        # Send initial snapshot
+        snapshot = build_snapshot(root, health_state)
+        await ws.send_str(json.dumps(snapshot))
+
+        async for msg in ws:
+            if msg.type == web.WSMsgType.TEXT:
+                try:
+                    data = json.loads(msg.data)
+                except json.JSONDecodeError:
+                    continue
+
+                if data.get("action") == "run_check":
+                    check_name = data.get("check", "")
+                    if check_name in health_state:
+                        health_state[check_name] = {
+                            "status": "running",
+                            "last_run": health_state[check_name].get("last_run"),
+                        }
+                        await broadcast(build_snapshot(root, health_state))
+
+                        result = await asyncio.to_thread(run_health_check, check_name, root)
+                        health_state[check_name] = result
+                        await broadcast(build_snapshot(root, health_state))
+
+        clients.discard(ws)
+        return ws
+
+    # Resolve the dashboard HTML path
+    site_dir = root / "site" / "dashboard"
+    index_file = site_dir / "index.html"
+
+    async def index_handler(request: web.Request) -> web.Response:
+        if not index_file.exists():
+            return web.Response(text="Dashboard HTML not found", status=404)
+        return web.FileResponse(index_file)
+
+    app = web.Application()
+    app.router.add_get("/", index_handler)
+    app.router.add_get("/ws", ws_handler)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "localhost", port)
+    await site.start()
+
+    url = f"http://localhost:{port}"
+    click.echo("\n  AvaKill Dashboard")
+    click.echo(f"  {url}")
+    click.echo(f"  Watching: {root}")
+    click.echo("  Press Ctrl+C to stop\n")
+
+    if not no_open:
+        webbrowser.open(url)
+
+    # File watcher loop
+    watch_extensions = {".py", ".go", ".yaml", ".yml", ".toml", ".md"}
+    ignore_dirs = {
+        "__pycache__",
+        ".git",
+        "node_modules",
+        ".venv",
+        "build",
+        "dist",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+    }
+
+    try:
+        async for changes in awatch(root, debounce=300, step=100):
+            relevant = False
+            for _change_type, path_str in changes:
+                p = Path(path_str)
+                if any(part in ignore_dirs for part in p.parts):
+                    continue
+                if p.suffix in watch_extensions:
+                    relevant = True
+                    break
+
+            if relevant:
+                snapshot = build_snapshot(root, health_state)
+                await broadcast(snapshot)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await runner.cleanup()
+
+
+@click.command("dashboard")
+@click.option("--port", default=7700, show_default=True, help="HTTP port for dashboard.")
+@click.option("--no-open", is_flag=True, help="Don't auto-open browser.")
+@click.option("--root", default=".", help="Project root directory.")
+def dashboard(port: int, no_open: bool, root: str) -> None:
+    """Start the real-time codebase visualization dashboard."""
+    _check_deps()
+    root_path = Path(root).resolve()
+    if not (root_path / ".git").exists():
+        click.echo("Warning: not a git repository", err=True)
+    try:
+        asyncio.run(_serve(root_path, port, no_open))
+    except KeyboardInterrupt:
+        click.echo("\nDashboard stopped.")
