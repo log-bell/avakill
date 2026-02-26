@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AvaKill Dashboard</title>
+  <meta name="theme-color" content="#0A0F1E">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =============================================================
+       CSS Custom Properties — matches AvaKill landing page
+       ============================================================= */
+    :root {
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --code-bg: #0D1117;
+
+      --color-core: #00D4FF;
+      --color-cli: #22C55E;
+      --color-hooks: #F59E0B;
+      --color-daemon: #A855F7;
+      --color-interceptors: #EC4899;
+      --color-launcher: #F97316;
+      --color-enforcement: #EF4444;
+      --color-mcp: #06B6D4;
+      --color-compliance: #8B5CF6;
+      --color-profiles: #84CC16;
+      --color-logging: #64748B;
+      --color-analytics: #14B8A6;
+      --color-hardening: #DC2626;
+      --color-root: #9CA3AF;
+
+      --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    }
+
+    /* =============================================================
+       Keyframe Animations
+       ============================================================= */
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes dirtyPulse {
+      0%, 100% { box-shadow: inset 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.15); }
+    }
+
+    @keyframes nodeRingPulse {
+      0%, 100% { stroke-opacity: 0.4; }
+      50% { stroke-opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* =============================================================
+       Reset & Base
+       ============================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html { height: 100%; }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      height: 100%;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* =============================================================
+       App Shell
+       ============================================================= */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* =============================================================
+       Header Bar
+       ============================================================= */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 48px;
+      min-height: 48px;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+      z-index: 50;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .header-title span {
+      color: var(--neon-blue);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .branch-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(0, 212, 255, 0.08);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--neon-blue);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .branch-badge svg {
+      flex-shrink: 0;
+    }
+
+    .conn-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-allowed);
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    .conn-indicator.disconnected {
+      background: var(--color-denied);
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+    }
+
+    .conn-indicator.reconnecting {
+      background: var(--color-pending);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* =============================================================
+       Reconnect Banner
+       ============================================================= */
+    .reconnect-banner {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(245, 158, 11, 0.15);
+      border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--color-pending);
+      font-size: 12px;
+      font-weight: 500;
+      animation: slideDown 0.3s ease;
+    }
+
+    .reconnect-banner.visible {
+      display: flex;
+    }
+
+    .reconnect-banner .spinner-small {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(245, 158, 11, 0.3);
+      border-top-color: var(--color-pending);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* =============================================================
+       Panel Grid
+       ============================================================= */
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1px;
+      flex: 1;
+      min-height: 0;
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    @media (max-width: 1024px) {
+      .panels {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+      }
+      .panel {
+        min-height: 400px;
+      }
+    }
+
+    /* =============================================================
+       Panel
+       ============================================================= */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--base-dark);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .panel.expanded {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--base-dark);
+    }
+
+    .panel-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 99;
+      backdrop-filter: blur(4px);
+    }
+
+    .panel-backdrop.visible {
+      display: block;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      min-height: 44px;
+      transition: box-shadow 2s ease-in-out;
+    }
+
+    .panel-header.dirty {
+      animation: dirtyPulse 2s ease-in-out infinite;
+    }
+
+    .panel-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-header-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--neon-blue);
+    }
+
+    .panel-header-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .panel-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-expand, .btn-close-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-expand:hover, .btn-close-panel:hover {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+    }
+
+    .btn-close-panel {
+      display: none;
+    }
+
+    .panel.expanded .btn-expand { display: none; }
+    .panel.expanded .btn-close-panel { display: flex; }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 0;
+    }
+
+    /* Custom scrollbar */
+    .panel-body::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .panel-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* =============================================================
+       Panel 1: Project Map
+       ============================================================= */
+    #graph-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #graph-container svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .graph-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: 13px;
+      gap: 8px;
+    }
+
+    .graph-empty svg {
+      width: 32px;
+      height: 32px;
+      opacity: 0.4;
+    }
+
+    .node-tooltip {
+      position: fixed;
+      z-index: 200;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      max-width: 320px;
+      font-size: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      animation: fadeIn 0.15s ease;
+    }
+
+    .node-tooltip .tt-path {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--neon-blue);
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+
+    .node-tooltip .tt-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      color: var(--text-secondary);
+    }
+
+    .node-tooltip .tt-stat .tt-val {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .node-tooltip .tt-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
+    .node-tooltip .tt-dep {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      padding: 1px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* =============================================================
+       Panel 2: Git Pulse
+       ============================================================= */
+    .git-section {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .git-section:last-child {
+      border-bottom: none;
+    }
+
+    .git-branch-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .git-branch-name {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--neon-blue);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .git-sha {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .git-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .git-section-title .count {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.06);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .chip-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 11px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .chip:hover {
+      filter: brightness(1.3);
+    }
+
+    .chip.staged {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--color-allowed);
+    }
+
+    .chip.modified {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--color-pending);
+    }
+
+    .chip.untracked {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px dashed rgba(239, 68, 68, 0.3);
+      color: var(--color-denied);
+    }
+
+    .clean-msg {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    /* Stash drawer */
+    .stash-drawer {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .stash-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: 'Satoshi', system-ui, sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+
+    .stash-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .stash-toggle .arrow {
+      transition: transform 0.2s ease;
+      font-size: 8px;
+    }
+
+    .stash-toggle.open .arrow {
+      transform: rotate(90deg);
+    }
+
+    .stash-list {
+      display: none;
+      padding: 0 16px 10px;
+    }
+
+    .stash-list.open {
+      display: block;
+    }
+
+    .stash-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 11px;
+    }
+
+    .stash-item .stash-idx {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .stash-item .stash-msg {
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Recent commits */
+    .commit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .commit-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 5px 0;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .commit-item:last-child {
+      border-bottom: none;
+    }
+
+    .commit-sha {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--neon-blue);
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .commit-msg {
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .commit-time {
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-family: var(--mono);
+    }
+
+    /* =============================================================
+       Panel 3: Health Board
+       ============================================================= */
+    .health-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .panel.expanded .health-grid {
+      max-width: 800px;
+      margin: 0 auto;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .health-card {
+      background: var(--surface-elevated);
+      border-radius: 8px;
+      padding: 16px;
+      border-left: 3px solid var(--text-muted);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .health-card.pass {
+      border-left-color: var(--color-allowed);
+    }
+
+    .health-card.fail {
+      border-left-color: var(--color-denied);
+    }
+
+    .health-card.stale {
+      border-left-color: var(--text-muted);
+    }
+
+    .health-card.running {
+      border-left-color: var(--neon-blue);
+    }
+
+    .health-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .health-card-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .health-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .health-icon.pass { color: var(--color-allowed); }
+    .health-icon.fail { color: var(--color-denied); }
+    .health-icon.stale { color: var(--text-muted); }
+
+    .health-icon.running {
+      color: var(--neon-blue);
+    }
+
+    .health-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 212, 255, 0.2);
+      border-top-color: var(--neon-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .health-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .btn-rerun {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-rerun:hover {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+    }
+
+    .btn-rerun:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .health-detail {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .health-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .health-error {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: var(--code-bg);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--color-denied);
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .health-error::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .health-error::-webkit-scrollbar-thumb {
+      background: rgba(239, 68, 68, 0.3);
+      border-radius: 2px;
+    }
+
+    /* =============================================================
+       Utility
+       ============================================================= */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="header-title"><span>Ava</span>Kill Dashboard</div>
+      </div>
+      <div class="header-right">
+        <div class="branch-badge" id="header-branch">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25z"/>
+          </svg>
+          <span id="header-branch-text">---</span>
+        </div>
+        <div class="conn-indicator" id="conn-indicator" title="WebSocket connected"></div>
+      </div>
+    </header>
+
+    <!-- Reconnect Banner -->
+    <div class="reconnect-banner" id="reconnect-banner">
+      <div class="spinner-small"></div>
+      <span>Reconnecting to server...</span>
+    </div>
+
+    <!-- Three Panels -->
+    <div class="panels">
+      <!-- Panel 1: Project Map -->
+      <div class="panel" id="panel-graph" data-panel="graph">
+        <div class="panel-header">
+          <div class="panel-header-left">
+            <svg class="panel-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <circle cx="4" cy="6" r="2"/>
+              <circle cx="20" cy="6" r="2"/>
+              <circle cx="4" cy="18" r="2"/>
+              <circle cx="20" cy="18" r="2"/>
+              <line x1="6" y1="6" x2="9.5" y2="10.5"/>
+              <line x1="18" y1="6" x2="14.5" y2="10.5"/>
+              <line x1="6" y1="18" x2="9.5" y2="13.5"/>
+              <line x1="18" y1="18" x2="14.5" y2="13.5"/>
+            </svg>
+            <span class="panel-header-title">Project Map</span>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn-expand" onclick="expandPanel('graph')" title="Expand">&#x26F6;</button>
+            <button class="btn-close-panel" onclick="collapsePanel()" title="Close">&#x2715;</button>
+          </div>
+        </div>
+        <div class="panel-body" id="graph-container">
+          <div class="graph-empty" id="graph-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="3"/>
+              <circle cx="4" cy="6" r="2"/>
+              <circle cx="20" cy="18" r="2"/>
+              <line x1="6" y1="6" x2="9.5" y2="10.5"/>
+              <line x1="18" y1="18" x2="14.5" y2="13.5"/>
+            </svg>
+            <span>Waiting for module data...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Git Pulse -->
+      <div class="panel" id="panel-git" data-panel="git">
+        <div class="panel-header" id="git-panel-header">
+          <div class="panel-header-left">
+            <svg class="panel-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"/>
+              <line x1="1.05" y1="12" x2="7" y2="12"/>
+              <line x1="17.01" y1="12" x2="22.96" y2="12"/>
+            </svg>
+            <span class="panel-header-title">Git Pulse</span>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn-expand" onclick="expandPanel('git')" title="Expand">&#x26F6;</button>
+            <button class="btn-close-panel" onclick="collapsePanel()" title="Close">&#x2715;</button>
+          </div>
+        </div>
+        <div class="panel-body" id="git-body">
+          <div class="git-branch-bar" id="git-branch-bar">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--neon-blue)">
+              <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25z"/>
+            </svg>
+            <span class="git-branch-name" id="git-branch-name">---</span>
+            <span class="git-sha" id="git-sha">-------</span>
+          </div>
+          <div id="git-sections">
+            <div class="git-section">
+              <div class="clean-msg">Waiting for data...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Health Board -->
+      <div class="panel" id="panel-health" data-panel="health">
+        <div class="panel-header">
+          <div class="panel-header-left">
+            <svg class="panel-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <span class="panel-header-title">Health Board</span>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn-expand" onclick="expandPanel('health')" title="Expand">&#x26F6;</button>
+            <button class="btn-close-panel" onclick="collapsePanel()" title="Close">&#x2715;</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="health-grid" id="health-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node tooltip (rendered outside panels for z-index) -->
+  <div class="node-tooltip" id="node-tooltip" style="display:none;"></div>
+
+  <!-- Panel expand backdrop -->
+  <div class="panel-backdrop" id="panel-backdrop"></div>
+
+  <!-- d3.js from CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <script>
+    /* ===============================================================
+       State
+       =============================================================== */
+    var ws = null;
+    var reconnectTimer = null;
+    var reconnectDelay = 2000;
+    var MAX_RECONNECT_DELAY = 10000;
+    var expandedPanel = null;
+    var simulation = null;
+    var graphSvg = null;
+    var graphG = null;
+    var currentZoom = 1;
+    var graphNodes = [];
+    var graphLinks = [];
+    var gitData = null;
+    var modulesData = null;
+
+    /* Category color map */
+    var CATEGORY_COLORS = {
+      core: '#00D4FF',
+      cli: '#22C55E',
+      hooks: '#F59E0B',
+      daemon: '#A855F7',
+      interceptors: '#EC4899',
+      launcher: '#F97316',
+      enforcement: '#EF4444',
+      mcp: '#06B6D4',
+      compliance: '#8B5CF6',
+      profiles: '#84CC16',
+      logging: '#64748B',
+      analytics: '#14B8A6',
+      hardening: '#DC2626',
+      root: '#9CA3AF'
+    };
+
+    /* Health checks configuration */
+    var HEALTH_CHECKS = ['tests', 'lint', 'typecheck', 'go_build'];
+    var HEALTH_LABELS = {
+      tests: 'Tests',
+      lint: 'Lint',
+      typecheck: 'Typecheck',
+      go_build: 'Go Build'
+    };
+
+    /* ===============================================================
+       Utility: escape HTML for safe DOM insertion
+       =============================================================== */
+    function escapeHtml(str) {
+      if (!str) return '';
+      var s = String(str);
+      var out = '';
+      for (var i = 0; i < s.length; i++) {
+        var ch = s[i];
+        if (ch === '&') out += '&amp;';
+        else if (ch === '<') out += '&lt;';
+        else if (ch === '>') out += '&gt;';
+        else if (ch === '"') out += '&quot;';
+        else if (ch === "'") out += '&#39;';
+        else out += ch;
+      }
+      return out;
+    }
+
+    function shortPath(p) {
+      if (p.length > 40) {
+        var parts = p.split('/');
+        if (parts.length > 2) {
+          return '.../' + parts.slice(-2).join('/');
+        }
+      }
+      return p;
+    }
+
+    /* ===============================================================
+       WebSocket Connection
+       =============================================================== */
+    function connectWebSocket() {
+      var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      var wsUrl = protocol + '//' + location.host + '/ws';
+
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        scheduleReconnect();
+        return;
+      }
+
+      ws.onopen = function () {
+        reconnectDelay = 2000;
+        showReconnectBanner(false);
+        setConnectionStatus('connected');
+      };
+
+      ws.onmessage = function (event) {
+        try {
+          var data = JSON.parse(event.data);
+          if (data.git) {
+            gitData = data.git;
+            renderGit(data.git);
+          }
+          if (data.health) {
+            renderHealth(data.health);
+          }
+          if (data.modules) {
+            modulesData = data.modules;
+            renderGraph(data.modules);
+          }
+        } catch (e) {
+          console.error('Failed to parse WebSocket message:', e);
+        }
+      };
+
+      ws.onclose = function () {
+        setConnectionStatus('reconnecting');
+        showReconnectBanner(true);
+        scheduleReconnect();
+      };
+
+      ws.onerror = function () {
+        if (ws) ws.close();
+      };
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(function () {
+        connectWebSocket();
+        reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY);
+      }, reconnectDelay);
+    }
+
+    function showReconnectBanner(show) {
+      var banner = document.getElementById('reconnect-banner');
+      if (show) {
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    }
+
+    function setConnectionStatus(status) {
+      var indicator = document.getElementById('conn-indicator');
+      indicator.className = 'conn-indicator';
+      if (status === 'disconnected') {
+        indicator.classList.add('disconnected');
+        indicator.title = 'Disconnected';
+      } else if (status === 'reconnecting') {
+        indicator.classList.add('reconnecting');
+        indicator.title = 'Reconnecting...';
+      } else {
+        indicator.title = 'Connected';
+      }
+    }
+
+    function sendWs(msg) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+      }
+    }
+
+    /* ===============================================================
+       Expand / Collapse Panels
+       =============================================================== */
+    function expandPanel(panelName) {
+      var panel = document.getElementById('panel-' + panelName);
+      var backdrop = document.getElementById('panel-backdrop');
+      if (!panel) return;
+
+      panel.classList.add('expanded');
+      backdrop.classList.add('visible');
+      expandedPanel = panelName;
+
+      if (panelName === 'graph' && simulation) {
+        requestAnimationFrame(function () {
+          resizeGraph();
+        });
+      }
+    }
+
+    function collapsePanel() {
+      if (!expandedPanel) return;
+      var panel = document.getElementById('panel-' + expandedPanel);
+      var backdrop = document.getElementById('panel-backdrop');
+      if (panel) panel.classList.remove('expanded');
+      backdrop.classList.remove('visible');
+
+      var prev = expandedPanel;
+      expandedPanel = null;
+
+      if (prev === 'graph' && simulation) {
+        requestAnimationFrame(function () {
+          resizeGraph();
+        });
+      }
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && expandedPanel) {
+        collapsePanel();
+      }
+    });
+
+    document.getElementById('panel-backdrop').addEventListener('click', function () {
+      collapsePanel();
+    });
+
+    /* ===============================================================
+       Panel 2: Git Pulse Rendering
+       =============================================================== */
+    function renderGit(git) {
+      /* Update header branch badge */
+      document.getElementById('header-branch-text').textContent = git.branch || '---';
+
+      /* Update branch bar */
+      document.getElementById('git-branch-name').textContent = git.branch || '---';
+      document.getElementById('git-sha').textContent = git.head_sha ? git.head_sha.slice(0, 7) : '-------';
+
+      /* Dirty pulse on panel header */
+      var header = document.getElementById('git-panel-header');
+      var isDirty = (git.staged && git.staged.length > 0) ||
+                    (git.modified && git.modified.length > 0) ||
+                    (git.untracked && git.untracked.length > 0);
+      if (isDirty) {
+        header.classList.add('dirty');
+      } else {
+        header.classList.remove('dirty');
+      }
+
+      /* Build all sections using safe DOM construction */
+      var container = document.getElementById('git-sections');
+      while (container.firstChild) container.removeChild(container.firstChild);
+
+      /* Staged section */
+      container.appendChild(buildGitSection('Staged', git.staged || [], 'staged'));
+      /* Modified section */
+      container.appendChild(buildGitSection('Modified', git.modified || [], 'modified'));
+      /* Untracked section */
+      container.appendChild(buildGitSection('Untracked', git.untracked || [], 'untracked'));
+
+      /* Stash drawer */
+      var stashes = git.stashes || [];
+      var stashDrawer = document.createElement('div');
+      stashDrawer.className = 'stash-drawer';
+
+      var stashBtn = document.createElement('button');
+      stashBtn.className = 'stash-toggle';
+      var arrow = document.createElement('span');
+      arrow.className = 'arrow';
+      arrow.textContent = '\u25B6';
+      stashBtn.appendChild(arrow);
+      stashBtn.appendChild(document.createTextNode(' Stashes '));
+      var stashCount = document.createElement('span');
+      stashCount.style.fontFamily = 'var(--mono)';
+      stashCount.style.fontSize = '10px';
+      stashCount.style.color = 'var(--text-muted)';
+      stashCount.style.marginLeft = '4px';
+      stashCount.textContent = String(stashes.length);
+      stashBtn.appendChild(stashCount);
+      stashBtn.addEventListener('click', function () {
+        this.classList.toggle('open');
+        var list = this.nextElementSibling;
+        if (list) list.classList.toggle('open');
+      });
+      stashDrawer.appendChild(stashBtn);
+
+      var stashList = document.createElement('div');
+      stashList.className = 'stash-list';
+      if (stashes.length === 0) {
+        var noStash = document.createElement('div');
+        noStash.className = 'clean-msg';
+        noStash.style.padding = '0 0 4px';
+        noStash.textContent = 'No stashes';
+        stashList.appendChild(noStash);
+      } else {
+        stashes.forEach(function (s, i) {
+          var item = document.createElement('div');
+          item.className = 'stash-item';
+          var idx = document.createElement('span');
+          idx.className = 'stash-idx';
+          idx.textContent = 'stash@{' + i + '}';
+          item.appendChild(idx);
+          var msg = document.createElement('span');
+          msg.className = 'stash-msg';
+          msg.textContent = s;
+          item.appendChild(msg);
+          stashList.appendChild(item);
+        });
+      }
+      stashDrawer.appendChild(stashList);
+      container.appendChild(stashDrawer);
+
+      /* Recent commits */
+      var commits = git.recent_commits || [];
+      var commitSection = document.createElement('div');
+      commitSection.className = 'git-section';
+
+      var commitTitle = document.createElement('div');
+      commitTitle.className = 'git-section-title';
+      commitTitle.textContent = 'Recent Commits ';
+      var commitCount = document.createElement('span');
+      commitCount.className = 'count';
+      commitCount.textContent = String(commits.length);
+      commitTitle.appendChild(commitCount);
+      commitSection.appendChild(commitTitle);
+
+      if (commits.length === 0) {
+        var noCommits = document.createElement('div');
+        noCommits.className = 'clean-msg';
+        noCommits.textContent = 'No commits';
+        commitSection.appendChild(noCommits);
+      } else {
+        var commitListEl = document.createElement('div');
+        commitListEl.className = 'commit-list';
+        commits.forEach(function (c) {
+          var row = document.createElement('div');
+          row.className = 'commit-item';
+          var sha = document.createElement('span');
+          sha.className = 'commit-sha';
+          sha.textContent = (c.sha || '').slice(0, 7);
+          row.appendChild(sha);
+          var cmsg = document.createElement('span');
+          cmsg.className = 'commit-msg';
+          cmsg.textContent = c.message || '';
+          row.appendChild(cmsg);
+          var ctime = document.createElement('span');
+          ctime.className = 'commit-time';
+          ctime.textContent = c.time_ago || '';
+          row.appendChild(ctime);
+          commitListEl.appendChild(row);
+        });
+        commitSection.appendChild(commitListEl);
+      }
+      container.appendChild(commitSection);
+
+      /* Update graph overlays if we have module data */
+      if (modulesData) {
+        updateGitOverlays();
+      }
+    }
+
+    function buildGitSection(title, files, className) {
+      var section = document.createElement('div');
+      section.className = 'git-section';
+
+      var titleEl = document.createElement('div');
+      titleEl.className = 'git-section-title';
+      titleEl.textContent = title + ' ';
+      var countEl = document.createElement('span');
+      countEl.className = 'count';
+      countEl.textContent = String(files.length);
+      titleEl.appendChild(countEl);
+      section.appendChild(titleEl);
+
+      if (files.length === 0) {
+        var clean = document.createElement('div');
+        clean.className = 'clean-msg';
+        clean.textContent = 'Clean';
+        section.appendChild(clean);
+      } else {
+        var wrap = document.createElement('div');
+        wrap.className = 'chip-wrap';
+        files.forEach(function (f) {
+          var chip = document.createElement('span');
+          chip.className = 'chip ' + className;
+          chip.title = f;
+          chip.textContent = shortPath(f);
+          wrap.appendChild(chip);
+        });
+        section.appendChild(wrap);
+      }
+
+      return section;
+    }
+
+    /* ===============================================================
+       Panel 3: Health Board Rendering
+       =============================================================== */
+    function renderHealth(health) {
+      var grid = document.getElementById('health-grid');
+      while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+      HEALTH_CHECKS.forEach(function (key) {
+        var check = health[key] || {};
+        var status = check.status || 'stale';
+        var label = HEALTH_LABELS[key] || key;
+        var detail = (check.detail !== undefined && check.detail !== null) ? check.detail : '--';
+        var lastRun = check.last_run || '';
+        var errorText = check.error || '';
+        var isRunning = status === 'running';
+
+        var card = document.createElement('div');
+        card.className = 'health-card ' + status;
+
+        /* Header row */
+        var hdr = document.createElement('div');
+        hdr.className = 'health-card-header';
+
+        var hdrLeft = document.createElement('div');
+        hdrLeft.className = 'health-card-left';
+
+        var icon = document.createElement('div');
+        icon.className = 'health-icon ' + status;
+        if (isRunning) {
+          var spinner = document.createElement('div');
+          spinner.className = 'health-spinner';
+          icon.appendChild(spinner);
+        } else if (status === 'pass') {
+          icon.textContent = '\u2713';
+        } else if (status === 'fail') {
+          icon.textContent = '\u2717';
+        } else {
+          icon.textContent = '\u25CB';
+        }
+        hdrLeft.appendChild(icon);
+
+        var labelEl = document.createElement('span');
+        labelEl.className = 'health-label';
+        labelEl.textContent = label;
+        hdrLeft.appendChild(labelEl);
+        hdr.appendChild(hdrLeft);
+
+        var rerunBtn = document.createElement('button');
+        rerunBtn.className = 'btn-rerun';
+        rerunBtn.title = 'Re-run';
+        rerunBtn.disabled = isRunning;
+        rerunBtn.setAttribute('data-check', key);
+        rerunBtn.addEventListener('click', function () {
+          rerunCheck(this.getAttribute('data-check'));
+        });
+        /* SVG icon for rerun */
+        var rerunSvgNs = 'http://www.w3.org/2000/svg';
+        var rerunSvg = document.createElementNS(rerunSvgNs, 'svg');
+        rerunSvg.setAttribute('width', '12');
+        rerunSvg.setAttribute('height', '12');
+        rerunSvg.setAttribute('viewBox', '0 0 24 24');
+        rerunSvg.setAttribute('fill', 'none');
+        rerunSvg.setAttribute('stroke', 'currentColor');
+        rerunSvg.setAttribute('stroke-width', '2.5');
+        rerunSvg.setAttribute('stroke-linecap', 'round');
+        rerunSvg.setAttribute('stroke-linejoin', 'round');
+        var polyline = document.createElementNS(rerunSvgNs, 'polyline');
+        polyline.setAttribute('points', '23 4 23 10 17 10');
+        rerunSvg.appendChild(polyline);
+        var path = document.createElementNS(rerunSvgNs, 'path');
+        path.setAttribute('d', 'M20.49 15a9 9 0 1 1-2.12-9.36L23 10');
+        rerunSvg.appendChild(path);
+        rerunBtn.appendChild(rerunSvg);
+        hdr.appendChild(rerunBtn);
+
+        card.appendChild(hdr);
+
+        /* Detail */
+        var detailEl = document.createElement('div');
+        detailEl.className = 'health-detail';
+        detailEl.textContent = String(detail);
+        card.appendChild(detailEl);
+
+        /* Sub */
+        var subEl = document.createElement('div');
+        subEl.className = 'health-sub';
+        subEl.textContent = lastRun ? 'Last run ' + lastRun : 'Not yet run';
+        card.appendChild(subEl);
+
+        /* Error block */
+        if (status === 'fail' && errorText) {
+          var errEl = document.createElement('div');
+          errEl.className = 'health-error';
+          errEl.textContent = errorText.split('\n').slice(0, 5).join('\n');
+          card.appendChild(errEl);
+        }
+
+        grid.appendChild(card);
+      });
+    }
+
+    function rerunCheck(checkName) {
+      sendWs({ action: 'run_check', check: checkName });
+    }
+
+    /* ===============================================================
+       Panel 1: Project Map (d3-force graph)
+       =============================================================== */
+    function initGraph() {
+      var container = document.getElementById('graph-container');
+      var svg = d3.select(container)
+        .append('svg')
+        .attr('width', '100%')
+        .attr('height', '100%');
+
+      graphSvg = svg;
+
+      /* Defs for glow filter */
+      var defs = svg.append('defs');
+      var filter = defs.append('filter')
+        .attr('id', 'glow')
+        .attr('x', '-50%')
+        .attr('y', '-50%')
+        .attr('width', '200%')
+        .attr('height', '200%');
+      filter.append('feGaussianBlur')
+        .attr('stdDeviation', '2')
+        .attr('result', 'coloredBlur');
+      var feMerge = filter.append('feMerge');
+      feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+      feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+      /* Main group for zoom/pan */
+      graphG = svg.append('g').attr('class', 'graph-root');
+
+      /* Zoom behavior */
+      var zoom = d3.zoom()
+        .scaleExtent([0.3, 5])
+        .on('zoom', function (event) {
+          graphG.attr('transform', event.transform);
+          currentZoom = event.transform.k;
+          /* Show/hide labels based on zoom level */
+          graphG.selectAll('.node-label')
+            .attr('opacity', currentZoom > 1.5 ? 0.9 : 0);
+        });
+
+      svg.call(zoom);
+
+      /* Layer groups for draw order */
+      graphG.append('g').attr('class', 'links-layer');
+      graphG.append('g').attr('class', 'nodes-layer');
+      graphG.append('g').attr('class', 'labels-layer');
+    }
+
+    function getNodeColor(node) {
+      var cat = (node.category || node.subpackage || 'root').toLowerCase();
+      return CATEGORY_COLORS[cat] || CATEGORY_COLORS.root;
+    }
+
+    function getNodeRadius(node) {
+      var loc = node.loc || 0;
+      return Math.max(4, Math.min(25, Math.sqrt(loc) * 0.5));
+    }
+
+    function renderGraph(modules) {
+      if (!graphSvg) initGraph();
+
+      var emptyEl = document.getElementById('graph-empty');
+      if (emptyEl) emptyEl.remove();
+
+      var nodes = modules.nodes || [];
+      var rawLinks = modules.edges || modules.links || [];
+      var links = rawLinks.map(function (l) {
+        return {
+          source: typeof l.source === 'object' ? l.source.id : l.source,
+          target: typeof l.target === 'object' ? l.target.id : l.target
+        };
+      });
+
+      /* If data hasn't changed substantially, skip full re-render */
+      var nodeIds = new Set(nodes.map(function (n) { return n.id; }));
+      var prevIds = new Set(graphNodes.map(function (n) { return n.id; }));
+      var sameNodes = nodeIds.size === prevIds.size;
+      if (sameNodes) {
+        var allMatch = true;
+        nodeIds.forEach(function (id) {
+          if (!prevIds.has(id)) allMatch = false;
+        });
+        if (allMatch && graphNodes.length > 0) {
+          updateGitOverlays();
+          return;
+        }
+      }
+
+      graphNodes = nodes;
+      graphLinks = links;
+
+      var container = document.getElementById('graph-container');
+      var rect = container.getBoundingClientRect();
+      var width = rect.width || 600;
+      var height = rect.height || 400;
+
+      /* Stop old simulation */
+      if (simulation) simulation.stop();
+
+      /* Create force simulation */
+      simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(function (d) { return d.id; }).distance(60).strength(0.3))
+        .force('charge', d3.forceManyBody().strength(-30))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collide', d3.forceCollide().radius(function (d) { return getNodeRadius(d) + 2; }))
+        .alphaDecay(0.02);
+
+      /* Draw links */
+      var linksLayer = graphG.select('.links-layer');
+      linksLayer.selectAll('*').remove();
+      var linkEls = linksLayer.selectAll('line')
+        .data(links)
+        .enter()
+        .append('line')
+        .attr('stroke', 'var(--text-muted)')
+        .attr('stroke-opacity', 0.2)
+        .attr('stroke-width', 1);
+
+      /* Draw nodes */
+      var nodesLayer = graphG.select('.nodes-layer');
+      nodesLayer.selectAll('*').remove();
+
+      var nodeGroups = nodesLayer.selectAll('g')
+        .data(nodes)
+        .enter()
+        .append('g')
+        .attr('class', 'node-group')
+        .attr('data-id', function (d) { return d.id; })
+        .call(d3.drag()
+          .on('start', dragStarted)
+          .on('drag', dragged)
+          .on('end', dragEnded)
+        )
+        .on('click', function (event, d) {
+          event.stopPropagation();
+          showNodeTooltip(event, d);
+        });
+
+      /* Git overlay ring (drawn first, behind the node circle) */
+      nodeGroups.append('circle')
+        .attr('class', 'git-ring')
+        .attr('r', function (d) { return getNodeRadius(d) + 4; })
+        .attr('fill', 'none')
+        .attr('stroke', 'transparent')
+        .attr('stroke-width', 2)
+        .attr('stroke-opacity', 0);
+
+      /* Node circle */
+      nodeGroups.append('circle')
+        .attr('class', 'node-circle')
+        .attr('r', function (d) { return getNodeRadius(d); })
+        .attr('fill', function (d) { return getNodeColor(d); })
+        .attr('fill-opacity', 0.85)
+        .attr('stroke', function (d) { return getNodeColor(d); })
+        .attr('stroke-width', 1.5)
+        .attr('stroke-opacity', 0.3)
+        .style('filter', 'url(#glow)')
+        .style('cursor', 'pointer');
+
+      /* Labels layer */
+      var labelsLayer = graphG.select('.labels-layer');
+      labelsLayer.selectAll('*').remove();
+      labelsLayer.selectAll('text')
+        .data(nodes)
+        .enter()
+        .append('text')
+        .attr('class', 'node-label')
+        .attr('text-anchor', 'middle')
+        .attr('dy', function (d) { return getNodeRadius(d) + 12; })
+        .attr('font-size', '9px')
+        .attr('font-family', "'Satoshi', system-ui, sans-serif")
+        .attr('fill', 'var(--text-secondary)')
+        .attr('opacity', currentZoom > 1.5 ? 0.9 : 0)
+        .text(function (d) { return d.name || d.id; });
+
+      /* Simulation tick: update element positions each frame */
+      simulation.on('tick', function () {
+        linkEls
+          .attr('x1', function (d) { return d.source.x; })
+          .attr('y1', function (d) { return d.source.y; })
+          .attr('x2', function (d) { return d.target.x; })
+          .attr('y2', function (d) { return d.target.y; });
+
+        nodeGroups.attr('transform', function (d) {
+          return 'translate(' + d.x + ',' + d.y + ')';
+        });
+
+        labelsLayer.selectAll('text')
+          .attr('x', function (d) { return d.x; })
+          .attr('y', function (d) { return d.y; });
+      });
+
+      /* Apply git overlays */
+      updateGitOverlays();
+    }
+
+    function updateGitOverlays() {
+      if (!gitData || !graphG) return;
+
+      var staged = new Set(gitData.staged || []);
+      var modified = new Set(gitData.modified || []);
+      var untracked = new Set(gitData.untracked || []);
+
+      graphG.selectAll('.node-group').each(function (d) {
+        var ring = d3.select(this).select('.git-ring');
+        var nodePath = d.path || d.id || '';
+
+        var isStaged = matchesAnyFile(nodePath, staged);
+        var isModified = matchesAnyFile(nodePath, modified);
+        var isUntracked = matchesAnyFile(nodePath, untracked);
+
+        if (isStaged) {
+          ring.attr('stroke', 'var(--color-allowed)')
+            .attr('stroke-width', 2.5)
+            .attr('stroke-opacity', 1)
+            .attr('stroke-dasharray', null)
+            .style('animation', 'nodeRingPulse 2s ease-in-out infinite');
+        } else if (isModified) {
+          ring.attr('stroke', 'var(--color-pending)')
+            .attr('stroke-width', 2.5)
+            .attr('stroke-opacity', 1)
+            .attr('stroke-dasharray', null)
+            .style('animation', 'nodeRingPulse 2s ease-in-out infinite');
+        } else if (isUntracked) {
+          ring.attr('stroke', 'var(--color-denied)')
+            .attr('stroke-width', 2)
+            .attr('stroke-opacity', 1)
+            .attr('stroke-dasharray', '3,3')
+            .style('animation', 'nodeRingPulse 2s ease-in-out infinite');
+        } else {
+          ring.attr('stroke', 'transparent')
+            .attr('stroke-opacity', 0)
+            .style('animation', null);
+        }
+      });
+    }
+
+    function matchesAnyFile(nodePath, fileSet) {
+      if (!nodePath) return false;
+      for (var f of fileSet) {
+        if (f === nodePath || f.endsWith(nodePath) || nodePath.endsWith(f)) {
+          return true;
+        }
+        /* Check if module-dotted-path maps to the file path */
+        var pyPath = nodePath.replace(/\./g, '/') + '.py';
+        if (f === pyPath || f.endsWith(pyPath)) return true;
+        var initPath = nodePath.replace(/\./g, '/') + '/__init__.py';
+        if (f === initPath || f.endsWith(initPath)) return true;
+      }
+      return false;
+    }
+
+    function resizeGraph() {
+      if (!simulation) return;
+      var container = document.getElementById('graph-container');
+      var rect = container.getBoundingClientRect();
+      var width = rect.width || 600;
+      var height = rect.height || 400;
+      simulation.force('center', d3.forceCenter(width / 2, height / 2));
+      simulation.alpha(0.3).restart();
+    }
+
+    /* Drag handlers for nodes */
+    function dragStarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragEnded(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    /* Node tooltip using safe DOM methods */
+    function showNodeTooltip(event, d) {
+      var tooltip = document.getElementById('node-tooltip');
+      /* Clear previous content */
+      while (tooltip.firstChild) tooltip.removeChild(tooltip.firstChild);
+
+      /* File path */
+      var pathEl = document.createElement('div');
+      pathEl.className = 'tt-path';
+      pathEl.textContent = d.path || d.id;
+      tooltip.appendChild(pathEl);
+
+      /* LOC stat */
+      var locRow = document.createElement('div');
+      locRow.className = 'tt-stat';
+      var locLabel = document.createElement('span');
+      locLabel.textContent = 'Lines of code';
+      locRow.appendChild(locLabel);
+      var locVal = document.createElement('span');
+      locVal.className = 'tt-val';
+      locVal.textContent = String(d.loc || 0);
+      locRow.appendChild(locVal);
+      tooltip.appendChild(locRow);
+
+      /* Category stat */
+      var catRow = document.createElement('div');
+      catRow.className = 'tt-stat';
+      var catLabel = document.createElement('span');
+      catLabel.textContent = 'Category';
+      catRow.appendChild(catLabel);
+      var catVal = document.createElement('span');
+      catVal.className = 'tt-val';
+      catVal.textContent = d.category || d.subpackage || 'root';
+      catRow.appendChild(catVal);
+      tooltip.appendChild(catRow);
+
+      /* Imports */
+      var imports = d.imports || [];
+      if (imports.length > 0) {
+        var impTitle = document.createElement('div');
+        impTitle.className = 'tt-section-title';
+        impTitle.textContent = 'Imports (' + imports.length + ')';
+        tooltip.appendChild(impTitle);
+        imports.slice(0, 8).forEach(function (imp) {
+          var el = document.createElement('div');
+          el.className = 'tt-dep';
+          el.textContent = imp;
+          tooltip.appendChild(el);
+        });
+        if (imports.length > 8) {
+          var more = document.createElement('div');
+          more.className = 'tt-dep';
+          more.style.color = 'var(--text-muted)';
+          more.textContent = '+' + (imports.length - 8) + ' more';
+          tooltip.appendChild(more);
+        }
+      }
+
+      /* Imported by */
+      var importedBy = d.imported_by || [];
+      if (importedBy.length > 0) {
+        var ibTitle = document.createElement('div');
+        ibTitle.className = 'tt-section-title';
+        ibTitle.textContent = 'Imported by (' + importedBy.length + ')';
+        tooltip.appendChild(ibTitle);
+        importedBy.slice(0, 8).forEach(function (imp) {
+          var el = document.createElement('div');
+          el.className = 'tt-dep';
+          el.textContent = imp;
+          tooltip.appendChild(el);
+        });
+        if (importedBy.length > 8) {
+          var more2 = document.createElement('div');
+          more2.className = 'tt-dep';
+          more2.style.color = 'var(--text-muted)';
+          more2.textContent = '+' + (importedBy.length - 8) + ' more';
+          tooltip.appendChild(more2);
+        }
+      }
+
+      tooltip.style.display = 'block';
+
+      /* Position near the click, clamped to viewport */
+      var ttRect = tooltip.getBoundingClientRect();
+      var left = event.clientX + 12;
+      var top = event.clientY - 10;
+
+      if (left + 320 > window.innerWidth) {
+        left = event.clientX - 320 - 12;
+      }
+      if (top + ttRect.height > window.innerHeight) {
+        top = window.innerHeight - ttRect.height - 10;
+      }
+      if (top < 10) top = 10;
+      if (left < 10) left = 10;
+
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+    }
+
+    /* Hide tooltip on click outside of graph nodes */
+    document.addEventListener('click', function (e) {
+      var tooltip = document.getElementById('node-tooltip');
+      if (!e.target.closest('.node-group') && !e.target.closest('.node-tooltip')) {
+        tooltip.style.display = 'none';
+      }
+    });
+
+    /* ===============================================================
+       Initialize default health cards
+       =============================================================== */
+    function initHealthCards() {
+      var defaultHealth = {};
+      HEALTH_CHECKS.forEach(function (key) {
+        defaultHealth[key] = { status: 'stale', detail: '--', last_run: '', error: '' };
+      });
+      renderHealth(defaultHealth);
+    }
+
+    /* ===============================================================
+       Window Resize: refit the graph simulation
+       =============================================================== */
+    window.addEventListener('resize', function () {
+      if (simulation) {
+        resizeGraph();
+      }
+    });
+
+    /* ===============================================================
+       Boot
+       =============================================================== */
+    initHealthCards();
+    initGraph();
+    connectWebSocket();
+  </script>
+</body>
+</html>
