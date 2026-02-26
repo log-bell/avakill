@@ -589,7 +589,7 @@ def _check_deps() -> None:
         raise SystemExit(1)
 
 
-async def _serve(root: Path, port: int, no_open: bool) -> None:
+async def _serve(root: Path, port: int, no_open: bool, host: str = "localhost") -> None:
     """Run the dashboard aiohttp server with WebSocket and file watcher."""
     from aiohttp import web
     from watchfiles import awatch
@@ -654,12 +654,17 @@ async def _serve(root: Path, port: int, no_open: bool) -> None:
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "localhost", port)
+    site = web.TCPSite(runner, host, port)
     await site.start()
 
-    url = f"http://localhost:{port}"
+    url = f"http://{host}:{port}"
     click.echo("\n  AvaKill Dashboard")
     click.echo(f"  {url}")
+    if host == "0.0.0.0":
+        import socket
+
+        local_ip = socket.gethostbyname(socket.gethostname())
+        click.echo(f"  Network: http://{local_ip}:{port}")
     click.echo(f"  Watching: {root}")
     click.echo("  Press Ctrl+C to stop\n")
 
@@ -702,15 +707,21 @@ async def _serve(root: Path, port: int, no_open: bool) -> None:
 
 @click.command("dashboard")
 @click.option("--port", default=7700, show_default=True, help="HTTP port for dashboard.")
+@click.option(
+    "--host",
+    default="localhost",
+    show_default=True,
+    help="Bind address (use 0.0.0.0 for network access).",
+)
 @click.option("--no-open", is_flag=True, help="Don't auto-open browser.")
 @click.option("--root", default=".", help="Project root directory.")
-def dashboard(port: int, no_open: bool, root: str) -> None:
+def dashboard(port: int, host: str, no_open: bool, root: str) -> None:
     """Start the real-time codebase visualization dashboard."""
     _check_deps()
     root_path = Path(root).resolve()
     if not (root_path / ".git").exists():
         click.echo("Warning: not a git repository", err=True)
     try:
-        asyncio.run(_serve(root_path, port, no_open))
+        asyncio.run(_serve(root_path, port, no_open, host))
     except KeyboardInterrupt:
         click.echo("\nDashboard stopped.")
