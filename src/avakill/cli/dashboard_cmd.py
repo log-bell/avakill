@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
-import contextlib
+import json
 import logging
+import subprocess
 import sys
+import webbrowser
+from datetime import datetime, timezone
 
 if sys.platform != "win32":
     import termios
@@ -35,6 +39,238 @@ _ACTION_STYLE: dict[str, tuple[str, str]] = {
     "deny": ("bold red", "DENY"),
     "require_approval": ("bold yellow", "PEND"),
 }
+
+
+def _git(args: list[str], cwd: Path) -> str:
+    """Run a git command and return stripped stdout. Empty string on failure."""
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return ""
+
+
+def collect_git_state(root: Path) -> dict:
+    """Collect current git working tree state."""
+    branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], root)
+    head_sha = _git(["rev-parse", "--short", "HEAD"], root)
+    head_message = _git(["log", "-1", "--format=%s"], root)
+
+    status_raw = _git(["status", "--porcelain"], root)
+    staged: list[str] = []
+    modified: list[str] = []
+    untracked: list[str] = []
+    for line in status_raw.splitlines():
+        if len(line) < 4:
+            continue
+        index_status = line[0]
+        worktree_status = line[1]
+        filepath = line[3:]
+        if index_status == "?":
+            untracked.append(filepath)
+        elif index_status != " ":
+            staged.append(filepath)
+        if worktree_status == "M":
+            modified.append(filepath)
+
+    dirty = bool(staged or modified or untracked)
+
+    log_raw = _git(["log", "--format=%H|%h|%s|%ar", "-10"], root)
+    recent_commits = []
+    for line in log_raw.splitlines():
+        parts = line.split("|", 3)
+        if len(parts) == 4:
+            recent_commits.append(
+                {
+                    "sha": parts[1],
+                    "message": parts[2],
+                    "age": parts[3],
+                }
+            )
+
+    stash_raw = _git(["stash", "list", "--format=%gd|%gs"], root)
+    stashes = []
+    for line in stash_raw.splitlines():
+        parts = line.split("|", 1)
+        if len(parts) == 2:
+            stashes.append({"ref": parts[0], "message": parts[1]})
+
+    return {
+        "branch": branch,
+        "head_sha": head_sha,
+        "head_message": head_message,
+        "dirty": dirty,
+        "staged": staged,
+        "modified": modified,
+        "untracked": untracked,
+        "recent_commits": recent_commits,
+        "stashes": stashes,
+    }
+
+
+def collect_module_graph(package_root: Path) -> dict:
+    """Build a module dependency graph from AST imports."""
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    subpackages: set[str] = set()
+
+    module_ids: dict[Path, str] = {}
+    for py_file in sorted(package_root.rglob("*.py")):
+        if py_file.name == "__init__.py":
+            continue
+        rel = py_file.relative_to(package_root)
+        parts = list(rel.with_suffix("").parts)
+        module_id = ".".join(parts)
+        module_ids[py_file] = module_id
+
+        if len(parts) > 1:
+            subpackages.add(parts[0])
+
+        loc = len(py_file.read_text(errors="replace").splitlines())
+        mod_type = parts[0] if len(parts) > 1 else "root"
+
+        nodes.append(
+            {
+                "id": module_id,
+                "path": str(py_file.relative_to(package_root.parent.parent)),
+                "loc": loc,
+                "type": mod_type,
+            }
+        )
+
+    known_ids = {n["id"] for n in nodes}
+
+    for py_file, module_id in module_ids.items():
+        try:
+            source = py_file.read_text(errors="replace")
+            tree = ast.parse(source, filename=str(py_file))
+        except SyntaxError:
+            continue
+
+        for node in ast.walk(tree):
+            targets: list[str] = []
+            if isinstance(node, ast.Import):
+                targets = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                targets = [node.module]
+
+            for target in targets:
+                if target.startswith("avakill."):
+                    target = target[len("avakill.") :]
+
+                parts = target.split(".")
+                for i in range(len(parts), 0, -1):
+                    candidate = ".".join(parts[:i])
+                    if candidate in known_ids and candidate != module_id:
+                        edges.append({"from": module_id, "to": candidate})
+                        break
+
+    seen: set[tuple[str, str]] = set()
+    unique_edges = []
+    for e in edges:
+        key = (e["from"], e["to"])
+        if key not in seen:
+            seen.add(key)
+            unique_edges.append(e)
+
+    return {
+        "nodes": nodes,
+        "edges": unique_edges,
+        "subpackages": sorted(subpackages),
+    }
+
+
+def collect_health() -> dict:
+    """Return initial (stale) health state for all four checks."""
+    stale = {"status": "stale", "last_run": None}
+    return {
+        "tests": {**stale},
+        "lint": {**stale},
+        "typecheck": {**stale},
+        "go_build": {**stale},
+    }
+
+
+_CHECK_COMMANDS: dict[str, list[str]] = {
+    "tests": ["python", "-m", "pytest", "--tb=short", "-q"],
+    "lint": ["python", "-m", "ruff", "check", "."],
+    "typecheck": ["python", "-m", "mypy", "src/avakill"],
+    "go_build": ["go", "build", "./cmd/avakill-shim/..."],
+}
+
+
+def run_health_check(check_name: str, root: Path) -> dict:
+    """Run a single health check and return its result."""
+    cmd = _CHECK_COMMANDS.get(check_name)
+    if not cmd:
+        return {"status": "fail", "error": f"Unknown check: {check_name}", "last_run": None}
+
+    try:
+        result = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=120)
+        now = datetime.now(timezone.utc).isoformat()
+
+        if result.returncode == 0:
+            return {
+                "status": "pass",
+                "output": result.stdout[-500:] if result.stdout else "",
+                "last_run": now,
+            }
+        else:
+            error = result.stderr[-500:] if result.stderr else result.stdout[-500:]
+            return {
+                "status": "fail",
+                "error": error,
+                "output": result.stdout[-500:] if result.stdout else "",
+                "last_run": now,
+            }
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "fail",
+            "error": f"{check_name} timed out after 120s",
+            "last_run": datetime.now(timezone.utc).isoformat(),
+        }
+    except FileNotFoundError:
+        return {
+            "status": "fail",
+            "error": f"Command not found: {cmd[0]}",
+            "last_run": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+def build_snapshot(root: Path, health_state: dict | None = None) -> dict:
+    """Build a complete dashboard snapshot."""
+    name = root.name
+    version = "unknown"
+    pyproject = root / "pyproject.toml"
+    if pyproject.exists():
+        for line in pyproject.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith("version") and "=" in stripped:
+                version = stripped.split("=", 1)[1].strip().strip('"')
+            elif stripped.startswith("name") and "=" in stripped:
+                name = stripped.split("=", 1)[1].strip().strip('"')
+
+    package_root = root / "src" / "avakill"
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "project": {
+            "name": name,
+            "version": version,
+            "root": str(root),
+        },
+        "git": collect_git_state(root),
+        "modules": collect_module_graph(package_root)
+        if package_root.exists()
+        else {"nodes": [], "edges": [], "subpackages": []},
+        "health": health_state if health_state is not None else collect_health(),
+    }
 
 
 def _make_header(stats: dict[str, Any]) -> Panel:
@@ -333,38 +569,159 @@ class _Dashboard:
             logging.getLogger(__name__).warning("Manual policy reload failed", exc_info=True)
 
 
-@click.command()
-@click.option(
-    "--db",
-    default="avakill_audit.db",
-    help="Path to the audit database.",
-)
-@click.option(
-    "--refresh",
-    default=0.5,
-    type=float,
-    help="Refresh interval in seconds.",
-)
-@click.option(
-    "--policy",
-    default=None,
-    help="Path to the policy file to monitor.",
-)
-@click.option(
-    "--watch/--no-watch",
-    default=False,
-    help="Automatically reload policy when the file changes on disk.",
-)
-def dashboard(db: str, refresh: float, policy: str | None, watch: bool) -> None:
-    """Launch the real-time terminal dashboard."""
-    db_path = Path(db).expanduser()
-    if not db_path.exists():
-        console = Console()
-        console.print(
-            f"[yellow]Database not found:[/yellow] {db_path}\n"
-            "[dim]The dashboard will create it and wait for events.[/dim]"
+def _check_deps() -> None:
+    """Check that dashboard dependencies are installed."""
+    missing = []
+    try:
+        import aiohttp  # noqa: F401
+    except ImportError:
+        missing.append("aiohttp")
+    try:
+        import watchfiles  # noqa: F401
+    except ImportError:
+        missing.append("watchfiles")
+    if missing:
+        click.echo(
+            f"Missing dependencies: {', '.join(missing)}\n"
+            'Install with: pip install "avakill[dashboard]"',
+            err=True,
         )
+        raise SystemExit(1)
 
-    dash = _Dashboard(str(db_path), refresh, policy, watch=watch)
-    with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(dash.run())
+
+async def _serve(root: Path, port: int, no_open: bool, host: str = "localhost") -> None:
+    """Run the dashboard aiohttp server with WebSocket and file watcher."""
+    from aiohttp import web
+    from watchfiles import awatch
+
+    health_state = collect_health()
+    clients: set[web.WebSocketResponse] = set()
+
+    async def broadcast(snapshot: dict) -> None:
+        payload = json.dumps(snapshot)
+        closed = set()
+        for ws in clients:
+            try:
+                await ws.send_str(payload)
+            except (ConnectionResetError, Exception):
+                closed.add(ws)
+        clients.difference_update(closed)
+
+    async def ws_handler(request: web.Request) -> web.WebSocketResponse:
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        clients.add(ws)
+
+        # Send initial snapshot
+        snapshot = build_snapshot(root, health_state)
+        await ws.send_str(json.dumps(snapshot))
+
+        async for msg in ws:
+            if msg.type == web.WSMsgType.TEXT:
+                try:
+                    data = json.loads(msg.data)
+                except json.JSONDecodeError:
+                    continue
+
+                if data.get("action") == "run_check":
+                    check_name = data.get("check", "")
+                    if check_name in health_state:
+                        health_state[check_name] = {
+                            "status": "running",
+                            "last_run": health_state[check_name].get("last_run"),
+                        }
+                        await broadcast(build_snapshot(root, health_state))
+
+                        result = await asyncio.to_thread(run_health_check, check_name, root)
+                        health_state[check_name] = result
+                        await broadcast(build_snapshot(root, health_state))
+
+        clients.discard(ws)
+        return ws
+
+    # Resolve the dashboard HTML path
+    site_dir = root / "site" / "dashboard"
+    index_file = site_dir / "index.html"
+
+    async def index_handler(request: web.Request) -> web.Response:
+        if not index_file.exists():
+            return web.Response(text="Dashboard HTML not found", status=404)
+        return web.FileResponse(index_file)
+
+    app = web.Application()
+    app.router.add_get("/", index_handler)
+    app.router.add_get("/ws", ws_handler)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host, port)
+    await site.start()
+
+    url = f"http://{host}:{port}"
+    click.echo("\n  AvaKill Dashboard")
+    click.echo(f"  {url}")
+    if host == "0.0.0.0":
+        import socket
+
+        local_ip = socket.gethostbyname(socket.gethostname())
+        click.echo(f"  Network: http://{local_ip}:{port}")
+    click.echo(f"  Watching: {root}")
+    click.echo("  Press Ctrl+C to stop\n")
+
+    if not no_open:
+        webbrowser.open(url)
+
+    # File watcher loop
+    watch_extensions = {".py", ".go", ".yaml", ".yml", ".toml", ".md"}
+    ignore_dirs = {
+        "__pycache__",
+        ".git",
+        "node_modules",
+        ".venv",
+        "build",
+        "dist",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+    }
+
+    try:
+        async for changes in awatch(root, debounce=300, step=100):
+            relevant = False
+            for _change_type, path_str in changes:
+                p = Path(path_str)
+                if any(part in ignore_dirs for part in p.parts):
+                    continue
+                if p.suffix in watch_extensions:
+                    relevant = True
+                    break
+
+            if relevant:
+                snapshot = build_snapshot(root, health_state)
+                await broadcast(snapshot)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await runner.cleanup()
+
+
+@click.command("dashboard")
+@click.option("--port", default=7700, show_default=True, help="HTTP port for dashboard.")
+@click.option(
+    "--host",
+    default="localhost",
+    show_default=True,
+    help="Bind address (use 0.0.0.0 for network access).",
+)
+@click.option("--no-open", is_flag=True, help="Don't auto-open browser.")
+@click.option("--root", default=".", help="Project root directory.")
+def dashboard(port: int, host: str, no_open: bool, root: str) -> None:
+    """Start the real-time codebase visualization dashboard."""
+    _check_deps()
+    root_path = Path(root).resolve()
+    if not (root_path / ".git").exists():
+        click.echo("Warning: not a git repository", err=True)
+    try:
+        asyncio.run(_serve(root_path, port, no_open, host))
+    except KeyboardInterrupt:
+        click.echo("\nDashboard stopped.")
