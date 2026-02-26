@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // DiagnoseResult is the output of a preflight check.
@@ -54,7 +55,40 @@ func RunDiagnose(socketPath, upstreamCmd, policyPath, killswitchFile string) {
 		})
 	}
 
-	// 2. Check upstream command findable
+	// 2. Check kill switch status
+	{
+		ksPath := expandHome(killswitchFile)
+		info, err := os.Stat(ksPath)
+		if os.IsNotExist(err) {
+			output.Checks = append(output.Checks, DiagnoseResult{
+				Check:  "killswitch",
+				Status: "ok",
+				Detail: fmt.Sprintf("disengaged (sentinel: %s)", ksPath),
+			})
+		} else if err != nil {
+			allOK = false
+			output.Checks = append(output.Checks, DiagnoseResult{
+				Check:  "killswitch",
+				Status: "fail",
+				Detail: fmt.Sprintf("ENGAGED (stat error, fail-closed: %v)", err),
+			})
+		} else {
+			allOK = false
+			reason := "no reason"
+			if !info.IsDir() {
+				if data, readErr := os.ReadFile(ksPath); readErr == nil && len(data) > 0 {
+					reason = strings.TrimSpace(string(data))
+				}
+			}
+			output.Checks = append(output.Checks, DiagnoseResult{
+				Check:  "killswitch",
+				Status: "fail",
+				Detail: fmt.Sprintf("ENGAGED — %s (sentinel: %s)", reason, ksPath),
+			})
+		}
+	}
+
+	// 3. Check upstream command findable
 	if upstreamCmd != "" {
 		resolved, err := ResolveInEnv(upstreamCmd)
 		if err == nil {
