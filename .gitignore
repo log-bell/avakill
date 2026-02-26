@@ -63,3 +63,6 @@ cmd/avakill-shim/avakill-shim
 
 # Pitch deck (not public)
 site/pitch-deck/
+
+# Dashboard (local dev tool, not public)
+site/dashboard/
