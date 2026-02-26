@@ -66,6 +66,7 @@ class Guard:
         rate_limit_backend: RateLimitBackend | None = None,
         normalize_tools: bool = False,
         approval_store: ApprovalStore | None = None,
+        cross_call_correlation: bool = False,
     ) -> None:
         """Initialise the Guard.
 
@@ -131,6 +132,24 @@ class Guard:
         self._event_bus = EventBus.get()
         self._log_failures = 0
         self._watcher: PolicyWatcher | None = None
+
+        # T4: Cross-call correlation (opt-in, zero overhead when off)
+        self._correlation_enabled = cross_call_correlation
+        if cross_call_correlation:
+            from avakill.core.call_tagger import CallTagger
+            from avakill.core.correlation import (
+                DEFAULT_BURST_PATTERNS,
+                DEFAULT_PATTERNS,
+                CorrelationMatcher,
+            )
+            from avakill.core.session_store import SessionStore
+
+            self._session_store = SessionStore()
+            self._call_tagger = CallTagger()
+            self._correlation_matcher = CorrelationMatcher(
+                patterns=DEFAULT_PATTERNS,
+                burst_patterns=DEFAULT_BURST_PATTERNS,
+            )
 
     @staticmethod
     def _build_engine(
@@ -316,6 +335,12 @@ class Guard:
         if decision.action == "require_approval" and self._approval_store is not None:
             decision = self._check_approval(tool_call, decision, elapsed_ms)
 
+        # T4: Cross-call correlation (session-level behavioral analysis)
+        if self._correlation_enabled and session_id:
+            t4_decision = self._check_cross_call(tool_call, decision, elapsed_ms)
+            if t4_decision is not None:
+                decision = t4_decision
+
         self._record(tool_call, decision, start)
         return decision
 
@@ -482,6 +507,49 @@ class Guard:
                     overridable=decision.overridable,
                 )
 
+        return None
+
+    def _check_cross_call(
+        self,
+        tool_call: ToolCall,
+        decision: Decision,
+        elapsed_ms: float,
+    ) -> Decision | None:
+        """T4: Tag, record, and check cross-call correlation patterns.
+
+        Always tags and records the call (even denied ones — attackers
+        probe for what's blocked). Returns a deny Decision if a
+        correlation pattern matches, otherwise None.
+        """
+        from avakill.core.session_store import TaggedCall
+
+        tags = self._call_tagger.tag(tool_call)
+        if not tags:
+            return None
+
+        session_id = tool_call.session_id
+        assert session_id is not None
+
+        entry = TaggedCall(
+            tool_name=tool_call.tool_name,
+            tags=tags,
+            timestamp=time.monotonic(),
+        )
+        ring = self._session_store.record(session_id, entry)
+
+        # Only check patterns when the original decision allows
+        if not decision.allowed:
+            return None
+
+        match = self._correlation_matcher.check(ring)
+        if match is not None:
+            return Decision(
+                allowed=False,
+                action="deny",
+                policy_name=f"[cross-call] {match.pattern_name}",
+                reason=f"Cross-call pattern detected: {match.pattern_name}",
+                latency_ms=elapsed_ms,
+            )
         return None
 
     def _record(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import importlib
 import json
 import logging
 import subprocess
@@ -243,6 +244,99 @@ def run_health_check(check_name: str, root: Path) -> dict:
         }
 
 
+def collect_cli_commands() -> dict:
+    """Introspect Click command tree and return structured CLI reference."""
+    from avakill.cli.main import _COMMAND_GROUPS, _COMMANDS
+
+    def _extract_command(name: str) -> dict | None:
+        module_path, attr_name = _COMMANDS[name]
+        try:
+            mod = importlib.import_module(module_path)
+            cmd = getattr(mod, attr_name)
+        except Exception:
+            return None
+
+        info: dict[str, Any] = {
+            "name": name,
+            "help": cmd.help or "",
+        }
+
+        # Extract parameters (skip the Click context)
+        params = []
+        for p in cmd.params:
+            if isinstance(p, click.Argument):
+                params.append(
+                    {
+                        "name": p.name,
+                        "kind": "argument",
+                        "required": p.required,
+                    }
+                )
+            elif isinstance(p, click.Option):
+                params.append(
+                    {
+                        "name": p.name,
+                        "kind": "option",
+                        "flags": list(p.opts),
+                        "help": p.help or "",
+                        "default": str(p.default) if p.default is not None else None,
+                        "is_flag": p.is_flag,
+                    }
+                )
+        info["params"] = params
+
+        # Recurse into subcommands for Groups
+        if isinstance(cmd, click.Group):
+            subs = []
+            for sub_name in cmd.list_commands(click.Context(cmd, info_name=name)):
+                sub_cmd = cmd.get_command(click.Context(cmd, info_name=name), sub_name)
+                if sub_cmd is None:
+                    continue
+                sub_info: dict[str, Any] = {
+                    "name": sub_name,
+                    "help": sub_cmd.help or "",
+                }
+                sub_params = []
+                for p in sub_cmd.params:
+                    if isinstance(p, click.Argument):
+                        sub_params.append(
+                            {
+                                "name": p.name,
+                                "kind": "argument",
+                                "required": p.required,
+                            }
+                        )
+                    elif isinstance(p, click.Option):
+                        sub_params.append(
+                            {
+                                "name": p.name,
+                                "kind": "option",
+                                "flags": list(p.opts),
+                                "help": p.help or "",
+                                "default": (str(p.default) if p.default is not None else None),
+                                "is_flag": p.is_flag,
+                            }
+                        )
+                sub_info["params"] = sub_params
+                subs.append(sub_info)
+            info["subcommands"] = subs
+
+        return info
+
+    groups = []
+    for group_name, cmd_names in _COMMAND_GROUPS:
+        commands = []
+        for name in cmd_names:
+            if name not in _COMMANDS:
+                continue
+            cmd_info = _extract_command(name)
+            if cmd_info:
+                commands.append(cmd_info)
+        groups.append({"group": group_name, "commands": commands})
+
+    return {"groups": groups, "total_commands": len(_COMMANDS)}
+
+
 def build_snapshot(root: Path, health_state: dict | None = None) -> dict:
     """Build a complete dashboard snapshot."""
     name = root.name
@@ -270,6 +364,7 @@ def build_snapshot(root: Path, health_state: dict | None = None) -> dict:
         if package_root.exists()
         else {"nodes": [], "edges": [], "subpackages": []},
         "health": health_state if health_state is not None else collect_health(),
+        "cli": collect_cli_commands(),
     }
 
 
@@ -663,7 +758,14 @@ async def _serve(root: Path, port: int, no_open: bool, host: str = "localhost") 
     if host == "0.0.0.0":
         import socket
 
-        local_ip = socket.gethostbyname(socket.gethostname())
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("10.255.255.255", 1))
+            local_ip = s.getsockname()[0]
+        except Exception:
+            local_ip = "127.0.0.1"
+        finally:
+            s.close()
         click.echo(f"  Network: http://{local_ip}:{port}")
     click.echo(f"  Watching: {root}")
     click.echo("  Press Ctrl+C to stop\n")

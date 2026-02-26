@@ -471,6 +471,9 @@ def _interactive_rule_menu(
 ) -> list[str]:
     """Display an interactive toggle menu for optional rules.
 
+    Rules are grouped by category with headers. Global numbering stays
+    sequential across all categories so toggle-by-number works identically.
+
     Args:
         console: Rich Console instance.
         rules: List of RuleDef instances.
@@ -479,19 +482,43 @@ def _interactive_rule_menu(
     Returns:
         List of selected rule IDs in catalog order.
     """
-    from avakill.cli.rule_catalog import get_default_on_ids
+    from avakill.cli.rule_catalog import CATEGORY_DISPLAY, get_default_on_ids
 
     current = set(get_default_on_ids()) if selected is None else set(selected)
+
+    # Build category-grouped display order (flat_rules for index mapping)
+    grouped: dict[str, list] = {key: [] for key in CATEGORY_DISPLAY}
+    for rule in rules:
+        if rule.category in grouped:
+            grouped[rule.category].append(rule)
+
+    # flat_rules preserves the grouped display order for index mapping
+    flat_rules: list = []
+    for key in CATEGORY_DISPLAY:
+        flat_rules.extend(grouped[key])
 
     while True:
         console.print("  [bold]What else should AvaKill block?[/bold]")
         console.print("  [dim]Type numbers to toggle, 'a' for all, Enter to confirm.[/dim]")
         console.print()
 
-        for i, rule in enumerate(rules, 1):
-            marker = "[green]\u2713[/green]" if rule.id in current else "[ ]"
-            console.print(f"    {i:>2}. {marker} {rule.label}")
-            console.print(f"        [dim]{rule.description}[/dim]")
+        num = 0
+        for key, (name, desc) in CATEGORY_DISPLAY.items():
+            cat_rules = grouped[key]
+            if not cat_rules:
+                continue
+
+            sep = "\u2500" * 50
+            console.print(f"  [bold]{name}[/bold]  [dim]{desc}[/dim]")
+            console.print(f"  [dim]{sep}[/dim]")
+
+            for rule in cat_rules:
+                num += 1
+                marker = "[green]\u2713[/green]" if rule.id in current else "[ ]"
+                console.print(f"    {num:>2}. {marker} {rule.label}")
+                console.print(f"        [dim]{rule.description}[/dim]")
+
+            console.print()
 
         console.print()
         answer = Prompt.ask(
@@ -517,8 +544,8 @@ def _interactive_rule_menu(
         for token in answer.replace(",", " ").split():
             try:
                 idx = int(token) - 1
-                if 0 <= idx < len(rules):
-                    rule_id = rules[idx].id
+                if 0 <= idx < len(flat_rules):
+                    rule_id = flat_rules[idx].id
                     if rule_id in current:
                         current.discard(rule_id)
                     else:
@@ -527,7 +554,7 @@ def _interactive_rule_menu(
                 pass
         console.print()
 
-    # Return in catalog order
+    # Return in catalog order (iterate original rules list)
     return [r.id for r in rules if r.id in current]
 
 

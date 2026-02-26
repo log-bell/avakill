@@ -84,6 +84,24 @@ func validateConfig(cfg *PolicyConfig) error {
 		return fmt.Errorf("invalid default_action %q (expected \"allow\" or \"deny\")", cfg.DefaultAction)
 	}
 
+	// Validate tool_hash config
+	if cfg.ToolHash != nil && cfg.ToolHash.Enabled {
+		switch cfg.ToolHash.Action {
+		case "log", "warn", "block":
+			// ok
+		case "":
+			cfg.ToolHash.Action = "warn"
+		default:
+			return fmt.Errorf("tool_hash: invalid action %q (expected \"log\", \"warn\", or \"block\")", cfg.ToolHash.Action)
+		}
+		if cfg.ToolHash.ManifestDir == "" {
+			home, err := os.UserHomeDir()
+			if err == nil {
+				cfg.ToolHash.ManifestDir = filepath.Join(home, ".avakill", "tool-manifests")
+			}
+		}
+	}
+
 	for i, rule := range cfg.Policies {
 		if rule.Name == "" {
 			return fmt.Errorf("policy[%d]: name is required", i)

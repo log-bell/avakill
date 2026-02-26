@@ -38,13 +38,14 @@ _COMMANDS: dict[str, tuple[str, str]] = {
 }
 
 _COMMAND_GROUPS: list[tuple[str, list[str]]] = [
-    ("Getting Started", ["setup", "tracking", "validate", "dashboard", "logs", "fix"]),
+    ("Getting Started", ["setup", "validate", "dashboard"]),
     (
         "Integrations",
-        ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "daemon", "hook", "evaluate", "launch", "profile"],
+        ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "hook", "evaluate", "launch", "profile"],
     ),
     ("Security", ["sign", "verify", "keygen", "harden", "check-hardening", "review", "approve"]),
-    ("Advanced", ["enforce", "compliance", "approvals", "schema", "metrics", "guide"]),
+    ("Daemon Integration", ["daemon", "tracking", "logs", "fix", "approvals", "metrics"]),
+    ("Advanced", ["enforce", "compliance", "schema", "guide"]),
 ]
 
 

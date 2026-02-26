@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -127,16 +126,12 @@ func TestEvaluateFailClosed(t *testing.T) {
 	}
 }
 
-func TestEvaluateDaemonUnreachableFallsThrough(t *testing.T) {
-	eval := &Evaluator{
-		SocketPath: "/nonexistent/socket.sock",
-		PolicyPath: "/nonexistent/policy.yaml",
-		Verbose:    true,
-	}
+func TestEvaluateFailClosed_NothingConfigured(t *testing.T) {
+	eval := &Evaluator{}
 
-	resp := eval.Evaluate("write_file", map[string]interface{}{"path": "/etc/shadow"})
+	resp := eval.Evaluate("write_file", nil)
 	if resp.Decision != "deny" {
-		t.Errorf("expected deny, got %q", resp.Decision)
+		t.Errorf("expected deny when nothing configured, got %q", resp.Decision)
 	}
 }
 
@@ -238,103 +233,6 @@ func TestEvaluateDaemonEmptyResponse(t *testing.T) {
 	}
 }
 
-// fakeAvakill creates a shell script named "avakill" in a temp dir that
-// writes the given stdout string and exits with the given code.
-// It returns the temp dir (caller must defer os.RemoveAll) and sets PATH
-// so ResolveInEnv / exec.LookPath will find the fake.
-func fakeAvakill(t *testing.T, stdout string, exitCode int) (cleanup func()) {
-	t.Helper()
-	dir := t.TempDir()
-	script := filepath.Join(dir, "avakill")
-
-	content := "#!/bin/sh\n"
-	if stdout != "" {
-		content += "printf '%s' '" + stdout + "'\n"
-	}
-	content += "exit " + fmt.Sprintf("%d", exitCode) + "\n"
-
-	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
-		t.Fatalf("write fake avakill: %v", err)
-	}
-
-	origPath := os.Getenv("PATH")
-	newPath := dir + ":" + origPath
-	os.Setenv("PATH", newPath)
-
-	// Seed the env cache so ResolveInEnv finds our fake binary first,
-	// bypassing the shell recovery (which spawns a new shell that won't
-	// have our modified PATH).
-	ResetEnvCache()
-	envOnce.Do(func() {
-		envCache = map[string]string{"PATH": newPath}
-		envErr = nil
-	})
-
-	return func() {
-		os.Setenv("PATH", origPath)
-		ResetEnvCache()
-	}
-}
-
-func TestEvaluateSubprocessDenyWithJSON(t *testing.T) {
-	// Fake avakill outputs JSON deny on stdout and exits 2
-	denyResp := `{"decision":"deny","reason":"write to /etc blocked by policy","policy":"block-etc"}`
-	cleanup := fakeAvakill(t, denyResp, 2)
-	defer cleanup()
-
-	eval := &Evaluator{PolicyPath: "/tmp/fake-policy.yaml"}
-	resp, err := eval.evaluateSubprocess("write_file", map[string]interface{}{"path": "/etc/passwd"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "deny" {
-		t.Errorf("expected deny, got %q", resp.Decision)
-	}
-	if resp.Reason != "write to /etc blocked by policy" {
-		t.Errorf("expected real deny reason, got %q", resp.Reason)
-	}
-	if resp.Policy != "block-etc" {
-		t.Errorf("expected policy 'block-etc', got %q", resp.Policy)
-	}
-}
-
-func TestEvaluateSubprocessDenyNoJSON(t *testing.T) {
-	// Fake avakill exits 2 with no stdout — should get fallback reason
-	cleanup := fakeAvakill(t, "", 2)
-	defer cleanup()
-
-	eval := &Evaluator{PolicyPath: "/tmp/fake-policy.yaml"}
-	resp, err := eval.evaluateSubprocess("write_file", map[string]interface{}{"path": "/etc/passwd"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "deny" {
-		t.Errorf("expected deny, got %q", resp.Decision)
-	}
-	if resp.Reason != "denied by subprocess (no structured output)" {
-		t.Errorf("expected fallback reason, got %q", resp.Reason)
-	}
-}
-
-func TestEvaluateSubprocessAllow(t *testing.T) {
-	// Fake avakill outputs JSON allow on stdout and exits 0
-	allowResp := `{"decision":"allow","policy":"default-allow"}`
-	cleanup := fakeAvakill(t, allowResp, 0)
-	defer cleanup()
-
-	eval := &Evaluator{PolicyPath: "/tmp/fake-policy.yaml"}
-	resp, err := eval.evaluateSubprocess("read_file", map[string]interface{}{"path": "/tmp/test.txt"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.Decision != "allow" {
-		t.Errorf("expected allow, got %q", resp.Decision)
-	}
-	if resp.Policy != "default-allow" {
-		t.Errorf("expected policy 'default-allow', got %q", resp.Policy)
-	}
-}
-
 func TestEvaluateCleanup(t *testing.T) {
 	tmpDir := t.TempDir()
 	before, _ := os.ReadDir(tmpDir)
@@ -347,5 +245,133 @@ func TestEvaluateCleanup(t *testing.T) {
 	after, _ := os.ReadDir(tmpDir)
 	if len(after) != len(before) {
 		t.Error("evaluator left temp files behind")
+	}
+}
+
+// --- In-process policy evaluation tests ---
+
+func TestEvaluate_InProcessAllow(t *testing.T) {
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(`
+version: "1.0"
+default_action: allow
+policies:
+  - name: block-writes
+    tools: ["write_file"]
+    action: deny
+`), 0644)
+
+	eval := &Evaluator{PolicyPath: policyPath}
+	resp := eval.Evaluate("read_file", map[string]interface{}{"path": "/tmp/test.txt"})
+	if resp.Decision != "allow" {
+		t.Errorf("expected allow, got %q", resp.Decision)
+	}
+}
+
+func TestEvaluate_InProcessDeny(t *testing.T) {
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(`
+version: "1.0"
+default_action: allow
+policies:
+  - name: block-writes
+    tools: ["write_file"]
+    action: deny
+    message: "writes blocked by policy"
+`), 0644)
+
+	eval := &Evaluator{PolicyPath: policyPath}
+	resp := eval.Evaluate("write_file", map[string]interface{}{"path": "/etc/passwd"})
+	if resp.Decision != "deny" {
+		t.Errorf("expected deny, got %q", resp.Decision)
+	}
+	if resp.Reason != "writes blocked by policy" {
+		t.Errorf("expected custom reason, got %q", resp.Reason)
+	}
+	if resp.Policy != "block-writes" {
+		t.Errorf("expected policy 'block-writes', got %q", resp.Policy)
+	}
+}
+
+func TestEvaluate_InProcessFailClosed_BadFile(t *testing.T) {
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(`{broken yaml: [`), 0644)
+
+	eval := &Evaluator{PolicyPath: policyPath}
+	resp := eval.Evaluate("read_file", nil)
+	if resp.Decision != "deny" {
+		t.Errorf("expected fail-closed deny on bad policy, got %q", resp.Decision)
+	}
+}
+
+func TestEvaluate_InProcessFailClosed_MissingFile(t *testing.T) {
+	eval := &Evaluator{PolicyPath: "/nonexistent/policy.yaml"}
+	resp := eval.Evaluate("read_file", nil)
+	if resp.Decision != "deny" {
+		t.Errorf("expected fail-closed deny on missing policy, got %q", resp.Decision)
+	}
+}
+
+func TestEvaluate_InProcessPriority_OverDaemon(t *testing.T) {
+	// When --policy is set, in-process evaluation should be used
+	// even if --socket is also set. The daemon should NOT be contacted.
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(`
+version: "1.0"
+default_action: deny
+policies: []
+`), 0644)
+
+	eval := &Evaluator{
+		PolicyPath: policyPath,
+		SocketPath: "/nonexistent/socket.sock", // would fail if contacted
+	}
+	resp := eval.Evaluate("test_tool", nil)
+	if resp.Decision != "deny" {
+		t.Errorf("expected in-process deny, got %q", resp.Decision)
+	}
+	// The reason should indicate default action, not daemon failure
+	if resp.Reason == "no evaluation method available (fail-closed)" {
+		t.Error("should have used in-process policy, not fallen through")
+	}
+}
+
+func TestEvaluate_FallbackToDaemon_NoPolicySpecified(t *testing.T) {
+	// When no --policy is set, should fall back to daemon socket
+	sockPath, cleanup := shortSockPath(t)
+	defer cleanup()
+
+	listener, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer listener.Close()
+
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		io.ReadAll(conn)
+		resp := EvaluateResponse{Decision: "allow", Policy: "daemon-allow"}
+		data, _ := json.Marshal(resp)
+		conn.Write(data)
+	}()
+
+	eval := &Evaluator{
+		SocketPath: sockPath,
+		Timeout:    2 * time.Second,
+	}
+	resp := eval.Evaluate("read_file", nil)
+	if resp.Decision != "allow" {
+		t.Errorf("expected daemon allow, got %q", resp.Decision)
+	}
+	if resp.Policy != "daemon-allow" {
+		t.Errorf("expected daemon-allow policy, got %q", resp.Policy)
 	}
 }
