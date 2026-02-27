@@ -577,8 +577,8 @@ class TestDashboardCommand:
     def test_dashboard_help(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["dashboard", "--help"])
         assert result.exit_code == 0
-        assert "db" in result.output
-        assert "refresh" in result.output
+        assert "port" in result.output
+        assert "no-open" in result.output
 
     def test_dashboard_layout_renders(self) -> None:
         """Verify the layout builder doesn't crash with empty data."""

@@ -262,7 +262,7 @@ def collect_cli_commands() -> dict:
         }
 
         # Extract parameters (skip the Click context)
-        params = []
+        params: list[dict[str, Any]] = []
         for p in cmd.params:
             if isinstance(p, click.Argument):
                 params.append(
@@ -296,7 +296,7 @@ def collect_cli_commands() -> dict:
                     "name": sub_name,
                     "help": sub_cmd.help or "",
                 }
-                sub_params = []
+                sub_params: list[dict[str, Any]] = []
                 for p in sub_cmd.params:
                     if isinstance(p, click.Argument):
                         sub_params.append(
@@ -738,7 +738,7 @@ async def _serve(root: Path, port: int, no_open: bool, host: str = "localhost") 
     site_dir = root / "site" / "dashboard"
     index_file = site_dir / "index.html"
 
-    async def index_handler(request: web.Request) -> web.Response:
+    async def index_handler(request: web.Request) -> web.StreamResponse:
         if not index_file.exists():
             return web.Response(text="Dashboard HTML not found", status=404)
         return web.FileResponse(index_file)

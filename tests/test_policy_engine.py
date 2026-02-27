@@ -1,5 +1,6 @@
 """Comprehensive tests for AvaKill data models, exceptions, and policy engine."""
 
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -1555,6 +1556,7 @@ class TestPolicyEnginePathMatch:
         tc = ToolCall(tool_name="Bash", arguments={"command": "rm -rf ~/"})
         assert engine.evaluate(tc).allowed is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="$HOME expansion is Unix-specific")
     def test_env_var_expansion(self) -> None:
         """rm -rf $HOME/Downloads is denied."""
         engine = PolicyEngine(
@@ -1695,6 +1697,7 @@ class TestPolicyEnginePathMatch:
         )
         assert engine.evaluate(tc_outside).allowed is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="/etc does not exist on Windows")
     def test_symlink_escape(self, tmp_path: Path) -> None:
         """Symlink to /etc caught via resolve."""
         # Create a symlink that points to /etc
@@ -1771,6 +1774,7 @@ class TestPolicyEnginePathMatch:
         # File IS inside workspace → path_match matches → deny
         assert engine.evaluate(tc).allowed is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix path resolution required")
     def test_combined_args_match_and_path_match(self, tmp_path: Path) -> None:
         """Both args_match and path_match must pass (AND logic)."""
         sensitive = tmp_path / "sensitive"

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+import pytest
 
 from avakill.core.path_resolution import (
     detect_workspace_root,
@@ -22,6 +25,7 @@ class TestResolvePath:
         result = resolve_path("~/Downloads")
         assert result == str(Path.home() / "Downloads")
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="$HOME not set on Windows")
     def test_home_env_var(self):
         result = resolve_path("$HOME/.ssh")
         expected = str(Path(os.environ["HOME"]) / ".ssh")

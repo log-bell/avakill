@@ -203,7 +203,7 @@ def _check_mcp_wraps() -> list:
         configs = discover_mcp_configs()
         wrapped = []
         for config in configs:
-            if any(is_already_wrapped(server) for server in config.servers.values()):
+            if any(is_already_wrapped(server) for server in config.servers):
                 wrapped.append(config)
         return wrapped
     except Exception:

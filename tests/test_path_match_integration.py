@@ -6,7 +6,10 @@ workspace boundary enforcement end-to-end.
 
 from __future__ import annotations
 
+import sys
 import time
+
+import pytest
 
 from avakill.cli.rule_catalog import build_policy_dict, generate_yaml
 from avakill.core.engine import Guard
@@ -55,6 +58,7 @@ class TestCatastrophicDeletionScenarios:
         assert decision.allowed is False
         assert decision.policy_name == "block-catastrophic-deletion"
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="$HOME expansion is Unix-specific")
     def test_rm_rf_home_via_env_var(self):
         """rm -rf $HOME → DENIED."""
         guard = self._guard_with_t2_rules()
@@ -177,6 +181,7 @@ class TestWorkspaceBoundary:
 class TestSymlinkEscape:
     """Test symlink escape detection."""
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="/etc does not exist on Windows")
     def test_symlink_to_etc_caught(self, tmp_path):
         """A symlink pointing to /etc is resolved and blocked."""
         link = tmp_path / "innocent"
