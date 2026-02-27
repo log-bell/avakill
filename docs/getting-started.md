@@ -354,17 +354,45 @@ $ avakill rules create
 
 ### LLM-assisted policy creation
 
-Instead of writing YAML manually, you can use any LLM to generate a policy:
+Instead of writing YAML by hand, you can have any LLM generate a policy for you. AvaKill produces a self-contained prompt (~900 lines) that includes the full JSON Schema, evaluation rules, anti-patterns, and three example policies — everything an LLM needs to write valid YAML without external docs.
+
+**Step 1: Generate the prompt**
 
 ```bash
-# Generate a self-contained prompt and paste it into any LLM
+# Basic — works with any LLM
 avakill schema --format=prompt
 
-# Include your tool names for a tailored policy
+# Tailored — includes your actual tool names and use case
 avakill schema --format=prompt --tools="execute_sql,shell_exec,file_read" --use-case="data pipeline"
 ```
 
-The prompt includes the full JSON Schema, evaluation rules, and examples. Paste it into any LLM, describe your agent, then validate with `avakill validate generated-policy.yaml`. See [`llm-policy-prompt.md`](internal/llm-policy-prompt.md) for a paste-ready version.
+The `--tools` flag is the most useful — it tells the LLM exactly which tools exist in your system so it writes rules for them instead of generic examples.
+
+**Step 2: Paste it into an LLM and describe what you want**
+
+Copy the output and paste it into Claude, ChatGPT, or any other LLM. Then describe your agent:
+
+> "Generate a policy for a code assistant that can read files, run shell commands, and query a PostgreSQL database. Block destructive SQL and dangerous shell commands. Allow everything else."
+
+The LLM will output a complete `avakill.yaml` — no markdown fences, no explanations, just valid YAML.
+
+**Step 3: Review and activate**
+
+Save the LLM's output to a file, then use AvaKill's review/approve workflow:
+
+```bash
+# Save the output as a proposed policy (not avakill.yaml directly)
+# Then validate it
+avakill validate policy.proposed.yaml
+
+# Review — shows a formatted rule table
+avakill review policy.proposed.yaml
+
+# Approve — copies it to avakill.yaml (human-only, agents can't run this)
+avakill approve policy.proposed.yaml
+```
+
+The review/approve step is intentional — LLM-generated policies always go through human review before activation. See [`llm-policy-prompt.md`](internal/llm-policy-prompt.md) for a paste-ready version of the prompt.
 
 ## 2. Add AvaKill to Your Code
 

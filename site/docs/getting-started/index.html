@@ -1321,15 +1321,36 @@ Policy<span class="w"> </span>is<span class="w"> </span>valid.
 </code></pre></div>
 
 <h3 id="llm-assisted-policy-creation">LLM-assisted policy creation</h3>
-<p>Instead of writing YAML manually, you can use any LLM to generate a policy:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Generate a self-contained prompt and paste it into any LLM</span>
+<p>Instead of writing YAML by hand, you can have any LLM generate a policy for you. AvaKill produces a self-contained prompt (~900 lines) that includes the full JSON Schema, evaluation rules, anti-patterns, and three example policies — everything an LLM needs to write valid YAML without external docs.</p>
+<p><strong>Step 1: Generate the prompt</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Basic — works with any LLM</span>
 avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt
 
-<span class="c1"># Include your tool names for a tailored policy</span>
+<span class="c1"># Tailored — includes your actual tool names and use case</span>
 avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt<span class="w"> </span>--tools<span class="o">=</span><span class="s2">&quot;execute_sql,shell_exec,file_read&quot;</span><span class="w"> </span>--use-case<span class="o">=</span><span class="s2">&quot;data pipeline&quot;</span>
 </code></pre></div>
 
-<p>The prompt includes the full JSON Schema, evaluation rules, and examples. Paste it into any LLM, describe your agent, then validate with <code>avakill validate generated-policy.yaml</code>. See <a href="internal/llm-policy-prompt.md"><code>llm-policy-prompt.md</code></a> for a paste-ready version.</p>
+<p>The <code>--tools</code> flag is the most useful — it tells the LLM exactly which tools exist in your system so it writes rules for them instead of generic examples.</p>
+<p><strong>Step 2: Paste it into an LLM and describe what you want</strong></p>
+<p>Copy the output and paste it into Claude, ChatGPT, or any other LLM. Then describe your agent:</p>
+<blockquote>
+<p>"Generate a policy for a code assistant that can read files, run shell commands, and query a PostgreSQL database. Block destructive SQL and dangerous shell commands. Allow everything else."</p>
+</blockquote>
+<p>The LLM will output a complete <code>avakill.yaml</code> — no markdown fences, no explanations, just valid YAML.</p>
+<p><strong>Step 3: Review and activate</strong></p>
+<p>Save the LLM's output to a file, then use AvaKill's review/approve workflow:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Save the output as a proposed policy (not avakill.yaml directly)</span>
+<span class="c1"># Then validate it</span>
+avakill<span class="w"> </span>validate<span class="w"> </span>policy.proposed.yaml
+
+<span class="c1"># Review — shows a formatted rule table</span>
+avakill<span class="w"> </span>review<span class="w"> </span>policy.proposed.yaml
+
+<span class="c1"># Approve — copies it to avakill.yaml (human-only, agents can&#39;t run this)</span>
+avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.yaml
+</code></pre></div>
+
+<p>The review/approve step is intentional — LLM-generated policies always go through human review before activation. See <a href="internal/llm-policy-prompt.md"><code>llm-policy-prompt.md</code></a> for a paste-ready version of the prompt.</p>
 <h2 id="2-add-avakill-to-your-code">2. Add AvaKill to Your Code</h2>
 <h3 id="the-protect-decorator">The <code>@protect</code> decorator</h3>
 <p>The fastest integration path. It wraps any function with a policy check -- if the policy denies the call, the function body never runs.</p>
