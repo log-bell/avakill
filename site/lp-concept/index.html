@@ -238,7 +238,124 @@
       color: #86efac;
     }
 
-    .zone-2 { min-height: 200vh; }
+    /* =========================================================
+       Zone 2: The Firewall
+       ========================================================= */
+    .zone-2 {
+      min-height: 200vh;
+      position: relative;
+    }
+
+    .z2-sticky-wrap {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ---- Ava Mascot ---- */
+    .z2-ava {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin-bottom: 32px;
+      z-index: 2;
+      /* Initial state — driven by JS */
+      transform: scale(0);
+      opacity: 0;
+    }
+
+    .z2-ava-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Pulsing glow behind Ava */
+    .z2-ava::before {
+      content: '';
+      position: absolute;
+      inset: -30px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, transparent 70%);
+      animation: z2PulseGlow 3s ease-in-out infinite;
+      z-index: 0;
+      border-radius: 50%;
+    }
+
+    @keyframes z2PulseGlow {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* ---- Shield Barrier ---- */
+    .z2-shield {
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+      box-shadow:
+        0 0 20px rgba(0, 212, 255, 0.4),
+        0 0 60px rgba(0, 212, 255, 0.15);
+      z-index: 1;
+      opacity: 0;
+      margin-bottom: 32px;
+    }
+
+    /* ---- Copy ---- */
+    .z2-copy {
+      text-align: center;
+      z-index: 2;
+      /* Initial state — driven by JS */
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .z2-headline {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .z2-sub {
+      font-size: 1rem;
+      color: var(--text-secondary);
+    }
+
+    /* ---- Interception area (populated in Task 6) ---- */
+    .z2-intercept-area {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 90%;
+      max-width: 520px;
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+    }
+
+    /* ---- Architecture area (populated in Task 7) ---- */
+    .z2-architecture {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 700px;
+      z-index: 3;
+      opacity: 0;
+    }
+
     .zone-3 { min-height: 100vh; }
     .zone-4 { min-height: 100vh; }
 
@@ -320,7 +437,28 @@
 
       <div class="z1-packet-field" id="z1-packet-field"></div>
     </section>
-    <section class="zone zone-2" id="zone-2"><!-- Firewall --></section>
+    <section class="zone zone-2" id="zone-2">
+      <!-- Sticky container — sticks during scroll through zone-2 -->
+      <div class="z2-sticky-wrap">
+        <div class="z2-ava" id="z2-ava">
+          <img src="../avakill-logo.png" alt="AvaKill" class="z2-ava-img">
+        </div>
+
+        <!-- Shield barrier — glowing line stretching edge to edge -->
+        <div class="z2-shield" id="z2-shield"></div>
+
+        <div class="z2-copy" id="z2-copy">
+          <h2 class="z2-headline">Meet your firewall.</h2>
+          <p class="z2-sub">One YAML policy. Three enforcement paths. &lt;1ms.</p>
+        </div>
+
+        <!-- Interception events will be added in Task 6 -->
+        <div class="z2-intercept-area" id="z2-intercept-area"></div>
+
+        <!-- Architecture diagram will be added in Task 7 -->
+        <div class="z2-architecture" id="z2-architecture"></div>
+      </div>
+    </section>
     <section class="zone zone-3" id="zone-3"><!-- Protected World --></section>
     <section class="zone zone-4" id="zone-4"><!-- The Proof --></section>
   </main>
@@ -451,6 +589,36 @@
         el.style.opacity = String(Math.min(0.8, clamped * 2.5));
         el.style.transform = `translateY(${clamped * 70}vh)`;
       });
+    });
+
+    /* ===== Zone 2A: Ava Appears ===== */
+    const z2Ava = document.getElementById('z2-ava');
+    const z2Shield = document.getElementById('z2-shield');
+    const z2Copy = document.getElementById('z2-copy');
+
+    onFrame((p) => {
+      // Ava scales in during first half of z2a
+      const avaScale = Math.min(1, p.z2a * 2);
+      z2Ava.style.transform = `scale(${avaScale})`;
+      z2Ava.style.opacity = String(avaScale);
+
+      // Shield expands after Ava is mostly visible
+      const shieldP = Math.max(0, (p.z2a - 0.4) / 0.6);
+      z2Shield.style.width = `${shieldP * 100}vw`;
+      z2Shield.style.opacity = String(Math.min(1, shieldP * 2));
+
+      // Copy fades in during second half of z2a
+      const copyP = Math.max(0, (p.z2a - 0.5) / 0.5);
+      z2Copy.style.opacity = String(copyP);
+      z2Copy.style.transform = `translateY(${(1 - copyP) * 20}px)`;
+
+      // Hide Ava, shield, and copy during z2b (interception takes over)
+      if (p.z2b > 0.05) {
+        const fadeOut = Math.max(0, 1 - p.z2b * 4);
+        z2Ava.style.opacity = String(fadeOut);
+        z2Shield.style.opacity = String(fadeOut);
+        z2Copy.style.opacity = String(fadeOut);
+      }
     });
 
     // Initialize
