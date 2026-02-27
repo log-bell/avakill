@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AvaKill — The AI Safety Firewall</title>
+  <meta name="description" content="AvaKill — Open-source safety firewall for AI agents. Intercept tool calls, enforce policies, prevent disasters.">
+  <meta property="og:title" content="AvaKill — Open-Source Safety Firewall for AI Agents">
+  <meta property="og:description" content="Intercept tool calls. Enforce policies. Prevent disasters. Works with OpenAI, Anthropic, LangChain, MCP.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="../favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="../favicon/favicon.svg">
+  <link rel="shortcut icon" href="../favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="../favicon/apple-touch-icon.png">
+  <link rel="manifest" href="../favicon/site.webmanifest">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       CSS Custom Properties
+       ========================================================= */
+    :root {
+      /* Core Brand */
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --neon-blue-dim: #0088CC;
+
+      /* Backgrounds */
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --subtle-blue-tint: #0D1B3D;
+
+      /* Porcelain (from logo) */
+      --porcelain-warm: #F0E6D8;
+      --porcelain-mid: #E8E0D4;
+      --porcelain-shadow: #D4C4B0;
+
+      /* Text */
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+
+      /* Semantic */
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --color-info: #00D4FF;
+
+      /* Hair / Dark Fills */
+      --navy-black: #0B1029;
+      --navy-mid: #1A1F45;
+
+      /* Dress / Neutral */
+      --cool-gray: #C8CCD8;
+
+      /* Code Blocks / Terminal */
+      --code-bg: #0D1117;
+      --code-text: #E6EDF3;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* =========================================================
+       Particle Canvas
+       ========================================================= */
+    #particle-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* =========================================================
+       Zone Containers
+       ========================================================= */
+    .zone {
+      position: relative;
+      width: 100%;
+      z-index: 1;
+    }
+
+    .zone-1 { min-height: 100vh; }
+    .zone-2 { min-height: 200vh; }
+    .zone-3 { min-height: 100vh; }
+    .zone-4 { min-height: 100vh; }
+
+    /* =========================================================
+       Footer
+       ========================================================= */
+    .footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 2rem 1rem;
+      border-top: 1px solid var(--surface-elevated);
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--neon-blue);
+    }
+
+    .footer-links .sep {
+      color: var(--text-muted);
+    }
+
+    .footer-attribution {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="particle-canvas"></canvas>
+  <main>
+    <section class="zone zone-1" id="zone-1"><!-- Agent Layer --></section>
+    <section class="zone zone-2" id="zone-2"><!-- Firewall --></section>
+    <section class="zone zone-3" id="zone-3"><!-- Protected World --></section>
+    <section class="zone zone-4" id="zone-4"><!-- The Proof --></section>
+  </main>
+  <footer class="footer">
+    <nav class="footer-links">
+      <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md">Docs</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
+      <span class="sep">&middot;</span>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
+    </nav>
+    <div class="footer-attribution">
+      Built with &#128737;&#65039; by AvaKill contributors. Open-source under AGPL-3.0.
+    </div>
+  </footer>
+  <script>
+    /* Scroll engine and animations will be added here */
+  </script>
+</body>
+</html>
