@@ -1044,6 +1044,7 @@
     <span class="n">rate_limit_backend</span><span class="p">:</span> <span class="n">RateLimitBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">normalize_tools</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">approval_store</span><span class="p">:</span> <span class="n">ApprovalStore</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cross_call_correlation</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -1110,6 +1111,12 @@
 <td><code>ApprovalStore \| None</code></td>
 <td><code>None</code></td>
 <td>Approval store for <code>require_approval</code> action. If <code>None</code>, approval requests are not persisted.</td>
+</tr>
+<tr>
+<td><code>cross_call_correlation</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Enable cross-call correlation for session-level behavioral analysis</td>
 </tr>
 </tbody>
 </table>
@@ -1538,12 +1545,10 @@
     <span class="n">upstream_cmd</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">,</span>
     <span class="n">upstream_args</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;server.py&quot;</span><span class="p">],</span>
     <span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">,</span>
-    <span class="n">log_db</span><span class="o">=</span><span class="s2">&quot;audit.db&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="k">await</span> <span class="n">proxy</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
 
-<p>See the <a href="internal/mcp-proxy.md">MCP Proxy Guide</a> for detailed usage.</p>
 <hr />
 <h2 id="security--integrity">Security &amp; Integrity</h2>
 <h3 id="avakillpolicyintegrity">avakill.PolicyIntegrity</h3>
@@ -1684,6 +1689,7 @@
     <span class="n">transport</span><span class="p">:</span> <span class="n">ServerTransport</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tcp_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">os_enforce</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">on_ready</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -1744,6 +1750,12 @@
 <td><code>bool</code></td>
 <td><code>False</code></td>
 <td>Enable OS-level enforcement backends</td>
+</tr>
+<tr>
+<td><code>on_ready</code></td>
+<td><code>Callable[[str], None] \| None</code></td>
+<td><code>None</code></td>
+<td>Callback invoked after the server starts, receives the socket path</td>
 </tr>
 </tbody>
 </table>
@@ -2081,6 +2093,26 @@
 <td><code>file_edit</code></td>
 </tr>
 <tr>
+<td><code>gemini-cli</code></td>
+<td><code>search_files</code></td>
+<td><code>file_search</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>list_files</code></td>
+<td><code>file_list</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>web_search</code></td>
+<td><code>web_search</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>web_fetch</code></td>
+<td><code>web_fetch</code></td>
+</tr>
+<tr>
 <td><code>cursor</code></td>
 <td><code>shell_command</code></td>
 <td><code>shell_execute</code></td>
@@ -2104,6 +2136,11 @@
 <td><code>windsurf</code></td>
 <td><code>read_code</code></td>
 <td><code>file_read</code></td>
+</tr>
+<tr>
+<td><code>windsurf</code></td>
+<td><code>mcp_tool</code></td>
+<td><code>mcp_tool</code></td>
 </tr>
 <tr>
 <td><code>openai-codex</code></td>
@@ -2163,7 +2200,7 @@
 </tr>
 <tr>
 <td>Project</td>
-<td><code>.avakill/policy.yaml</code> or <code>avakill.yaml</code></td>
+<td><code>.avakill/policy.yaml</code>, <code>avakill.yaml</code>, or <code>avakill.yml</code></td>
 <td>Project-specific (walks up directory tree)</td>
 </tr>
 <tr>
@@ -2278,11 +2315,13 @@
 <span class="c1"># Check availability</span>
 <span class="n">LandlockEnforcer</span><span class="o">.</span><span class="n">available</span><span class="p">()</span>  <span class="c1"># → True on Linux 5.13+</span>
 
+<span class="n">enforcer</span> <span class="o">=</span> <span class="n">LandlockEnforcer</span><span class="p">()</span>
+
 <span class="c1"># Dry run — see what would be restricted</span>
-<span class="n">ruleset</span> <span class="o">=</span> <span class="n">LandlockEnforcer</span><span class="o">.</span><span class="n">generate_ruleset</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+<span class="n">ruleset</span> <span class="o">=</span> <span class="n">enforcer</span><span class="o">.</span><span class="n">generate_ruleset</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
 
 <span class="c1"># Apply — IRREVERSIBLE for the current process</span>
-<span class="n">LandlockEnforcer</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+<span class="n">enforcer</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
 </code></pre></div>
 
 <h3 id="sandboxexecenforcer">SandboxExecEnforcer</h3>
@@ -2292,22 +2331,29 @@
 <span class="c1"># Check availability</span>
 <span class="n">SandboxExecEnforcer</span><span class="o">.</span><span class="n">available</span><span class="p">()</span>  <span class="c1"># → True on macOS</span>
 
+<span class="n">enforcer</span> <span class="o">=</span> <span class="n">SandboxExecEnforcer</span><span class="p">()</span>
+
 <span class="c1"># Generate SBPL profile string</span>
-<span class="n">profile</span> <span class="o">=</span> <span class="n">SandboxExecEnforcer</span><span class="o">.</span><span class="n">generate_profile</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+<span class="n">profile</span> <span class="o">=</span> <span class="n">enforcer</span><span class="o">.</span><span class="n">generate_profile</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
 
 <span class="c1"># Write to file</span>
-<span class="n">SandboxExecEnforcer</span><span class="o">.</span><span class="n">write_profile</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;avakill.sb&quot;</span><span class="p">))</span>
+<span class="n">enforcer</span><span class="o">.</span><span class="n">write_profile</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;avakill.sb&quot;</span><span class="p">))</span>
 </code></pre></div>
 
 <h3 id="tetragonpolicygenerator">TetragonPolicyGenerator</h3>
 <p>Cilium Tetragon Kubernetes TracingPolicy generation.</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.enforcement.tetragon</span><span class="w"> </span><span class="kn">import</span> <span class="n">TetragonPolicyGenerator</span>
 
+<span class="n">generator</span> <span class="o">=</span> <span class="n">TetragonPolicyGenerator</span><span class="p">()</span>
+
 <span class="c1"># Generate TracingPolicy YAML</span>
-<span class="n">yaml_str</span> <span class="o">=</span> <span class="n">TetragonPolicyGenerator</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+<span class="n">yaml_str</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+
+<span class="c1"># With optional parameters</span>
+<span class="n">yaml_str</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">match_binaries</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;/usr/bin/python3&quot;</span><span class="p">],</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;Sigkill&quot;</span><span class="p">)</span>
 
 <span class="c1"># Write to file</span>
-<span class="n">TetragonPolicyGenerator</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tetragon-policy.yaml&quot;</span><span class="p">))</span>
+<span class="n">generator</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tetragon-policy.yaml&quot;</span><span class="p">))</span>
 </code></pre></div>
 
 <hr />
@@ -2361,9 +2407,10 @@
 <p>Format compliance reports. Available from <code>avakill.compliance.reporter</code>.</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.compliance.reporter</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComplianceReporter</span>
 
-<span class="n">table</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="o">.</span><span class="n">to_rich_table</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>  <span class="c1"># Rich Table for terminal</span>
-<span class="n">json_str</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>       <span class="c1"># JSON string</span>
-<span class="n">md_str</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>     <span class="c1"># Markdown string</span>
+<span class="n">reporter</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="p">()</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">reporter</span><span class="o">.</span><span class="n">to_rich_table</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>  <span class="c1"># Rich Table for terminal</span>
+<span class="n">json_str</span> <span class="o">=</span> <span class="n">reporter</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>     <span class="c1"># JSON string</span>
+<span class="n">md_str</span> <span class="o">=</span> <span class="n">reporter</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>   <span class="c1"># Markdown string</span>
 </code></pre></div>
 
 <h3 id="approvalstore">ApprovalStore</h3>

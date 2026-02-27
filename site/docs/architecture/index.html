@@ -1161,9 +1161,9 @@
 - Audit event emission via <code>EventBus</code>
 - Session tracking and correlation</p>
 <h3 id="shell-analysis">Shell analysis</h3>
-<p>The <code>is_shell_safe()</code> function performs AST-level analysis of shell commands to detect metacharacters, pipes, redirects, and subshells. This is more reliable than regex — it handles quoting, escaping, and nested structures.</p>
+<p>The <code>is_shell_safe()</code> function uses pattern matching to detect dangerous shell metacharacters, pipes, redirects, and subshells in commands. Returns <code>(is_safe, findings)</code> where findings lists each detected risk.</p>
 <h3 id="content-scanning">Content scanning</h3>
-<p>The content scanner detects secrets (AWS keys, GitHub PATs, Stripe keys, PEM keys, bearer tokens) and prompt injection patterns in tool call arguments. Used by the <code>content_scan</code> policy condition and by the MCP proxy for response scanning.</p>
+<p>The content scanner detects secrets (AWS keys, GitHub PATs, Stripe keys, PEM keys, bearer tokens) and prompt injection patterns in tool call arguments. Used by the <code>content_scan</code> policy condition.</p>
 
 <div class="docs-nav-bottom">
   <a href="/docs/api-reference/" class="docs-nav-card">

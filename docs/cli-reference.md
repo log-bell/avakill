@@ -8,9 +8,9 @@ avakill [--version] <command> [options]
 
 ## Commands by Category
 
-**Tier 1 — Core:** [setup](#avakill-setup) | [rules](#avakill-rules) | [rules list](#avakill-rules-list) | [rules create](#avakill-rules-create) | [reset](#avakill-reset) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim) | [guide](#avakill-guide)
+**Tier 1 — Core:** [setup](#avakill-setup) | [rules](#avakill-rules) | [rules list](#avakill-rules-list) | [rules create](#avakill-rules-create) | [reset](#avakill-reset) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim)
 
-**Tier 2 — Operations:** [logs](#avakill-logs) | [logs tail](#avakill-logs-tail) | [dashboard](#avakill-dashboard) | [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status) | [review](#avakill-review) | [approve](#avakill-approve) | [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
+**Tier 2 — Operations:** [logs](#avakill-logs) | [logs tail](#avakill-logs-tail) | [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status) | [review](#avakill-review) | [approve](#avakill-approve) | [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
 
 **Tier 3 — Security:** [keygen](#avakill-keygen) | [sign](#avakill-sign) | [verify](#avakill-verify) | [harden](#avakill-harden) | [check-hardening](#avakill-check-hardening)
 
@@ -177,32 +177,6 @@ avakill tracking <on|off|status>
 | `on` | Enable tracking — starts the background daemon |
 | `off` | Disable tracking — stops the daemon, preserves audit history |
 | `status` | Show whether tracking is active and audit DB location |
-
----
-
-## avakill guide
-
-Interactive guide — setup, learning, and reference.
-
-```
-avakill guide
-```
-
-No arguments or options. Launches a navigable menu:
-
-| # | Section | What it covers |
-|---|---------|----------------|
-| 1 | Set up AvaKill | Detect agents, select template, generate policy, install hooks |
-| 2 | Policies | Writing, validating, testing policies |
-| 3 | Hooks & Agents | Install hooks, agent profiles, self-protection |
-| 4 | Signing & Hardening | Sign/verify policies, immutable flags |
-| 5 | Monitoring | Dashboard, logs, fix |
-| 6 | Advanced | Compliance, approvals, MCP wrapping, daemon, schema |
-| 7 | Quick Reference | All commands at a glance |
-
-For detailed learning and reference, see also [avakill setup](#avakill-setup) which is the recommended entry point for new users.
-
-> `avakill init` and `avakill quickstart` are deprecated. Use `avakill setup` for first-time configuration.
 
 ---
 
@@ -535,44 +509,6 @@ avakill logs --agent my-agent --limit 100
 
 # Follow in real-time
 avakill logs tail
-```
-
----
-
-## avakill dashboard
-
-Launch the real-time terminal dashboard.
-
-```
-avakill dashboard [--db PATH] [--refresh SECONDS] [--policy PATH] [--watch|--no-watch]
-```
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--db` | `avakill_audit.db` | Path to the audit database |
-| `--refresh` | `0.5` | Refresh interval in seconds |
-| `--policy` | *(none)* | Path to the policy file to monitor |
-| `--watch/--no-watch` | `--no-watch` | Auto-reload policy when file changes on disk |
-
-**Keyboard shortcuts:**
-
-| Key | Action |
-|-----|--------|
-| `q` | Quit |
-| `r` | Reload policy |
-| `c` | Clear events |
-
-**Examples:**
-
-```bash
-# Default dashboard
-avakill dashboard
-
-# Custom database and refresh interval
-avakill dashboard --db /var/lib/avakill/audit.db --refresh 1.0
-
-# With policy monitoring and auto-reload
-avakill dashboard --policy avakill.yaml --watch
 ```
 
 ---
@@ -1323,7 +1259,7 @@ avakill mcp-proxy --upstream-url URL [--listen-port PORT] [--policy PATH] [--log
 | `--daemon` | *(none)* | Evaluate via daemon socket instead of embedded Guard |
 | `--agent` | `mcp` | Agent name for tool normalization |
 
-Sits between an MCP client and an upstream MCP server, intercepting `tools/call` requests and evaluating them against the policy. Supports two transport modes: stdio (with `--upstream-cmd`) and HTTP (with `--upstream-url`). See the [MCP Proxy Guide](internal/mcp-proxy.md) for detailed setup.
+Sits between an MCP client and an upstream MCP server, intercepting `tools/call` requests and evaluating them against the policy. Supports two transport modes: stdio (with `--upstream-cmd`) and HTTP (with `--upstream-url`).
 
 **Examples:**
 
@@ -1380,6 +1316,3 @@ avakill metrics --port 9100 --host 127.0.0.1
 
 - **[Getting Started](getting-started.md)** — walkthrough using the CLI
 - **[Policy Reference](policy-reference.md)** — full YAML schema
-- **[Security Hardening](internal/security-hardening.md)** — signing and hardening workflows
-- **[Deployment](internal/deployment.md)** — production deployment patterns
-- **[Framework Integrations](internal/framework-integrations.md)** — native hooks and SDK wrappers

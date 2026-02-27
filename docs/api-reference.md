@@ -23,6 +23,7 @@ Guard(
     rate_limit_backend: RateLimitBackend | None = None,
     normalize_tools: bool = False,
     approval_store: ApprovalStore | None = None,
+    cross_call_correlation: bool = False,
 )
 ```
 
@@ -37,6 +38,7 @@ Guard(
 | `rate_limit_backend` | `RateLimitBackend \| None` | `None` | Persistent backend for rate-limit timestamps. `None` = in-memory only. |
 | `normalize_tools` | `bool` | `False` | Enable automatic tool name normalization via ToolNormalizer |
 | `approval_store` | `ApprovalStore \| None` | `None` | Approval store for `require_approval` action. If `None`, approval requests are not persisted. |
+| `cross_call_correlation` | `bool` | `False` | Enable cross-call correlation for session-level behavioral analysis |
 
 **Raises:** `ConfigError` if the policy cannot be loaded or parsed.
 
@@ -333,12 +335,9 @@ proxy = MCPProxyServer(
     upstream_cmd="python",
     upstream_args=["server.py"],
     policy="avakill.yaml",
-    log_db="audit.db",
 )
 await proxy.run()
 ```
-
-See the [MCP Proxy Guide](internal/mcp-proxy.md) for detailed usage.
 
 ---
 
@@ -465,6 +464,7 @@ DaemonServer(
     transport: ServerTransport | None = None,
     tcp_port: int | None = None,
     os_enforce: bool = False,
+    on_ready: Callable[[str], None] | None = None,
 )
 ```
 
@@ -478,6 +478,7 @@ DaemonServer(
 | `transport` | `ServerTransport \| None` | `None` | Custom transport layer |
 | `tcp_port` | `int \| None` | `None` | Optional TCP port (in addition to Unix socket) |
 | `os_enforce` | `bool` | `False` | Enable OS-level enforcement backends |
+| `on_ready` | `Callable[[str], None] \| None` | `None` | Callback invoked after the server starts, receives the socket path |
 
 ### start()
 
@@ -678,11 +679,16 @@ Built-in mapping of agent-native tool names to canonical names:
 | `gemini-cli` | `read_file` | `file_read` |
 | `gemini-cli` | `write_file` | `file_write` |
 | `gemini-cli` | `edit_file` | `file_edit` |
+| `gemini-cli` | `search_files` | `file_search` |
+| `gemini-cli` | `list_files` | `file_list` |
+| `gemini-cli` | `web_search` | `web_search` |
+| `gemini-cli` | `web_fetch` | `web_fetch` |
 | `cursor` | `shell_command` | `shell_execute` |
 | `cursor` | `read_file` | `file_read` |
 | `windsurf` | `run_command` | `shell_execute` |
 | `windsurf` | `write_code` | `file_write` |
 | `windsurf` | `read_code` | `file_read` |
+| `windsurf` | `mcp_tool` | `mcp_tool` |
 | `openai-codex` | `shell` / `shell_command` / `local_shell` / `exec_command` | `shell_execute` |
 | `openai-codex` | `apply_patch` | `file_write` |
 | `openai-codex` | `read_file` | `file_read` |
@@ -711,7 +717,7 @@ Find all policy files in discovery order. `PolicyLevel` is `Literal["system", "g
 |-------|------|-------------|
 | System | `/etc/avakill/policy.yaml` | Organization-wide defaults (admin-managed) |
 | Global | `~/.config/avakill/policy.yaml` | User-wide defaults |
-| Project | `.avakill/policy.yaml` or `avakill.yaml` | Project-specific (walks up directory tree) |
+| Project | `.avakill/policy.yaml`, `avakill.yaml`, or `avakill.yml` | Project-specific (walks up directory tree) |
 | Local | `.avakill/policy.local.yaml` | Local overrides (gitignored) |
 
 ### load()
@@ -787,11 +793,13 @@ from avakill.enforcement.landlock import LandlockEnforcer
 # Check availability
 LandlockEnforcer.available()  # → True on Linux 5.13+
 
+enforcer = LandlockEnforcer()
+
 # Dry run — see what would be restricted
-ruleset = LandlockEnforcer.generate_ruleset(policy_config)
+ruleset = enforcer.generate_ruleset(policy_config)
 
 # Apply — IRREVERSIBLE for the current process
-LandlockEnforcer.apply(policy_config)
+enforcer.apply(policy_config)
 ```
 
 ### SandboxExecEnforcer
@@ -804,11 +812,13 @@ from avakill.enforcement.sandbox_exec import SandboxExecEnforcer
 # Check availability
 SandboxExecEnforcer.available()  # → True on macOS
 
+enforcer = SandboxExecEnforcer()
+
 # Generate SBPL profile string
-profile = SandboxExecEnforcer.generate_profile(policy_config)
+profile = enforcer.generate_profile(policy_config)
 
 # Write to file
-SandboxExecEnforcer.write_profile(policy_config, Path("avakill.sb"))
+enforcer.write_profile(policy_config, Path("avakill.sb"))
 ```
 
 ### TetragonPolicyGenerator
@@ -818,11 +828,16 @@ Cilium Tetragon Kubernetes TracingPolicy generation.
 ```python
 from avakill.enforcement.tetragon import TetragonPolicyGenerator
 
+generator = TetragonPolicyGenerator()
+
 # Generate TracingPolicy YAML
-yaml_str = TetragonPolicyGenerator.generate(policy_config)
+yaml_str = generator.generate(policy_config)
+
+# With optional parameters
+yaml_str = generator.generate(policy_config, match_binaries=["/usr/bin/python3"], action="Sigkill")
 
 # Write to file
-TetragonPolicyGenerator.write(policy_config, Path("tetragon-policy.yaml"))
+generator.write(policy_config, Path("tetragon-policy.yaml"))
 ```
 
 ---
@@ -861,9 +876,10 @@ Format compliance reports. Available from `avakill.compliance.reporter`.
 ```python
 from avakill.compliance.reporter import ComplianceReporter
 
-table = ComplianceReporter.to_rich_table(report)  # Rich Table for terminal
-json_str = ComplianceReporter.to_json(report)       # JSON string
-md_str = ComplianceReporter.to_markdown(report)     # Markdown string
+reporter = ComplianceReporter()
+table = reporter.to_rich_table(report)  # Rich Table for terminal
+json_str = reporter.to_json(report)     # JSON string
+md_str = reporter.to_markdown(report)   # Markdown string
 ```
 
 ### ApprovalStore

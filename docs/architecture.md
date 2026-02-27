@@ -167,8 +167,8 @@ Key properties:
 
 ### Shell analysis
 
-The `is_shell_safe()` function performs AST-level analysis of shell commands to detect metacharacters, pipes, redirects, and subshells. This is more reliable than regex — it handles quoting, escaping, and nested structures.
+The `is_shell_safe()` function uses pattern matching to detect dangerous shell metacharacters, pipes, redirects, and subshells in commands. Returns `(is_safe, findings)` where findings lists each detected risk.
 
 ### Content scanning
 
-The content scanner detects secrets (AWS keys, GitHub PATs, Stripe keys, PEM keys, bearer tokens) and prompt injection patterns in tool call arguments. Used by the `content_scan` policy condition and by the MCP proxy for response scanning.
+The content scanner detects secrets (AWS keys, GitHub PATs, Stripe keys, PEM keys, bearer tokens) and prompt injection patterns in tool call arguments. Used by the `content_scan` policy condition.

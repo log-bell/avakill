@@ -944,7 +944,6 @@
     <li><a href="#avakill-rules-create" class="sidebar-link">avakill rules create</a></li>
     <li><a href="#avakill-reset" class="sidebar-link">avakill reset</a></li>
     <li><a href="#avakill-tracking" class="sidebar-link">avakill tracking</a></li>
-    <li><a href="#avakill-guide" class="sidebar-link">avakill guide</a></li>
     <li><a href="#avakill-validate" class="sidebar-link">avakill validate</a></li>
     <li><a href="#avakill-evaluate" class="sidebar-link">avakill evaluate</a></li>
     <li><a href="#avakill-fix" class="sidebar-link">avakill fix</a></li>
@@ -959,7 +958,6 @@
     <li><a href="#examples" class="sidebar-link sidebar-link--sub">Examples</a></li>
     <li><a href="#avakill-logs" class="sidebar-link">avakill logs</a></li>
     <li><a href="#avakill-logs-tail" class="sidebar-link sidebar-link--sub">avakill logs tail</a></li>
-    <li><a href="#avakill-dashboard" class="sidebar-link">avakill dashboard</a></li>
     <li><a href="#avakill-daemon-start" class="sidebar-link">avakill daemon start</a></li>
     <li><a href="#avakill-daemon-stop" class="sidebar-link">avakill daemon stop</a></li>
     <li><a href="#avakill-daemon-status" class="sidebar-link">avakill daemon status</a></li>
@@ -1010,8 +1008,8 @@
 </code></pre></div>
 
 <h2 id="commands-by-category">Commands by Category</h2>
-<p><strong>Tier 1 — Core:</strong> <a href="#avakill-setup">setup</a> | <a href="#avakill-rules">rules</a> | <a href="#avakill-rules-list">rules list</a> | <a href="#avakill-rules-create">rules create</a> | <a href="#avakill-reset">reset</a> | <a href="#avakill-tracking">tracking</a> | <a href="#avakill-validate">validate</a> | <a href="#avakill-evaluate">evaluate</a> | <a href="#avakill-fix">fix</a> | <a href="#avakill-hook-install">hook install</a> | <a href="#avakill-hook-uninstall">hook uninstall</a> | <a href="#avakill-hook-list">hook list</a> | <a href="#hook-binaries">Hook Binaries</a> | <a href="#avakill-shim">avakill-shim</a> | <a href="#avakill-guide">guide</a></p>
-<p><strong>Tier 2 — Operations:</strong> <a href="#avakill-logs">logs</a> | <a href="#avakill-logs-tail">logs tail</a> | <a href="#avakill-dashboard">dashboard</a> | <a href="#avakill-daemon-start">daemon start</a> | <a href="#avakill-daemon-stop">daemon stop</a> | <a href="#avakill-daemon-status">daemon status</a> | <a href="#avakill-review">review</a> | <a href="#avakill-approve">approve</a> | <a href="#avakill-approvals-list">approvals list</a> | <a href="#avakill-approvals-grant">approvals grant</a> | <a href="#avakill-approvals-reject">approvals reject</a></p>
+<p><strong>Tier 1 — Core:</strong> <a href="#avakill-setup">setup</a> | <a href="#avakill-rules">rules</a> | <a href="#avakill-rules-list">rules list</a> | <a href="#avakill-rules-create">rules create</a> | <a href="#avakill-reset">reset</a> | <a href="#avakill-tracking">tracking</a> | <a href="#avakill-validate">validate</a> | <a href="#avakill-evaluate">evaluate</a> | <a href="#avakill-fix">fix</a> | <a href="#avakill-hook-install">hook install</a> | <a href="#avakill-hook-uninstall">hook uninstall</a> | <a href="#avakill-hook-list">hook list</a> | <a href="#hook-binaries">Hook Binaries</a> | <a href="#avakill-shim">avakill-shim</a></p>
+<p><strong>Tier 2 — Operations:</strong> <a href="#avakill-logs">logs</a> | <a href="#avakill-logs-tail">logs tail</a> | <a href="#avakill-daemon-start">daemon start</a> | <a href="#avakill-daemon-stop">daemon stop</a> | <a href="#avakill-daemon-status">daemon status</a> | <a href="#avakill-review">review</a> | <a href="#avakill-approve">approve</a> | <a href="#avakill-approvals-list">approvals list</a> | <a href="#avakill-approvals-grant">approvals grant</a> | <a href="#avakill-approvals-reject">approvals reject</a></p>
 <p><strong>Tier 3 — Security:</strong> <a href="#avakill-keygen">keygen</a> | <a href="#avakill-sign">sign</a> | <a href="#avakill-verify">verify</a> | <a href="#avakill-harden">harden</a> | <a href="#avakill-check-hardening">check-hardening</a></p>
 <p><strong>Tier 4 — Advanced (shipped):</strong> <a href="#avakill-schema">schema</a> | <a href="#avakill-profile-list">profile list</a> | <a href="#avakill-profile-show">profile show</a> | <a href="#avakill-compliance-report">compliance report</a> | <a href="#avakill-compliance-gaps">compliance gaps</a> | <a href="#avakill-mcp-wrap">mcp-wrap</a> | <a href="#avakill-mcp-unwrap">mcp-unwrap</a></p>
 <p><strong>Tier 4 — Advanced (future release):</strong> <a href="#avakill-enforce-landlock">enforce landlock</a> | <a href="#avakill-enforce-sandbox">enforce sandbox</a> | <a href="#avakill-enforce-windows">enforce windows</a> | <a href="#avakill-enforce-tetragon">enforce tetragon</a> | <a href="#avakill-launch">launch</a> | <a href="#avakill-mcp-proxy">mcp-proxy</a> | <a href="#avakill-metrics">metrics</a></p>
@@ -1254,63 +1252,6 @@ avakill<span class="w"> </span>reset<span class="w"> </span>--confirm<span class
 </tr>
 </tbody>
 </table>
-<hr />
-<h2 id="avakill-guide">avakill guide</h2>
-<p>Interactive guide — setup, learning, and reference.</p>
-<div class="codehilite"><pre><span></span><code>avakill guide
-</code></pre></div>
-
-<p>No arguments or options. Launches a navigable menu:</p>
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Section</th>
-<th>What it covers</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>Set up AvaKill</td>
-<td>Detect agents, select template, generate policy, install hooks</td>
-</tr>
-<tr>
-<td>2</td>
-<td>Policies</td>
-<td>Writing, validating, testing policies</td>
-</tr>
-<tr>
-<td>3</td>
-<td>Hooks &amp; Agents</td>
-<td>Install hooks, agent profiles, self-protection</td>
-</tr>
-<tr>
-<td>4</td>
-<td>Signing &amp; Hardening</td>
-<td>Sign/verify policies, immutable flags</td>
-</tr>
-<tr>
-<td>5</td>
-<td>Monitoring</td>
-<td>Dashboard, logs, fix</td>
-</tr>
-<tr>
-<td>6</td>
-<td>Advanced</td>
-<td>Compliance, approvals, MCP wrapping, daemon, schema</td>
-</tr>
-<tr>
-<td>7</td>
-<td>Quick Reference</td>
-<td>All commands at a glance</td>
-</tr>
-</tbody>
-</table>
-<p>For detailed learning and reference, see also <a href="#avakill-setup">avakill setup</a> which is the recommended entry point for new users.</p>
-<blockquote>
-<p><code>avakill init</code> and <code>avakill quickstart</code> are deprecated. Use <code>avakill setup</code> for first-time configuration.</p>
-</blockquote>
 <hr />
 <h2 id="avakill-validate">avakill validate</h2>
 <p>Validate a policy file for correctness.</p>
@@ -1832,77 +1773,6 @@ avakill<span class="w"> </span>logs<span class="w"> </span>--agent<span class="w
 
 <span class="c1"># Follow in real-time</span>
 avakill<span class="w"> </span>logs<span class="w"> </span>tail
-</code></pre></div>
-
-<hr />
-<h2 id="avakill-dashboard">avakill dashboard</h2>
-<p>Launch the real-time terminal dashboard.</p>
-<div class="codehilite"><pre><span></span><code>avakill dashboard [--db PATH] [--refresh SECONDS] [--policy PATH] [--watch|--no-watch]
-</code></pre></div>
-
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--db</code></td>
-<td><code>avakill_audit.db</code></td>
-<td>Path to the audit database</td>
-</tr>
-<tr>
-<td><code>--refresh</code></td>
-<td><code>0.5</code></td>
-<td>Refresh interval in seconds</td>
-</tr>
-<tr>
-<td><code>--policy</code></td>
-<td><em>(none)</em></td>
-<td>Path to the policy file to monitor</td>
-</tr>
-<tr>
-<td><code>--watch/--no-watch</code></td>
-<td><code>--no-watch</code></td>
-<td>Auto-reload policy when file changes on disk</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Keyboard shortcuts:</strong></p>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>q</code></td>
-<td>Quit</td>
-</tr>
-<tr>
-<td><code>r</code></td>
-<td>Reload policy</td>
-</tr>
-<tr>
-<td><code>c</code></td>
-<td>Clear events</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Examples:</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Default dashboard</span>
-avakill<span class="w"> </span>dashboard
-
-<span class="c1"># Custom database and refresh interval</span>
-avakill<span class="w"> </span>dashboard<span class="w"> </span>--db<span class="w"> </span>/var/lib/avakill/audit.db<span class="w"> </span>--refresh<span class="w"> </span><span class="m">1</span>.0
-
-<span class="c1"># With policy monitoring and auto-reload</span>
-avakill<span class="w"> </span>dashboard<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--watch
 </code></pre></div>
 
 <hr />
@@ -3026,7 +2896,7 @@ avakill mcp-proxy --upstream-url URL [--listen-port PORT] [--policy PATH] [--log
 </tr>
 </tbody>
 </table>
-<p>Sits between an MCP client and an upstream MCP server, intercepting <code>tools/call</code> requests and evaluating them against the policy. Supports two transport modes: stdio (with <code>--upstream-cmd</code>) and HTTP (with <code>--upstream-url</code>). See the <a href="internal/mcp-proxy.md">MCP Proxy Guide</a> for detailed setup.</p>
+<p>Sits between an MCP client and an upstream MCP server, intercepting <code>tools/call</code> requests and evaluating them against the policy. Supports two transport modes: stdio (with <code>--upstream-cmd</code>) and HTTP (with <code>--upstream-url</code>).</p>
 <p><strong>Examples:</strong></p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Stdio proxy</span>
 avakill<span class="w"> </span>mcp-proxy<span class="w"> </span>--upstream-cmd<span class="w"> </span>python<span class="w"> </span>--upstream-args<span class="w"> </span><span class="s2">&quot;server.py&quot;</span>
@@ -3089,9 +2959,6 @@ avakill<span class="w"> </span>metrics<span class="w"> </span>--port<span class=
 <ul>
 <li><strong><a href="/docs/getting-started/">Getting Started</a></strong> — walkthrough using the CLI</li>
 <li><strong><a href="/docs/policy-reference/">Policy Reference</a></strong> — full YAML schema</li>
-<li><strong><a href="internal/security-hardening.md">Security Hardening</a></strong> — signing and hardening workflows</li>
-<li><strong><a href="internal/deployment.md">Deployment</a></strong> — production deployment patterns</li>
-<li><strong><a href="internal/framework-integrations.md">Framework Integrations</a></strong> — native hooks and SDK wrappers</li>
 </ul>
 
 <div class="docs-nav-bottom">
@@ -3120,7 +2987,6 @@ avakill<span class="w"> </span>metrics<span class="w"> </span>--port<span class=
         <li><a href="#avakill-rules-create" class="toc-link">avakill rules create</a></li>
         <li><a href="#avakill-reset" class="toc-link">avakill reset</a></li>
         <li><a href="#avakill-tracking" class="toc-link">avakill tracking</a></li>
-        <li><a href="#avakill-guide" class="toc-link">avakill guide</a></li>
         <li><a href="#avakill-validate" class="toc-link">avakill validate</a></li>
         <li><a href="#avakill-evaluate" class="toc-link">avakill evaluate</a></li>
         <li><a href="#avakill-fix" class="toc-link">avakill fix</a></li>
@@ -3129,7 +2995,6 @@ avakill<span class="w"> </span>metrics<span class="w"> </span>--port<span class=
         <li><a href="#avakill-hook-list" class="toc-link">avakill hook list</a></li>
         <li><a href="#avakill-shim" class="toc-link">avakill-shim</a></li>
         <li><a href="#avakill-logs" class="toc-link">avakill logs</a></li>
-        <li><a href="#avakill-dashboard" class="toc-link">avakill dashboard</a></li>
         <li><a href="#avakill-daemon-start" class="toc-link">avakill daemon start</a></li>
         <li><a href="#avakill-daemon-stop" class="toc-link">avakill daemon stop</a></li>
         <li><a href="#avakill-daemon-status" class="toc-link">avakill daemon status</a></li>
