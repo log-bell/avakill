@@ -424,6 +424,116 @@
       flex-shrink: 0;
     }
 
+    /* =========================================================
+       Zone 2C: Architecture Reveal
+       ========================================================= */
+    .z2-arch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .z2-arch-center {
+      text-align: center;
+    }
+
+    .z2-arch-yaml {
+      display: inline-block;
+      padding: 10px 24px;
+      background: var(--code-bg);
+      border: 1px solid var(--neon-blue);
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--neon-blue);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+    }
+
+    .z2-arch-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .z2-arch-branches {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      width: 100%;
+    }
+
+    .z2-arch-branch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .z2-arch-line {
+      width: 2px;
+      height: 0;
+      background: var(--neon-blue);
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+      margin-bottom: 12px;
+    }
+
+    .z2-arch-line--dashed {
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--neon-blue) 0px,
+        var(--neon-blue) 4px,
+        transparent 4px,
+        transparent 8px
+      );
+      box-shadow: 0 0 6px rgba(0, 212, 255, 0.2);
+    }
+
+    .z2-arch-node {
+      background: var(--code-bg);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 8px;
+      padding: 14px 16px;
+      text-align: center;
+      opacity: 0;
+      width: 100%;
+    }
+
+    .z2-arch-branch--optional .z2-arch-node {
+      border-style: dashed;
+      opacity: 0;
+    }
+
+    .z2-arch-node strong {
+      display: block;
+      color: var(--neon-blue);
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+
+    .z2-arch-node span {
+      display: block;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      margin-bottom: 4px;
+    }
+
+    .z2-arch-node small {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      font-style: italic;
+    }
+
+    .z2-arch-copy {
+      text-align: center;
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      opacity: 0;
+    }
+
     .zone-3 { min-height: 100vh; }
     .zone-4 { min-height: 100vh; }
 
@@ -524,7 +634,54 @@
         <div class="z2-intercept-area" id="z2-intercept-area"></div>
 
         <!-- Architecture diagram will be added in Task 7 -->
-        <div class="z2-architecture" id="z2-architecture"></div>
+        <div class="z2-architecture" id="z2-architecture">
+          <div class="z2-arch">
+            <div class="z2-arch-center">
+              <div class="z2-arch-yaml">avakill.yaml</div>
+              <div class="z2-arch-subtitle">one policy file</div>
+            </div>
+
+            <div class="z2-arch-branches">
+              <div class="z2-arch-branch" data-branch="hooks">
+                <div class="z2-arch-line"></div>
+                <div class="z2-arch-node">
+                  <strong>Hooks</strong>
+                  <span>Claude Code, Cursor, Windsurf, Gemini, Codex</span>
+                  <small>work standalone, evaluate in-process</small>
+                </div>
+              </div>
+
+              <div class="z2-arch-branch" data-branch="mcp">
+                <div class="z2-arch-line"></div>
+                <div class="z2-arch-node">
+                  <strong>MCP Proxy</strong>
+                  <span>wraps MCP servers</span>
+                  <small>works standalone, evaluate in-process</small>
+                </div>
+              </div>
+
+              <div class="z2-arch-branch" data-branch="sandbox">
+                <div class="z2-arch-line"></div>
+                <div class="z2-arch-node">
+                  <strong>OS Sandbox</strong>
+                  <span>launch + profiles</span>
+                  <small>works standalone, OS-level enforcement</small>
+                </div>
+              </div>
+
+              <div class="z2-arch-branch z2-arch-branch--optional" data-branch="daemon">
+                <div class="z2-arch-line z2-arch-line--dashed"></div>
+                <div class="z2-arch-node">
+                  <strong>Daemon</strong>
+                  <span>optional</span>
+                  <small>shared evaluation, audit logging, visibility</small>
+                </div>
+              </div>
+            </div>
+
+            <p class="z2-arch-copy">One policy file. Three independent enforcement paths.<br>No single point of failure.</p>
+          </div>
+        </div>
       </div>
     </section>
     <section class="zone zone-3" id="zone-3"><!-- Protected World --></section>
@@ -753,6 +910,44 @@
       if (p.z2c > 0.05) {
         const fadeOut = Math.max(0, 1 - p.z2c * 3);
         interceptArea.style.opacity = String(fadeOut);
+      }
+    });
+
+    /* ===== Zone 2C: Architecture Reveal ===== */
+    const archEl = document.getElementById('z2-architecture');
+    const archBranches = archEl.querySelectorAll('.z2-arch-branch');
+    const archCopy = archEl.querySelector('.z2-arch-copy');
+    const archCenter = archEl.querySelector('.z2-arch-center');
+
+    onFrame((p) => {
+      // Fade in architecture during z2c
+      if (p.z2c <= 0) {
+        archEl.style.opacity = '0';
+        return;
+      }
+
+      const archOpacity = Math.min(1, p.z2c * 2.5);
+      archEl.style.opacity = String(archOpacity);
+
+      // Center YAML node fades in first
+      if (archCenter) {
+        archCenter.style.opacity = String(Math.min(1, p.z2c * 3));
+      }
+
+      // Each branch line grows and node fades in staggered
+      archBranches.forEach((branch, i) => {
+        const branchStart = 0.15 + (i * 0.12);
+        const branchP = Math.max(0, Math.min(1, (p.z2c - branchStart) / 0.25));
+        const line = branch.querySelector('.z2-arch-line');
+        const node = branch.querySelector('.z2-arch-node');
+        if (line) line.style.height = `${branchP * 60}px`;
+        if (node) node.style.opacity = String(Math.max(0, (branchP - 0.3) / 0.7));
+      });
+
+      // Bottom copy fades in at the end
+      if (archCopy) {
+        const copyP = Math.max(0, (p.z2c - 0.7) / 0.3);
+        archCopy.style.opacity = String(copyP);
       }
     });
 
