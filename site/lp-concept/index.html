@@ -207,6 +207,37 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    /* =========================================================
+       Zone 1: Tool Call Packets
+       ========================================================= */
+    .packet {
+      position: absolute;
+      top: 0;
+      padding: 6px 14px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      background: rgba(13, 17, 23, 0.85);
+      color: var(--code-text);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.08);
+    }
+
+    .packet[data-danger="true"] {
+      border-color: rgba(239, 68, 68, 0.25);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+    }
+
+    .packet[data-danger="false"] {
+      border-color: rgba(34, 197, 94, 0.2);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.08);
+      color: #86efac;
+    }
+
     .zone-2 { min-height: 200vh; }
     .zone-3 { min-height: 100vh; }
     .zone-4 { min-height: 100vh; }
@@ -380,6 +411,46 @@
     document.body.appendChild(debugEl);
     onFrame((p) => {
       debugEl.textContent = Object.entries(p).map(([k, v]) => `${k}: ${v.toFixed(3)}`).join('\n');
+    });
+
+    /* ===== Zone 1: Tool Call Packets ===== */
+    const PACKETS = [
+      { label: 'bash("rm -rf /")',         danger: true },
+      { label: 'fs.read("config.yaml")',   danger: false },
+      { label: 'sql("DROP TABLE users")',  danger: true },
+      { label: 'api.get("/users")',        danger: false },
+      { label: 'fs.write("/etc/passwd")',  danger: true },
+      { label: 'git.commit("fix typo")',   danger: false },
+      { label: 'bash("shutdown -h now")',  danger: true },
+      { label: 'db.query("SELECT *")',     danger: false },
+    ];
+
+    const packetField = document.getElementById('z1-packet-field');
+    const packetEls = [];
+
+    PACKETS.forEach((pkt, i) => {
+      const el = document.createElement('div');
+      el.className = 'packet';
+      el.textContent = pkt.label;
+      el.dataset.danger = pkt.danger;
+      // Distribute across 4 columns with slight randomness
+      const col = i % 4;
+      el.style.left = `${8 + col * 23 + (Math.random() * 6 - 3)}%`;
+      packetField.appendChild(el);
+      packetEls.push({ el, startProgress: 0.25 + (i * 0.07) });
+    });
+
+    onFrame((p) => {
+      packetEls.forEach(({ el, startProgress }) => {
+        const localP = (p.z1 - startProgress) / (1 - startProgress);
+        if (localP <= 0) {
+          el.style.opacity = '0';
+          return;
+        }
+        const clamped = Math.min(1, localP);
+        el.style.opacity = String(Math.min(0.8, clamped * 2.5));
+        el.style.transform = `translateY(${clamped * 70}vh)`;
+      });
     });
 
     // Initialize
