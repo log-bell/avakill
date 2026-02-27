@@ -82,13 +82,15 @@ pipx install avakill
 avakill setup
 ```
 
-`avakill setup` walks you through a 5-step interactive flow:
+`avakill setup` walks you through a 7-step interactive flow:
 
-1. Detects installed agents (claude-code, gemini-cli, cursor, windsurf, openai-codex)
-2. Creates a policy (`avakill.yaml`) from the `hooks` template
-3. Installs hooks for detected agents
-4. Optionally enables activity tracking
-5. Shows a summary of what was configured
+1. Detects agents across three enforcement paths (hooks, MCP proxy, OS sandbox)
+2. Creates a policy (`avakill.yaml`) from a catalog of 81 rules across 14 categories
+3. Installs hooks for detected hook agents
+4. Wraps MCP servers for detected MCP agents
+5. Shows OS sandbox launch commands for sandbox-capable agents
+6. Optionally enables activity tracking
+7. Validates and shows a summary of what was configured
 
 Run `avakill --help` to see all available commands grouped by category.
 
@@ -599,26 +601,26 @@ AvaKill protects AI coding agents with zero code changes — hook scripts interc
 ### Setup
 
 ```bash
-# 1. Start the daemon
-avakill daemon start --policy avakill.yaml
-
-# 2. Install hooks
+# Install hooks (work standalone — no daemon required)
 avakill hook install --agent claude-code   # or gemini-cli, cursor, windsurf, openai-codex, all
 
-# 3. Check status
+# Check status
 avakill hook list
+
+# Optional: start the daemon for shared evaluation, audit logging, and rate limits
+avakill daemon start --policy avakill.yaml
 ```
 
 ### How it works
 
 ```
-Agent  ->  Hook Script  ->  AvaKill Daemon  ->  Policy Engine
-                 |                                    |
-          Translates tool name              Evaluates rules
-          (Bash -> shell_execute)           Returns: allow/deny
+Agent  ->  Hook Script  ->  Policy Engine  ->  Allow / Deny
+                 |
+          Translates tool name
+          (Bash -> shell_execute)
 ```
 
-The daemon listens on a Unix socket (`~/.avakill/avakill.sock`) and evaluates tool calls in <5ms. On Windows, it uses TCP localhost (port 19426).
+Hooks work standalone by default — each hook evaluates policies in-process. The optional daemon (`~/.avakill/avakill.sock`) adds shared state, audit logging, and <5ms evaluation. On Windows, the daemon uses TCP localhost (port 19426).
 
 ### Supported agents
 
@@ -782,7 +784,6 @@ await proxy.run()
 |---------|-------------|
 | `avakill logs [--db PATH] [--tool PATTERN] [--denied-only] [--since DURATION] [--json]` | Query and display audit logs. |
 | `avakill logs tail [--db PATH]` | Follow new audit events in real-time. |
-| `avakill dashboard [--db PATH] [--refresh SECONDS] [--policy PATH] [--watch]` | Real-time terminal dashboard. Keys: `q` quit, `r` reload, `c` clear. |
 | `avakill daemon start [--policy PATH] [--log-db PATH] [--foreground] [--enforce]` | Start the evaluation daemon. |
 | `avakill daemon stop` | Stop the running daemon. |
 | `avakill daemon status` | Check daemon status and PID. |
@@ -949,14 +950,6 @@ avakill logs --agent my-agent --limit 100       # Filter by agent
 avakill logs --json > audit-export.json         # Export as JSON
 avakill logs tail                               # Follow in real-time
 ```
-
-### Dashboard
-
-```bash
-avakill dashboard --db avakill_audit.db --policy avakill.yaml --watch
-```
-
-Keyboard shortcuts: `q` quit, `r` reload policy, `c` clear events.
 
 ### Recovery UX with `avakill fix`
 

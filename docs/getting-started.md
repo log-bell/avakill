@@ -230,7 +230,6 @@ Enable activity tracking?
   This runs a lightweight background service that powers:
     • avakill fix        See why something was blocked
     • avakill logs       View agent activity history
-    • avakill dashboard  Live monitoring
 
   Without it, hooks still protect you — you just won't have
   history or diagnostics.
