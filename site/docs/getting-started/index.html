@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started — AvaKill</title>
+  <meta name="description" content="Install AvaKill, create your first policy, and protect your AI agents.">
+  <meta name="theme-color" content="#0A0F1E">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       CSS Custom Properties (matched to landing page)
+       ========================================================= */
+    :root {
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --neon-blue-dim: #0088CC;
+
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --subtle-blue-tint: #0D1B3D;
+
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --color-info: #00D4FF;
+
+      --code-bg: #0D1117;
+      --code-text: #E6EDF3;
+
+      --sidebar-width: 260px;
+      --toc-width: 200px;
+      --nav-height: 56px;
+      --subnav-height: 44px;
+      --content-max: 720px;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-height) + var(--subnav-height) + 24px);
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding-top: calc(var(--nav-height) + var(--subnav-height));
+    }
+
+    a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================================================
+       Noise Texture Overlay (matched to landing page)
+       ========================================================= */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* =========================================================
+       Top Navigation (matched to landing page)
+       ========================================================= */
+    .site-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: var(--nav-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--neon-blue);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .nav-brand:hover {
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(2) {
+      opacity: 0;
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    /* =========================================================
+       Sub Navigation (doc categories)
+       ========================================================= */
+    .doc-subnav {
+      position: fixed;
+      top: var(--nav-height);
+      left: 0;
+      right: 0;
+      z-index: 999;
+      height: var(--subnav-height);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .doc-subnav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .doc-subnav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-radius: 6px;
+      transition: color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .doc-subnav a:hover {
+      color: var(--text-secondary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .doc-subnav a.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .doc-subnav a svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       Three-Column Layout
+       ========================================================= */
+    .docs-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+      min-height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    /* =========================================================
+       Left Sidebar
+       ========================================================= */
+    .docs-sidebar {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 20px 40px 24px;
+      border-right: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.12) transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+    }
+
+    .sidebar-group {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 0 10px 12px;
+    }
+
+    .sidebar-list {
+      list-style: none;
+    }
+
+    .sidebar-list li {
+      position: relative;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      transition: color 0.15s ease, background 0.15s ease;
+      text-decoration: none;
+      line-height: 1.4;
+    }
+
+    .sidebar-link:hover {
+      color: var(--text-primary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .sidebar-link.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    /* Active indicator bar */
+    .sidebar-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    .sidebar-link--sub {
+      padding-left: 28px;
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .sidebar-link--sub:hover {
+      color: var(--text-secondary);
+    }
+
+    .sidebar-link--sub.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    /* =========================================================
+       Main Content — Rendered Markdown
+       ========================================================= */
+    .docs-content {
+      padding: 36px 48px 80px;
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .docs-content h1 {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .docs-content h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content h2:first-of-type {
+      border-top: none;
+      margin-top: 32px;
+      padding-top: 0;
+    }
+
+    .docs-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .docs-content h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .docs-content > p:first-of-type {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .docs-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .docs-content p strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .docs-content p a {
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: rgba(0, 212, 255, 0.3);
+      text-underline-offset: 2px;
+    }
+
+    .docs-content p a:hover {
+      text-decoration-color: var(--neon-blue);
+    }
+
+    .docs-content p code,
+    .docs-content li code,
+    .docs-content td code {
+      background: var(--code-bg);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* Code blocks */
+    .docs-content .codehilite,
+    .docs-content pre {
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .docs-content .codehilite pre,
+    .docs-content pre code {
+      display: block;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: var(--code-text);
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    /* Pygments syntax highlighting — dark theme */
+    .codehilite .hll { background-color: rgba(0, 212, 255, 0.08); }
+    .codehilite .c, .codehilite .c1, .codehilite .cm, .codehilite .cs, .codehilite .cp { color: var(--text-muted); font-style: italic; } /* comments */
+    .codehilite .k, .codehilite .kn, .codehilite .kp, .codehilite .kr, .codehilite .kd, .codehilite .kt { color: #FF7B72; } /* keywords */
+    .codehilite .s, .codehilite .s1, .codehilite .s2, .codehilite .sa, .codehilite .sb, .codehilite .sc, .codehilite .sd, .codehilite .se, .codehilite .sh, .codehilite .si, .codehilite .sr, .codehilite .ss, .codehilite .sx { color: #A5D6FF; } /* strings */
+    .codehilite .nf, .codehilite .fm, .codehilite .nb { color: #D2A8FF; } /* functions/builtins */
+    .codehilite .mi, .codehilite .mf, .codehilite .mh, .codehilite .mo { color: #79C0FF; } /* numbers */
+    .codehilite .na { color: #79C0FF; } /* attribute names */
+    .codehilite .nc, .codehilite .nn { color: #FFA657; } /* class/module names */
+    .codehilite .no { color: #79C0FF; } /* constants */
+    .codehilite .o, .codehilite .ow { color: #FF7B72; } /* operators */
+    .codehilite .p { color: var(--code-text); } /* punctuation */
+    .codehilite .nl { color: #FFA657; } /* YAML keys */
+    .codehilite .nt { color: #7EE787; } /* HTML/XML tags */
+    .codehilite .err { color: #f85149; } /* errors */
+
+    /* Lists */
+    .docs-content ul, .docs-content ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .docs-content li {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 4px;
+    }
+
+    .docs-content li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Tables */
+    .docs-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .docs-content th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid rgba(0, 212, 255, 0.12);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .docs-content td {
+      padding: 8px 14px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content tr:hover td {
+      background: rgba(0, 212, 255, 0.02);
+    }
+
+    /* Blockquotes (used for callouts) */
+    .docs-content blockquote {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      border-left: 3px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .docs-content blockquote p {
+      margin-bottom: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Horizontal rules */
+    .docs-content hr {
+      border: none;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.06);
+      margin: 40px 0;
+    }
+
+    /* Bottom nav (prev/next) */
+    .docs-nav-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 56px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-nav-card {
+      padding: 20px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .docs-nav-card:hover {
+      border-color: rgba(0, 212, 255, 0.25);
+      background: rgba(0, 212, 255, 0.02);
+      text-decoration: none;
+    }
+
+    .docs-nav-card--next {
+      text-align: right;
+    }
+
+    .docs-nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .docs-nav-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--neon-blue);
+    }
+
+    /* =========================================================
+       Right TOC Sidebar ("On this page")
+       ========================================================= */
+    .docs-toc {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 24px 40px 20px;
+      border-left: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.08) transparent;
+    }
+
+    .docs-toc::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .docs-toc::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 2px;
+    }
+
+    .toc-heading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .toc-heading svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .toc-list {
+      list-style: none;
+      border-left: 1px solid rgba(0, 212, 255, 0.08);
+      padding-left: 0;
+    }
+
+    .toc-list li {
+      position: relative;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0 4px 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      line-height: 1.5;
+    }
+
+    .toc-link:hover {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .toc-link.active {
+      color: var(--neon-blue);
+    }
+
+    .toc-link.active::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    /* =========================================================
+       Footer (matched to landing page)
+       ========================================================= */
+    .footer {
+      position: relative;
+      z-index: 1;
+      padding: 48px 24px 32px;
+      text-align: center;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      font-size: 0.85rem;
+    }
+
+    .footer-links a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links .sep {
+      color: var(--text-muted);
+      margin: 0 12px;
+    }
+
+    .footer-attribution {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       Mobile Sidebar Overlay
+       ========================================================= */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 998;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+
+    .mobile-sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 997;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-sidebar-toggle svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 1100px) {
+      :root {
+        --toc-width: 0px;
+      }
+
+      .docs-layout {
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      }
+
+      .docs-toc {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 0px;
+      }
+
+      body {
+        padding-top: calc(var(--nav-height) + var(--subnav-height));
+      }
+
+      .docs-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 1001;
+        background: var(--base-dark);
+        border-right: 1px solid rgba(0, 212, 255, 0.1);
+        padding-top: 20px;
+      }
+
+      .docs-sidebar.mobile-open {
+        display: block;
+      }
+
+      .sidebar-overlay.open ~ .docs-layout .docs-sidebar {
+        display: block;
+      }
+
+      .mobile-sidebar-toggle {
+        display: flex;
+      }
+
+      .docs-content {
+        padding: 24px 20px 60px;
+      }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: var(--nav-height);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        padding: 8px 0;
+      }
+
+      .site-nav.nav-open .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
+      .docs-nav-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-nav-card--next {
+        text-align: left;
+      }
+    }
+
+    /* =========================================================
+       Entrance Animations
+       ========================================================= */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .docs-content {
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .docs-content {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== Top Navigation ========== -->
+  <header class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">AvaKill</a>
+    <nav class="nav-links">
+      <a href="/">Home</a>
+      <a href="/rules">Rules</a>
+      <a href="/docs" class="active">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+    </nav>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ========== Sub Navigation (Doc Categories) ========== -->
+  <nav class="doc-subnav">
+  <a href="/docs/getting-started/" class="active">
+    <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Getting Started
+  </a>
+  <a href="/docs/policy-reference/">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Policy Reference
+  </a>
+  <a href="/docs/cli-reference/">
+    <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    CLI Reference
+  </a>
+  <a href="/docs/api-reference/">
+    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    API Reference
+  </a>
+  <a href="/docs/architecture/">
+    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    Architecture
+  </a>
+</nav>
+
+  <!-- ========== Mobile Sidebar Toggle ========== -->
+  <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- ========== Three-Column Layout ========== -->
+  <div class="docs-layout">
+
+    <!-- ===== Left Sidebar ===== -->
+    <aside class="docs-sidebar" id="docs-sidebar">
+      <div class="sidebar-group">
+  <div class="sidebar-label">On this page</div>
+  <ul class="sidebar-list">
+    <li><a href="#installation" class="sidebar-link">Installation</a></li>
+    <li><a href="#alternative-install-in-a-virtualenv" class="sidebar-link sidebar-link--sub">Alternative: install in a virtualenv</a></li>
+    <li><a href="#optional-framework-extras" class="sidebar-link sidebar-link--sub">Optional framework extras</a></li>
+    <li><a href="#from-source" class="sidebar-link sidebar-link--sub">From source</a></li>
+    <li><a href="#1-set-up-your-policy" class="sidebar-link">1. Set Up Your Policy</a></li>
+    <li><a href="#interactive-setup-with-avakill-setup" class="sidebar-link sidebar-link--sub">Interactive setup with avakill setup</a></li>
+    <li><a href="#validate-your-policy" class="sidebar-link sidebar-link--sub">Validate your policy</a></li>
+    <li><a href="#manage-rules-with-avakill-rules" class="sidebar-link sidebar-link--sub">Manage rules with avakill rules</a></li>
+    <li><a href="#llm-assisted-policy-creation" class="sidebar-link sidebar-link--sub">LLM-assisted policy creation</a></li>
+    <li><a href="#2-add-avakill-to-your-code" class="sidebar-link">2. Add AvaKill to Your Code</a></li>
+    <li><a href="#the-protect-decorator" class="sidebar-link sidebar-link--sub">The @protect decorator</a></li>
+    <li><a href="#using-guardevaluate-directly" class="sidebar-link sidebar-link--sub">Using Guard.evaluate() directly</a></li>
+    <li><a href="#sessions" class="sidebar-link sidebar-link--sub">Sessions</a></li>
+    <li><a href="#audit-logging" class="sidebar-link sidebar-link--sub">Audit logging</a></li>
+    <li><a href="#3-protect-ai-coding-agents" class="sidebar-link">3. Protect AI Coding Agents</a></li>
+    <li><a href="#start-the-daemon" class="sidebar-link sidebar-link--sub">Start the daemon</a></li>
+    <li><a href="#install-hooks" class="sidebar-link sidebar-link--sub">Install hooks</a></li>
+    <li><a href="#check-status" class="sidebar-link sidebar-link--sub">Check status</a></li>
+    <li><a href="#how-it-works" class="sidebar-link sidebar-link--sub">How it works</a></li>
+    <li><a href="#standalone-mode-no-daemon" class="sidebar-link sidebar-link--sub">Standalone mode (no daemon)</a></li>
+    <li><a href="#canonical-tool-names" class="sidebar-link sidebar-link--sub">Canonical tool names</a></li>
+    <li><a href="#recommended-hook-policy" class="sidebar-link sidebar-link--sub">Recommended hook policy</a></li>
+    <li><a href="#4-monitor-and-debug" class="sidebar-link">4. Monitor and Debug</a></li>
+    <li><a href="#view-audit-logs" class="sidebar-link sidebar-link--sub">View audit logs</a></li>
+    <li><a href="#run-the-dashboard" class="sidebar-link sidebar-link--sub">Run the dashboard</a></li>
+    <li><a href="#test-tool-calls-from-the-cli" class="sidebar-link sidebar-link--sub">Test tool calls from the CLI</a></li>
+    <li><a href="#going-further" class="sidebar-link">Going Further</a></li>
+    <li><a href="#os-sandboxing" class="sidebar-link sidebar-link--sub">OS sandboxing</a></li>
+    <li><a href="#reference" class="sidebar-link sidebar-link--sub">Reference</a></li>
+  </ul>
+</div>
+<div class="sidebar-group">
+  <div class="sidebar-label">Documentation</div>
+  <ul class="sidebar-list">
+    <li><a href="/docs/getting-started/" class="sidebar-link active">Getting Started</a></li>
+    <li><a href="/docs/policy-reference/" class="sidebar-link">Policy Reference</a></li>
+    <li><a href="/docs/cli-reference/" class="sidebar-link">CLI Reference</a></li>
+    <li><a href="/docs/api-reference/" class="sidebar-link">API Reference</a></li>
+    <li><a href="/docs/architecture/" class="sidebar-link">Architecture</a></li>
+  </ul>
+</div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <main class="docs-content">
+      <h1 id="getting-started">Getting Started</h1>
+<p>AvaKill is a safety firewall for AI agents. You define policies in YAML; AvaKill intercepts tool calls and kills anything outside those boundaries.</p>
+<p>This guide gets you from zero to a working policy in under 5 minutes.</p>
+<h2 id="installation">Installation</h2>
+<p>Install globally with <code>pipx</code> (recommended):</p>
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>avakill
+</code></pre></div>
+
+<p>This installs <code>avakill</code> in an isolated environment with all CLI commands available system-wide. No virtualenv needed.</p>
+<h3 id="alternative-install-in-a-virtualenv">Alternative: install in a virtualenv</h3>
+<p>If you're integrating AvaKill into a Python project, install it inside your project's virtualenv:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Create and activate a virtualenv (skip if you already have one)</span>
+python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+
+<span class="c1"># Install AvaKill</span>
+pip<span class="w"> </span>install<span class="w"> </span>avakill
+</code></pre></div>
+
+<h3 id="optional-framework-extras">Optional framework extras</h3>
+<p>AvaKill ships optional extras for framework-specific integrations. Add them with bracket syntax:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[openai]&quot;</span><span class="w">       </span><span class="c1"># OpenAI function calling</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[anthropic]&quot;</span><span class="w">    </span><span class="c1"># Anthropic tool use</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[langchain]&quot;</span><span class="w">    </span><span class="c1"># LangChain / LangGraph</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[mcp]&quot;</span><span class="w">          </span><span class="c1"># MCP proxy</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[metrics]&quot;</span><span class="w">      </span><span class="c1"># Prometheus metrics</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[watch]&quot;</span><span class="w">        </span><span class="c1"># File-watching (policy hot-reload)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;avakill[all]&quot;</span><span class="w">          </span><span class="c1"># Everything</span>
+</code></pre></div>
+
+<p>You can combine multiple extras: <code>pip install "avakill[openai,anthropic,langchain]"</code></p>
+<blockquote>
+<p><strong>macOS note:</strong> macOS 14+ blocks <code>pip install</code> at the system level (PEP 668). Use <code>pipx</code> or a virtualenv — bare <code>pip install avakill</code> will fail.</p>
+<p><strong>zsh note:</strong> Quotes around <code>"avakill[...]"</code> are required on zsh (the default macOS shell). Bash works with or without them.</p>
+</blockquote>
+<h3 id="from-source">From source</h3>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/log-bell/avakill.git
+<span class="nb">cd</span><span class="w"> </span>avakill
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
+</code></pre></div>
+
+<h2 id="1-set-up-your-policy">1. Set Up Your Policy</h2>
+<h3 id="interactive-setup-with-avakill-setup">Interactive setup with <code>avakill setup</code></h3>
+<p>The recommended way to get started:</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>setup
+</code></pre></div>
+
+<p>This walks you through an interactive flow:</p>
+<ol>
+<li><strong>Detect agents</strong> -- scans your machine for AI agents across three protection paths</li>
+<li><strong>Create policy</strong> -- builds an <code>avakill.yaml</code> from a rule catalog you customize interactively</li>
+<li><strong>Install hooks</strong> -- wires AvaKill into detected hook agents as a pre-tool-use check</li>
+<li><strong>Wrap MCP servers</strong> -- intercepts MCP server traffic through AvaKill's proxy</li>
+<li><strong>OS Sandbox guidance</strong> -- shows launch commands for sandbox-capable agents</li>
+<li><strong>Enable tracking</strong> -- optionally starts a background service for logging and diagnostics</li>
+<li><strong>Verify &amp; summarize</strong> -- validates the generated policy and shows what was configured</li>
+</ol>
+<h4 id="step-1-agent-detection">Step 1: Agent detection</h4>
+<p>Setup scans for agents across all three enforcement paths:</p>
+<div class="codehilite"><pre><span></span><code>Scanning your machine...
+
+  Agents found:
+
+    Hooks (native agent integration):
+      ✓ Claude Code       ~/.claude/
+      ✓ Gemini CLI        ~/.gemini/
+      · Cursor            not detected
+      · Windsurf          not detected
+      ✓ OpenAI Codex      ~/.codex/
+
+    MCP Proxy (wrap MCP servers):
+      ✓ Claude Desktop    ~/Library/Application Support/Claude/
+      · Cline             not detected
+      · Continue.dev      not detected
+
+    OS Sandbox (avakill launch):
+      ✓ OpenClaw          ~/.openclaw/
+      · Aider             not detected
+      · SWE-Agent         not detected
+</code></pre></div>
+
+<p>Each group maps to a different enforcement path. The remaining steps configure each path for the agents that were detected.</p>
+<h4 id="step-2-policy-creation">Step 2: Policy creation</h4>
+<p>Setup starts with two <strong>essential rules</strong> that are always included:</p>
+<ul>
+<li><strong>Catastrophic shell commands</strong> -- blocks <code>rm -rf /</code>, <code>mkfs</code>, <code>dd if=</code>, <code>&gt; /dev/</code>, fork bombs</li>
+<li><strong>Catastrophic SQL</strong> -- blocks <code>DROP DATABASE</code>/<code>DROP SCHEMA</code> via shell and database tools</li>
+</ul>
+<p>Then it presents the <strong>rule catalog</strong> -- 81 optional rules across 14 categories:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Rules</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shell Safety</td>
+<td>12</td>
+<td>Dangerous commands, privilege escalation, obfuscation, pipe-to-shell</td>
+</tr>
+<tr>
+<td>Database Safety</td>
+<td>3</td>
+<td>Destructive SQL, unqualified DML, permission changes</td>
+</tr>
+<tr>
+<td>Filesystem Protection</td>
+<td>14</td>
+<td>Path-aware deletion, system dir writes, symlink escapes, persistence</td>
+</tr>
+<tr>
+<td>Tool Safety</td>
+<td>1</td>
+<td>Block <code>delete_*</code>, <code>remove_*</code>, <code>destroy_*</code> tool patterns</td>
+</tr>
+<tr>
+<td>Secrets &amp; Access</td>
+<td>9</td>
+<td>SSH keys, cloud credentials, secret detection, PATH poisoning</td>
+</tr>
+<tr>
+<td>Rate Limits</td>
+<td>2</td>
+<td>Web search throttling, agent spawning limits</td>
+</tr>
+<tr>
+<td>Version Control</td>
+<td>3</td>
+<td>Force push, branch deletion, credential commits</td>
+</tr>
+<tr>
+<td>Supply Chain</td>
+<td>2</td>
+<td>Registry manipulation, postinstall scripts</td>
+</tr>
+<tr>
+<td>Network &amp; Exfiltration</td>
+<td>8</td>
+<td>Encode-transmit chains, DNS exfil, SSH, firewall changes</td>
+</tr>
+<tr>
+<td>Cloud &amp; Infrastructure</td>
+<td>6</td>
+<td>Resource deletion, Docker, container escape, backup deletion</td>
+</tr>
+<tr>
+<td>AI Agent Safety</td>
+<td>5</td>
+<td>MCP poisoning, self-modification, tool rate limits</td>
+</tr>
+<tr>
+<td>OS Hardening</td>
+<td>16</td>
+<td>macOS SIP/TCC/Gatekeeper, Linux kernel/MAC, Windows Defender/UAC/LSASS</td>
+</tr>
+</tbody>
+</table>
+<p>63 of these are pre-selected by default. You toggle rules on and off by number:</p>
+<div class="codehilite"><pre><span></span><code>What else should AvaKill block?
+Type numbers to toggle, &#39;a&#39; for all, Enter to confirm.
+
+Shell Safety  Dangerous commands, privilege escalation, obfuscation
+──────────────────────────────────────────────────
+   1. ✓ Dangerous shell commands
+      Block rm -rf, sudo, chmod 777
+   2. [ ] Package install approval
+      Require approval for pip install, npm install -g, brew install
+   3. [ ] Shell command allowlist
+      Only allow approved shell commands (echo, ls, git, python, ...)
+   ...
+</code></pre></div>
+
+<p>After rule selection, you choose a <strong>default action</strong> for tool calls that don't match any rule:</p>
+<div class="codehilite"><pre><span></span><code>Default action (when no rule matches):
+
+  1. allow  Log and allow unmatched calls (recommended)
+  2. deny   Block anything not explicitly allowed (stricter)
+</code></pre></div>
+
+<p>Setup then offers to <strong>scan your project</strong> for sensitive files (<code>.env</code>, database files, keys, credentials) and adds protective deny rules for anything it finds.</p>
+<p>If you selected any configurable rate limit rules, setup prompts you to customize the thresholds:</p>
+<div class="codehilite"><pre><span></span><code>Tool call rate limit — currently 500 calls/60m
+Customize max calls? (500):
+</code></pre></div>
+
+<p>At the end you'll see something like:</p>
+<div class="codehilite"><pre><span></span><code>✓ Created avakill.yaml (67 rules, default: deny)
+</code></pre></div>
+
+<h4 id="step-3-hook-installation">Step 3: Hook installation</h4>
+<p>For each detected hook agent, setup shows the exact config file it will modify:</p>
+<div class="codehilite"><pre><span></span><code>Install hooks for your detected agents?
+
+  This adds AvaKill as a pre-tool-use check. Your agents will work
+  normally — AvaKill only intervenes when a tool call matches a
+  block rule.
+
+  • Claude Code     → ~/.claude/settings.json
+  • Gemini CLI      → .gemini/settings.json
+  • OpenAI Codex    → ~/.codex/config.toml
+
+Install? [y/n] (y):
+</code></pre></div>
+
+<p>Each hook is smoke-tested after installation to verify <code>avakill</code> is on your PATH. If you skip this step, you can install later with <code>avakill hook install --agent all</code>.</p>
+<h4 id="step-4-mcp-wrapping">Step 4: MCP wrapping</h4>
+<p>If MCP-capable agents were detected (Claude Desktop, Cline, Continue.dev), setup offers to wrap their MCP servers:</p>
+<div class="codehilite"><pre><span></span><code>Wrap MCP servers for your detected agents?
+
+  This intercepts all MCP server traffic through AvaKill&#39;s proxy.
+  Your MCP servers work normally — AvaKill scans requests and
+  responses for policy violations.
+
+  ✓ Claude Desktop    already wrapped
+</code></pre></div>
+
+<p>If servers are already wrapped, setup reports their status. Unwrapped servers are listed with a count of how many will be wrapped. You can skip and wrap later with <code>avakill mcp-wrap --agent all</code>.</p>
+<h4 id="step-5-os-sandbox-guidance">Step 5: OS Sandbox guidance</h4>
+<p>If sandbox-capable agents were detected (OpenClaw, Aider, SWE-Agent), setup shows how to launch them:</p>
+<div class="codehilite"><pre><span></span><code>OS Sandbox agents detected
+
+  These agents are protected by running them through AvaKill&#39;s
+  OS-level sandbox. No config changes needed — just launch with:
+
+  • OpenClaw        avakill launch --agent openclaw
+</code></pre></div>
+
+<p>No configuration is needed -- OS sandboxing is applied at launch time.</p>
+<h4 id="step-6-activity-tracking">Step 6: Activity tracking</h4>
+<p>Setup offers to start a lightweight background service that powers diagnostics and monitoring:</p>
+<div class="codehilite"><pre><span></span><code>Enable activity tracking?
+
+  This runs a lightweight background service that powers:
+    • avakill fix        See why something was blocked
+    • avakill logs       View agent activity history
+    • avakill dashboard  Live monitoring
+
+  Without it, hooks still protect you — you just won&#39;t have
+  history or diagnostics.
+
+Enable? [y/n] (y):
+</code></pre></div>
+
+<p>Activity tracking is optional. Hooks, MCP wrapping, and OS sandboxing all enforce your policy regardless. You can enable it later with <code>avakill tracking on</code>.</p>
+<h4 id="step-7-summary">Step 7: Summary</h4>
+<p>Setup validates the policy and prints a summary of everything that was configured:</p>
+<div class="codehilite"><pre><span></span><code>✓ Policy valid  (67 rules, default: deny)
+
+─────────────────────────────────────────────────────
+
+Setup complete. Your agents are now protected.
+
+  Policy:     avakill.yaml (67 rules)
+  Tracking:   off
+  Hooks:      Claude Code, Gemini CLI, OpenAI Codex
+  MCP:        Claude Desktop
+  Sandbox:    OpenClaw (protect with: avakill launch --agent openclaw)
+
+If something gets blocked:
+  Run  avakill fix            to see why and how to fix it
+  Run  avakill rules          to add, remove, or create rules
+  Edit avakill.yaml        to change your rules by hand
+
+Enable activity tracking anytime: avakill tracking on
+
+─────────────────────────────────────────────────────
+</code></pre></div>
+
+<h3 id="validate-your-policy">Validate your policy</h3>
+<p>Whether generated by <code>avakill setup</code> or written by hand:</p>
+<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>avakill<span class="w"> </span>validate<span class="w"> </span>avakill.yaml
+
+Policy<span class="w"> </span>Rules:<span class="w"> </span><span class="m">67</span><span class="w"> </span>rules<span class="w"> </span><span class="o">(</span>block-catastrophic-shell,<span class="w"> </span>block-catastrophic-sql-shell,<span class="w"> </span>...<span class="o">)</span>
+Version:<span class="w"> </span><span class="m">1</span>.0<span class="w"> </span><span class="p">|</span><span class="w"> </span>Default<span class="w"> </span>action:<span class="w"> </span>deny<span class="w"> </span><span class="p">|</span><span class="w"> </span>Total<span class="w"> </span>rules:<span class="w"> </span><span class="m">67</span>
+
+Policy<span class="w"> </span>is<span class="w"> </span>valid.
+</code></pre></div>
+
+<h3 id="manage-rules-with-avakill-rules">Manage rules with <code>avakill rules</code></h3>
+<p>After setup, use <code>avakill rules</code> to modify your policy without re-running the full wizard or editing YAML by hand.</p>
+<h4 id="browse-and-toggle-catalog-rules">Browse and toggle catalog rules</h4>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>rules
+</code></pre></div>
+
+<p>Opens the same interactive catalog from setup, pre-populated with your current selections. Custom rules and scan-generated rules are preserved — only catalog rules are toggled.</p>
+<h4 id="list-current-rules">List current rules</h4>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>rules<span class="w"> </span>list
+</code></pre></div>
+
+<p>Shows every rule in your policy with its source:</p>
+<div class="codehilite"><pre><span></span><code>Policy: avakill.yaml (67 rules, default: deny)
+┌────┬──────────────────────────────┬────────┬──────────┬───────────────┐
+│  # │ Name                         │ Action │ Source   │ Tools         │
+├────┼──────────────────────────────┼────────┼──────────┼───────────────┤
+│  1 │ block-catastrophic-shell     │ deny   │ base     │ shell_*, Ba.. │
+│  2 │ block-dangerous-shell        │ deny   │ catalog  │ shell_*, Ba.. │
+│  … │ ...                          │        │          │               │
+│ 66 │ my-custom-rule               │ deny   │ custom   │ Bash          │
+│ 67 │ log-all                      │ allow  │ system   │ *             │
+└────┴──────────────────────────────┴────────┴──────────┴───────────────┘
+  3 base · 60 catalog · 1 custom · 1 system
+</code></pre></div>
+
+<p>Sources: <strong>base</strong> (always included), <strong>catalog</strong> (from the rule catalog), <strong>scan</strong> (auto-detected sensitive files), <strong>custom</strong> (your hand-written rules), <strong>system</strong> (log-all trailer).</p>
+<h4 id="create-a-custom-rule">Create a custom rule</h4>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>rules<span class="w"> </span>create
+</code></pre></div>
+
+<p>An interactive wizard that walks you through:</p>
+<ol>
+<li><strong>Name</strong> — e.g. <code>block-internal-api</code></li>
+<li><strong>Tools</strong> — pick from presets (shell, file write, file read, database, all) or enter custom patterns</li>
+<li><strong>Action</strong> — <code>deny</code>, <code>allow</code>, or <code>require_approval</code></li>
+<li><strong>Conditions</strong> — optional argument matching (e.g. block commands containing <code>curl evil.com</code>)</li>
+<li><strong>Rate limit</strong> — optional max calls per time window</li>
+<li><strong>Message</strong> — optional message shown when the rule triggers</li>
+</ol>
+<p>The wizard previews the rule as YAML, then appends it to your policy (before <code>log-all</code> if present) and validates.</p>
+<p><strong>Example: block a specific API call</strong></p>
+<div class="codehilite"><pre><span></span><code>$ avakill rules create
+
+  Rule name: block-internal-api
+  Tools: 1 (Shell tools)
+  Action: 1 (deny)
+  Add argument matching? y
+    Argument name: command
+    Substrings to match: curl internal.corp, wget internal.corp
+    Add another condition? n
+  Add rate limiting? n
+  Message: Internal API access blocked.
+  Add this rule to avakill.yaml? y
+
+  ✓ Added &quot;block-internal-api&quot; to avakill.yaml
+</code></pre></div>
+
+<h3 id="llm-assisted-policy-creation">LLM-assisted policy creation</h3>
+<p>Instead of writing YAML manually, you can use any LLM to generate a policy:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Generate a self-contained prompt and paste it into any LLM</span>
+avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt
+
+<span class="c1"># Include your tool names for a tailored policy</span>
+avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt<span class="w"> </span>--tools<span class="o">=</span><span class="s2">&quot;execute_sql,shell_exec,file_read&quot;</span><span class="w"> </span>--use-case<span class="o">=</span><span class="s2">&quot;data pipeline&quot;</span>
+</code></pre></div>
+
+<p>The prompt includes the full JSON Schema, evaluation rules, and examples. Paste it into any LLM, describe your agent, then validate with <code>avakill validate generated-policy.yaml</code>. See <a href="internal/llm-policy-prompt.md"><code>llm-policy-prompt.md</code></a> for a paste-ready version.</p>
+<h2 id="2-add-avakill-to-your-code">2. Add AvaKill to Your Code</h2>
+<h3 id="the-protect-decorator">The <code>@protect</code> decorator</h3>
+<p>The fastest integration path. It wraps any function with a policy check -- if the policy denies the call, the function body never runs.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span><span class="p">,</span> <span class="n">protect</span><span class="p">,</span> <span class="n">PolicyViolation</span>
+
+<span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+
+<span class="nd">@protect</span><span class="p">(</span><span class="n">guard</span><span class="o">=</span><span class="n">guard</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">delete_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Delete a user from the database.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;User </span><span class="si">{</span><span class="n">user_id</span><span class="si">}</span><span class="s2"> deleted&quot;</span>
+
+<span class="nd">@protect</span><span class="p">(</span><span class="n">guard</span><span class="o">=</span><span class="n">guard</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">search_users</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Search for users.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Found users matching: </span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="c1"># This succeeds -- &quot;search_users&quot; matches the &quot;*_search&quot; pattern -&gt; allowed</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">search_users</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="s2">&quot;active&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<span class="c1"># -&gt; Found users matching: active</span>
+
+<span class="c1"># This raises -- &quot;delete_user&quot; matches no allow rule -&gt; denied by default</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">delete_user</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">PolicyViolation</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="c1"># -&gt; AvaKill blocked &#39;delete_user&#39;: No matching rule; default action is &#39;deny&#39;</span>
+</code></pre></div>
+
+<p>Decorator options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Example</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Auto-detect</td>
+<td><code>@protect</code></td>
+<td>Loads <code>avakill.yaml</code> from cwd</td>
+</tr>
+<tr>
+<td>Explicit policy</td>
+<td><code>@protect(policy="strict.yaml")</code></td>
+<td>Uses specified file</td>
+</tr>
+<tr>
+<td>Custom tool name</td>
+<td><code>@protect(guard=guard, tool_name="db_exec")</code></td>
+<td>Overrides function name</td>
+</tr>
+<tr>
+<td>Return None</td>
+<td><code>@protect(guard=guard, on_deny="return_none")</code></td>
+<td>Returns <code>None</code> instead of raising</td>
+</tr>
+<tr>
+<td>Custom callback</td>
+<td><code>@protect(guard=guard, on_deny="callback", deny_callback=fn)</code></td>
+<td>Calls <code>fn(tool_name, decision, args, kwargs)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Works with both sync and async functions.</p>
+<h3 id="using-guardevaluate-directly">Using <code>Guard.evaluate()</code> directly</h3>
+<p>For more control, use <code>Guard.evaluate()</code> in your agent loop:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span><span class="p">,</span> <span class="n">PolicyViolation</span>
+
+<span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">agent_loop</span><span class="p">(</span><span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="n">decision</span> <span class="o">=</span> <span class="n">guard</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">decision</span><span class="o">.</span><span class="n">allowed</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blocked by policy &#39;</span><span class="si">{</span><span class="n">decision</span><span class="o">.</span><span class="n">policy_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">decision</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">execute_tool</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="sessions">Sessions</h3>
+<p>Use sessions to group related calls under an agent and session ID:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">with</span> <span class="n">guard</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="n">agent_id</span><span class="o">=</span><span class="s2">&quot;my-agent&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;search_users&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;active&quot;</span><span class="p">})</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;get_user&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;456&quot;</span><span class="p">})</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calls made: </span><span class="si">{</span><span class="n">session</span><span class="o">.</span><span class="n">call_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># -&gt; 2</span>
+</code></pre></div>
+
+<h3 id="audit-logging">Audit logging</h3>
+<p>Add a <code>SQLiteLogger</code> to persist every decision to a local database:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">avakill.logging.sqlite_logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">SQLiteLogger</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">SQLiteLogger</span><span class="p">(</span><span class="s2">&quot;avakill_audit.db&quot;</span><span class="p">)</span>
+<span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+<span class="c1"># Every evaluate() call is now logged automatically</span>
+<span class="n">guard</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;search_users&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;test&quot;</span><span class="p">})</span>
+</code></pre></div>
+
+<h2 id="3-protect-ai-coding-agents">3. Protect AI Coding Agents</h2>
+<p>AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.</p>
+<p>The fastest path is <code>avakill setup</code>, which handles detection and installation. Or use the CLI directly:</p>
+<h3 id="start-the-daemon">Start the daemon</h3>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>daemon<span class="w"> </span>start<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<p>The daemon listens on a Unix socket (<code>~/.avakill/avakill.sock</code>) and evaluates tool calls in &lt;5ms.</p>
+<h3 id="install-hooks">Install hooks</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Install for a specific agent</span>
+avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>claude-code
+
+<span class="c1"># Or install for all detected agents</span>
+avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>all
+</code></pre></div>
+
+<h3 id="check-status">Check status</h3>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>hook<span class="w"> </span>list
+</code></pre></div>
+
+<h3 id="how-it-works">How it works</h3>
+<div class="codehilite"><pre><span></span><code>Agent  -&gt;  Hook Script  -&gt;  AvaKill Daemon  -&gt;  Policy Engine
+                 |                                    |
+          Translates tool name              Evaluates rules
+          (Bash -&gt; shell_execute)           Returns: allow/deny
+</code></pre></div>
+
+<h3 id="standalone-mode-no-daemon">Standalone mode (no daemon)</h3>
+<p>Hooks work without a running daemon. When the daemon is unreachable, each hook evaluates policies in-process using this fallback chain:</p>
+<ol>
+<li>Connect to daemon socket (<code>~/.avakill/avakill.sock</code>)</li>
+<li>If unreachable, load policy from <code>avakill.yaml</code> in cwd and evaluate locally</li>
+<li>If no policy file found, <strong>allow</strong> the call (fail-open, the default)</li>
+</ol>
+<p>To change the default to <strong>fail-closed</strong> (deny when no policy is available):</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">AVAKILL_FAIL_CLOSED</span><span class="o">=</span><span class="m">1</span>
+</code></pre></div>
+
+<p>With <code>AVAKILL_FAIL_CLOSED=1</code>, tool calls are denied when both the daemon and local policy file are unavailable. This is recommended for production environments.</p>
+<h3 id="canonical-tool-names">Canonical tool names</h3>
+<p>One policy works across all agents thanks to canonical names:</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Native Name</th>
+<th>Canonical Name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td><code>Bash</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td><code>Write</code> / <code>Read</code></td>
+<td><code>file_write</code> / <code>file_read</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>run_shell_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>read_file</code> / <code>write_file</code> / <code>edit_file</code></td>
+<td><code>file_read</code> / <code>file_write</code> / <code>file_edit</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>search_files</code> / <code>list_files</code></td>
+<td><code>file_search</code> / <code>file_list</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>web_search</code> / <code>web_fetch</code></td>
+<td><code>web_search</code> / <code>web_fetch</code></td>
+</tr>
+<tr>
+<td>Windsurf</td>
+<td><code>run_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td>Windsurf</td>
+<td><code>write_code</code> / <code>read_code</code></td>
+<td><code>file_write</code> / <code>file_read</code></td>
+</tr>
+<tr>
+<td>Windsurf</td>
+<td><code>mcp_tool</code></td>
+<td><em>(pass-through)</em></td>
+</tr>
+<tr>
+<td>OpenAI Codex</td>
+<td><code>shell</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td>OpenAI Codex</td>
+<td><code>apply_patch</code> / <code>read_file</code></td>
+<td><code>file_write</code> / <code>file_read</code></td>
+</tr>
+<tr>
+<td>OpenAI Codex</td>
+<td><code>list_dir</code> / <code>grep_files</code></td>
+<td><code>file_list</code> / <code>content_search</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="recommended-hook-policy">Recommended hook policy</h3>
+<p>Use <code>shell_safe</code> and <code>command_allowlist</code> to control shell access:</p>
+<div class="codehilite"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-safe-shell</span>
+<span class="w">  </span><span class="nt">tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;shell_execute&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Bash&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;run_shell_command&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;run_command&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">          </span><span class="s">&quot;shell&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;local_shell&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;exec_command&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+<span class="w">  </span><span class="nt">conditions</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">shell_safe</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">command_allowlist</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">echo</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ls</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">cat</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">pwd</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">git</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">python</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">pip</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">npm</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">node</span><span class="p p-Indicator">,</span>
+<span class="w">                        </span><span class="nv">make</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">which</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">whoami</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">date</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">uname</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">head</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">tail</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">wc</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">file</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">stat</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+
+<p>Use <code>avakill evaluate</code> to test tool calls against your policy.</p>
+<h2 id="4-monitor-and-debug">4. Monitor and Debug</h2>
+<h3 id="view-audit-logs">View audit logs</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Show recent events</span>
+$<span class="w"> </span>avakill<span class="w"> </span>logs
+
+┌────────────────────────<span class="w"> </span>AvaKill<span class="w"> </span>Audit<span class="w"> </span>Log<span class="w"> </span>────────────────────────┐
+│<span class="w"> </span>Time<span class="w">                </span>│<span class="w"> </span>Tool<span class="w">          </span>│<span class="w"> </span>Action<span class="w"> </span>│<span class="w"> </span>Policy<span class="w">               </span>│
+│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:01<span class="w"> </span>│<span class="w"> </span>search_users<span class="w">  </span>│<span class="w"> </span>ALLOW<span class="w">  </span>│<span class="w"> </span>allow-read-operations│
+│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:03<span class="w"> </span>│<span class="w"> </span>delete_user<span class="w">   </span>│<span class="w"> </span>DENY<span class="w">   </span>│<span class="w">                     </span>│
+│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:05<span class="w"> </span>│<span class="w"> </span>execute_sql<span class="w">   </span>│<span class="w"> </span>DENY<span class="w">   </span>│<span class="w"> </span>block-destructive-sql│
+└─────────────────────────────────────────────────────────────────────┘
+<span class="m">3</span><span class="w"> </span>event<span class="o">(</span>s<span class="o">)</span><span class="w"> </span>shown
+</code></pre></div>
+
+<p>Filter and format options:</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>logs<span class="w"> </span>--denied-only<span class="w">              </span><span class="c1"># Only denied events</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--tool<span class="w"> </span><span class="s2">&quot;database_*&quot;</span><span class="w">        </span><span class="c1"># Filter by tool name (supports globs)</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>1h<span class="w">                 </span><span class="c1"># Events from the last hour</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--agent<span class="w"> </span>my-agent<span class="w">           </span><span class="c1"># Filter by agent</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--json<span class="w">                     </span><span class="c1"># JSON output for piping to jq</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>tail<span class="w">                       </span><span class="c1"># Follow new events in real-time</span>
+</code></pre></div>
+
+<h3 id="run-the-dashboard">Run the dashboard</h3>
+<p>Launch the real-time terminal dashboard with <code>avakill dashboard</code>. It shows live safety overview, streaming tool calls, and top denied tools.</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>dashboard<span class="w"> </span>--db<span class="w"> </span>avakill_audit.db<span class="w">     </span><span class="c1"># Custom database path</span>
+avakill<span class="w"> </span>dashboard<span class="w"> </span>--refresh<span class="w"> </span><span class="m">1</span>.0<span class="w">             </span><span class="c1"># Refresh interval in seconds</span>
+avakill<span class="w"> </span>dashboard<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w">     </span><span class="c1"># Policy file to monitor</span>
+avakill<span class="w"> </span>dashboard<span class="w"> </span>--watch<span class="w">                   </span><span class="c1"># Auto-reload on policy change</span>
+</code></pre></div>
+
+<p>Keyboard shortcuts: <code>q</code> quit, <code>r</code> reload policy, <code>c</code> clear events.</p>
+<h3 id="test-tool-calls-from-the-cli">Test tool calls from the CLI</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Via the daemon</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;shell_execute&quot;, &quot;args&quot;: {&quot;command&quot;: &quot;rm -rf /&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli
+<span class="c1"># Exit code 2 (denied)</span>
+
+<span class="c1"># Standalone (no daemon needed)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;file_read&quot;, &quot;args&quot;: {&quot;path&quot;: &quot;README.md&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+<span class="c1"># Exit code 0 (allowed)</span>
+</code></pre></div>
+
+<p>Exit codes: <code>0</code> = allowed, <code>2</code> = denied, <code>1</code> = error.</p>
+<h2 id="going-further">Going Further</h2>
+<h3 id="os-sandboxing">OS sandboxing</h3>
+<p>Add OS-level containment on top of policy enforcement:</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>profile<span class="w"> </span>list<span class="w">                                          </span><span class="c1"># See available agent profiles</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--dry-run<span class="w">                        </span><span class="c1"># Test sandbox restrictions</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>aider<span class="w">   </span><span class="c1"># Launch with OS sandbox</span>
+</code></pre></div>
+
+<p>The <code>avakill guide</code> TUI has additional sections for signing, compliance, MCP wrapping, and approvals.</p>
+<h3 id="reference">Reference</h3>
+<ul>
+<li><strong><a href="/docs/policy-reference/">Policy Reference</a></strong> -- YAML format, conditions, rate limiting, examples</li>
+<li><strong><a href="/docs/cli-reference/">CLI Reference</a></strong> -- all commands and flags</li>
+<li><strong><a href="/docs/api-reference/">API Reference</a></strong> -- Python SDK documentation</li>
+<li><strong><a href="internal/framework-integrations.md">Framework Integrations</a></strong> -- OpenAI, Anthropic, LangChain, MCP</li>
+<li><strong><a href="internal/security-hardening.md">Security Hardening</a></strong> -- signing, self-protection, OS-level enforcement</li>
+<li><strong><a href="internal/troubleshooting.md">Troubleshooting</a></strong> -- common issues and solutions</li>
+</ul>
+
+<div class="docs-nav-bottom">
+  <a href="/" class="docs-nav-card">
+    <div class="docs-nav-label">&larr; Previous</div>
+    <div class="docs-nav-title">Home</div>
+  </a>
+  <a href="/docs/policy-reference/" class="docs-nav-card docs-nav-card--next">
+    <div class="docs-nav-label">Next &rarr;</div>
+    <div class="docs-nav-title">Policy Reference</div>
+  </a>
+</div>
+    </main>
+
+    <!-- ===== Right TOC ("On this page") ===== -->
+    <aside class="docs-toc">
+      <div class="toc-heading">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg>
+        On this page
+      </div>
+      <ul class="toc-list">
+        <li><a href="#installation" class="toc-link">Installation</a></li>
+        <li><a href="#1-set-up-your-policy" class="toc-link">1. Set Up Your Policy</a></li>
+        <li><a href="#2-add-avakill-to-your-code" class="toc-link">2. Add AvaKill to Your Code</a></li>
+        <li><a href="#3-protect-ai-coding-agents" class="toc-link">3. Protect AI Coding Agents</a></li>
+        <li><a href="#4-monitor-and-debug" class="toc-link">4. Monitor and Debug</a></li>
+        <li><a href="#going-further" class="toc-link">Going Further</a></li>
+      </ul>
+    </aside>
+
+  </div>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <nav class="footer-links">
+      <a href="/docs">Docs</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill/blob/main/CHANGELOG.md">Changelog</a>
+      <span class="sep">&middot;</span>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
+    </nav>
+    <div class="footer-attribution">
+      Built with &#128737;&#65039; by AvaKill contributors.<br>
+      Open-source under AGPL-3.0 license.
+    </div>
+  </footer>
+
+  <!-- ========== JavaScript ========== -->
+  <script>
+    // --- Hamburger menu ---
+    const navEl = document.getElementById('site-nav');
+    const hamburger = document.getElementById('nav-hamburger');
+    hamburger.addEventListener('click', () => navEl.classList.toggle('nav-open'));
+
+    // --- Mobile sidebar ---
+    const mobileSidebarBtn = document.getElementById('mobile-sidebar-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    mobileSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('open');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('open');
+    });
+
+    // --- Copy code buttons ---
+    document.querySelectorAll('.docs-codeblock-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code || btn.closest('.docs-codeblock').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          btn.style.color = 'var(--color-allowed)';
+          setTimeout(() => btn.style.color = '', 1500);
+        });
+      });
+    });
+
+    // --- Scroll spy for right TOC ---
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const headings = [];
+    tocLinks.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) headings.push({ el, link });
+    });
+
+    const tocObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(l => l.classList.remove('active'));
+          const match = headings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -60% 0px',
+      threshold: 0
+    });
+
+    headings.forEach(h => tocObserver.observe(h.el));
+
+    // --- Scroll spy for left sidebar ---
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const sidebarHeadings = [];
+    sidebarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const el = document.getElementById(href.slice(1));
+      if (el) sidebarHeadings.push({ el, link });
+    });
+
+    const sidebarObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          sidebarLinks.forEach(l => l.classList.remove('active'));
+          const match = sidebarHeadings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -70% 0px',
+      threshold: 0
+    });
+
+    sidebarHeadings.forEach(h => sidebarObserver.observe(h.el));
+  </script>
+
+</body>
+</html>

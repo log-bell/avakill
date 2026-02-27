@@ -6,26 +6,30 @@ This guide gets you from zero to a working policy in under 5 minutes.
 
 ## Installation
 
-### Recommended: pipx (isolated install)
+Install globally with `pipx` (recommended):
 
 ```bash
 pipx install avakill
 ```
 
-### Or use a virtualenv
+This installs `avakill` in an isolated environment with all CLI commands available system-wide. No virtualenv needed.
+
+### Alternative: install in a virtualenv
+
+If you're integrating AvaKill into a Python project, install it inside your project's virtualenv:
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+# Create and activate a virtualenv (skip if you already have one)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install AvaKill
 pip install avakill
 ```
 
-### With pip directly
+### Optional framework extras
 
-```bash
-pip install avakill
-```
-
-### With framework extras
+AvaKill ships optional extras for framework-specific integrations. Add them with bracket syntax:
 
 ```bash
 pip install "avakill[openai]"       # OpenAI function calling
@@ -37,9 +41,11 @@ pip install "avakill[watch]"        # File-watching (policy hot-reload)
 pip install "avakill[all]"          # Everything
 ```
 
-> **macOS note:** macOS 14+ ships Python 3.12+ which blocks `pip install` at the system level (PEP 668). Use `pipx` or a virtualenv.
+You can combine multiple extras: `pip install "avakill[openai,anthropic,langchain]"`
 
-> **Note:** Quotes around `"avakill[...]"` are required on zsh (the default macOS shell). Bash works with or without them.
+> **macOS note:** macOS 14+ blocks `pip install` at the system level (PEP 668). Use `pipx` or a virtualenv — bare `pip install avakill` will fail.
+
+> **zsh note:** Quotes around `"avakill[...]"` are required on zsh (the default macOS shell). Bash works with or without them.
 
 ### From source
 
@@ -59,95 +65,291 @@ The recommended way to get started:
 avakill setup
 ```
 
-This walks you through a 5-step flow:
+This walks you through an interactive flow:
 
-1. Detects installed agents (claude-code, gemini-cli, cursor, windsurf, openai-codex)
-2. Creates an `avakill.yaml` policy from the `hooks` template
-3. Installs hooks for detected agents
-4. Optionally enables activity tracking
-5. Shows a summary of what was configured
+1. **Detect agents** -- scans your machine for AI agents across three protection paths
+2. **Create policy** -- builds an `avakill.yaml` from a rule catalog you customize interactively
+3. **Install hooks** -- wires AvaKill into detected hook agents as a pre-tool-use check
+4. **Wrap MCP servers** -- intercepts MCP server traffic through AvaKill's proxy
+5. **OS Sandbox guidance** -- shows launch commands for sandbox-capable agents
+6. **Enable tracking** -- optionally starts a background service for logging and diagnostics
+7. **Verify & summarize** -- validates the generated policy and shows what was configured
 
-### Non-interactive alternative
+#### Step 1: Agent detection
 
-Use `avakill init` for scripted or CI setups:
+Setup scans for agents across all three enforcement paths:
 
-```bash
-avakill init --template hooks
-avakill init --template strict --output policies/production.yaml
-avakill init --scan    # Scan project for sensitive files and generate deny rules
+```
+Scanning your machine...
+
+  Agents found:
+
+    Hooks (native agent integration):
+      ✓ Claude Code       ~/.claude/
+      ✓ Gemini CLI        ~/.gemini/
+      · Cursor            not detected
+      · Windsurf          not detected
+      ✓ OpenAI Codex      ~/.codex/
+
+    MCP Proxy (wrap MCP servers):
+      ✓ Claude Desktop    ~/Library/Application Support/Claude/
+      · Cline             not detected
+      · Continue.dev      not detected
+
+    OS Sandbox (avakill launch):
+      ✓ OpenClaw          ~/.openclaw/
+      · Aider             not detected
+      · SWE-Agent         not detected
 ```
 
-### Templates
+Each group maps to a different enforcement path. The remaining steps configure each path for the agents that were detected.
 
-| Template | Default action | Philosophy |
-|----------|---------------|------------|
-| `hooks` | `allow` | Blocks catastrophic ops, allows most else |
-| `default` | `deny` | Balanced -- allows reads, blocks destructive ops, rate-limits searches |
-| `strict` | `deny` | Maximum safety -- explicit allowlist only, rate limits on everything |
-| `permissive` | `allow` | Audit mode -- logs everything, blocks only catastrophic operations |
+#### Step 2: Policy creation
 
-### The default policy
+Setup starts with two **essential rules** that are always included:
 
-Here's what `default.yaml` actually contains -- 7 rules with cross-agent tool names (abbreviated; see `src/avakill/templates/default.yaml` for the full file):
+- **Catastrophic shell commands** -- blocks `rm -rf /`, `mkfs`, `dd if=`, `> /dev/`, fork bombs
+- **Catastrophic SQL** -- blocks `DROP DATABASE`/`DROP SCHEMA` via shell and database tools
 
-```yaml
-version: "1.0"
-default_action: deny
+Then it presents the **rule catalog** -- 81 optional rules across 14 categories:
 
-policies:
-  - name: block-destructive-ops       # deny delete_*, remove_*, destroy_*, drop_* (+ suffixes)
-    tools: ["delete_*", "remove_*", "destroy_*", "drop_*", "*_delete", "*_remove", "*_destroy", "*_drop"]
-    action: deny
+| Category | Rules | Examples |
+|----------|-------|---------|
+| Shell Safety | 12 | Dangerous commands, privilege escalation, obfuscation, pipe-to-shell |
+| Database Safety | 3 | Destructive SQL, unqualified DML, permission changes |
+| Filesystem Protection | 14 | Path-aware deletion, system dir writes, symlink escapes, persistence |
+| Tool Safety | 1 | Block `delete_*`, `remove_*`, `destroy_*` tool patterns |
+| Secrets & Access | 9 | SSH keys, cloud credentials, secret detection, PATH poisoning |
+| Rate Limits | 2 | Web search throttling, agent spawning limits |
+| Version Control | 3 | Force push, branch deletion, credential commits |
+| Supply Chain | 2 | Registry manipulation, postinstall scripts |
+| Network & Exfiltration | 8 | Encode-transmit chains, DNS exfil, SSH, firewall changes |
+| Cloud & Infrastructure | 6 | Resource deletion, Docker, container escape, backup deletion |
+| AI Agent Safety | 5 | MCP poisoning, self-modification, tool rate limits |
+| OS Hardening | 16 | macOS SIP/TCC/Gatekeeper, Linux kernel/MAC, Windows Defender/UAC/LSASS |
 
-  - name: block-destructive-sql       # deny DROP/DELETE/TRUNCATE/ALTER on database_*, sql_*, etc.
-    tools: ["database_*", "sql_*", "execute_sql", "run_query"]
-    action: deny
-    conditions: { args_match: { query: ["DROP", "DELETE", "TRUNCATE", "ALTER"] } }
+63 of these are pre-selected by default. You toggle rules on and off by number:
 
-  - name: block-dangerous-shell       # deny rm -rf, sudo, chmod 777, mkfs, > /dev/
-    tools: ["shell_execute", "Bash", "run_shell_command", "run_command",  # + Codex + globs
-            "shell", "local_shell", "exec_command", "shell_*", "bash_*", "command_*"]
-    action: deny
-    conditions: { args_match: { command: ["rm -rf", "sudo", "chmod 777", "mkfs", "> /dev/"] } }
+```
+What else should AvaKill block?
+Type numbers to toggle, 'a' for all, Enter to confirm.
 
-  - name: rate-limit-web-search       # 30 calls/minute
-    tools: ["web_search", "WebSearch"]
-    action: allow
-    rate_limit: { max_calls: 30, window: "1m" }
-
-  - name: allow-read-operations       # Claude Code names + generic prefix/suffix globs
-    tools: ["Read", "Glob", "Grep", "LS", "WebFetch", "grep_files",
-            "search_*", "get_*", "list_*", "read_*", "query_*", "fetch_*", "find_*", "lookup_*",
-            "*_search", "*_get", "*_list", "*_read", "*_query", "*_fetch", "*_find", "*_lookup"]
-    action: allow
-
-  - name: allow-safe-sql              # after destructive SQL blocked above
-    tools: ["database_*", "sql_*", "execute_sql", "run_query"]
-    action: allow
-
-  - name: allow-safe-shell            # shell_safe + 19-command allowlist
-    tools: ["shell_execute", "Bash", "run_shell_command", "run_command",
-            "shell", "local_shell", "exec_command", "shell_*", "bash_*", "command_*"]
-    action: allow
-    conditions:
-      shell_safe: true
-      command_allowlist: [echo, ls, cat, pwd, git, python, pip, npm, node,
-                          make, which, whoami, date, uname, head, tail, wc, file, stat]
+Shell Safety  Dangerous commands, privilege escalation, obfuscation
+──────────────────────────────────────────────────
+   1. ✓ Dangerous shell commands
+      Block rm -rf, sudo, chmod 777
+   2. [ ] Package install approval
+      Require approval for pip install, npm install -g, brew install
+   3. [ ] Shell command allowlist
+      Only allow approved shell commands (echo, ls, git, python, ...)
+   ...
 ```
 
-Rules are evaluated top-to-bottom. The first matching rule wins. If nothing matches, `default_action` applies.
+After rule selection, you choose a **default action** for tool calls that don't match any rule:
+
+```
+Default action (when no rule matches):
+
+  1. allow  Log and allow unmatched calls (recommended)
+  2. deny   Block anything not explicitly allowed (stricter)
+```
+
+Setup then offers to **scan your project** for sensitive files (`.env`, database files, keys, credentials) and adds protective deny rules for anything it finds.
+
+If you selected any configurable rate limit rules, setup prompts you to customize the thresholds:
+
+```
+Tool call rate limit — currently 500 calls/60m
+Customize max calls? (500):
+```
+
+At the end you'll see something like:
+
+```
+✓ Created avakill.yaml (67 rules, default: deny)
+```
+
+#### Step 3: Hook installation
+
+For each detected hook agent, setup shows the exact config file it will modify:
+
+```
+Install hooks for your detected agents?
+
+  This adds AvaKill as a pre-tool-use check. Your agents will work
+  normally — AvaKill only intervenes when a tool call matches a
+  block rule.
+
+  • Claude Code     → ~/.claude/settings.json
+  • Gemini CLI      → .gemini/settings.json
+  • OpenAI Codex    → ~/.codex/config.toml
+
+Install? [y/n] (y):
+```
+
+Each hook is smoke-tested after installation to verify `avakill` is on your PATH. If you skip this step, you can install later with `avakill hook install --agent all`.
+
+#### Step 4: MCP wrapping
+
+If MCP-capable agents were detected (Claude Desktop, Cline, Continue.dev), setup offers to wrap their MCP servers:
+
+```
+Wrap MCP servers for your detected agents?
+
+  This intercepts all MCP server traffic through AvaKill's proxy.
+  Your MCP servers work normally — AvaKill scans requests and
+  responses for policy violations.
+
+  ✓ Claude Desktop    already wrapped
+```
+
+If servers are already wrapped, setup reports their status. Unwrapped servers are listed with a count of how many will be wrapped. You can skip and wrap later with `avakill mcp-wrap --agent all`.
+
+#### Step 5: OS Sandbox guidance
+
+If sandbox-capable agents were detected (OpenClaw, Aider, SWE-Agent), setup shows how to launch them:
+
+```
+OS Sandbox agents detected
+
+  These agents are protected by running them through AvaKill's
+  OS-level sandbox. No config changes needed — just launch with:
+
+  • OpenClaw        avakill launch --agent openclaw
+```
+
+No configuration is needed -- OS sandboxing is applied at launch time.
+
+#### Step 6: Activity tracking
+
+Setup offers to start a lightweight background service that powers diagnostics and monitoring:
+
+```
+Enable activity tracking?
+
+  This runs a lightweight background service that powers:
+    • avakill fix        See why something was blocked
+    • avakill logs       View agent activity history
+    • avakill dashboard  Live monitoring
+
+  Without it, hooks still protect you — you just won't have
+  history or diagnostics.
+
+Enable? [y/n] (y):
+```
+
+Activity tracking is optional. Hooks, MCP wrapping, and OS sandboxing all enforce your policy regardless. You can enable it later with `avakill tracking on`.
+
+#### Step 7: Summary
+
+Setup validates the policy and prints a summary of everything that was configured:
+
+```
+✓ Policy valid  (67 rules, default: deny)
+
+─────────────────────────────────────────────────────
+
+Setup complete. Your agents are now protected.
+
+  Policy:     avakill.yaml (67 rules)
+  Tracking:   off
+  Hooks:      Claude Code, Gemini CLI, OpenAI Codex
+  MCP:        Claude Desktop
+  Sandbox:    OpenClaw (protect with: avakill launch --agent openclaw)
+
+If something gets blocked:
+  Run  avakill fix            to see why and how to fix it
+  Run  avakill rules          to add, remove, or create rules
+  Edit avakill.yaml        to change your rules by hand
+
+Enable activity tracking anytime: avakill tracking on
+
+─────────────────────────────────────────────────────
+```
 
 ### Validate your policy
+
+Whether generated by `avakill setup` or written by hand:
 
 ```bash
 $ avakill validate avakill.yaml
 
-Policy Rules: 7 rules (block-destructive-ops, block-destructive-sql,
-  block-dangerous-shell, rate-limit-web-search, allow-read-operations,
-  allow-safe-sql, allow-safe-shell)
-Version: 1.0 | Default action: deny | Total rules: 7
+Policy Rules: 67 rules (block-catastrophic-shell, block-catastrophic-sql-shell, ...)
+Version: 1.0 | Default action: deny | Total rules: 67
 
 Policy is valid.
+```
+
+### Manage rules with `avakill rules`
+
+After setup, use `avakill rules` to modify your policy without re-running the full wizard or editing YAML by hand.
+
+#### Browse and toggle catalog rules
+
+```bash
+avakill rules
+```
+
+Opens the same interactive catalog from setup, pre-populated with your current selections. Custom rules and scan-generated rules are preserved — only catalog rules are toggled.
+
+#### List current rules
+
+```bash
+avakill rules list
+```
+
+Shows every rule in your policy with its source:
+
+```
+Policy: avakill.yaml (67 rules, default: deny)
+┌────┬──────────────────────────────┬────────┬──────────┬───────────────┐
+│  # │ Name                         │ Action │ Source   │ Tools         │
+├────┼──────────────────────────────┼────────┼──────────┼───────────────┤
+│  1 │ block-catastrophic-shell     │ deny   │ base     │ shell_*, Ba.. │
+│  2 │ block-dangerous-shell        │ deny   │ catalog  │ shell_*, Ba.. │
+│  … │ ...                          │        │          │               │
+│ 66 │ my-custom-rule               │ deny   │ custom   │ Bash          │
+│ 67 │ log-all                      │ allow  │ system   │ *             │
+└────┴──────────────────────────────┴────────┴──────────┴───────────────┘
+  3 base · 60 catalog · 1 custom · 1 system
+```
+
+Sources: **base** (always included), **catalog** (from the rule catalog), **scan** (auto-detected sensitive files), **custom** (your hand-written rules), **system** (log-all trailer).
+
+#### Create a custom rule
+
+```bash
+avakill rules create
+```
+
+An interactive wizard that walks you through:
+
+1. **Name** — e.g. `block-internal-api`
+2. **Tools** — pick from presets (shell, file write, file read, database, all) or enter custom patterns
+3. **Action** — `deny`, `allow`, or `require_approval`
+4. **Conditions** — optional argument matching (e.g. block commands containing `curl evil.com`)
+5. **Rate limit** — optional max calls per time window
+6. **Message** — optional message shown when the rule triggers
+
+The wizard previews the rule as YAML, then appends it to your policy (before `log-all` if present) and validates.
+
+**Example: block a specific API call**
+
+```
+$ avakill rules create
+
+  Rule name: block-internal-api
+  Tools: 1 (Shell tools)
+  Action: 1 (deny)
+  Add argument matching? y
+    Argument name: command
+    Substrings to match: curl internal.corp, wget internal.corp
+    Add another condition? n
+  Add rate limiting? n
+  Message: Internal API access blocked.
+  Add this rule to avakill.yaml? y
+
+  ✓ Added "block-internal-api" to avakill.yaml
 ```
 
 ### LLM-assisted policy creation

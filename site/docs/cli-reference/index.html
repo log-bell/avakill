@@ -939,6 +939,9 @@
   <ul class="sidebar-list">
     <li><a href="#commands-by-category" class="sidebar-link">Commands by Category</a></li>
     <li><a href="#avakill-setup" class="sidebar-link">avakill setup</a></li>
+    <li><a href="#avakill-rules" class="sidebar-link">avakill rules</a></li>
+    <li><a href="#avakill-rules-list" class="sidebar-link">avakill rules list</a></li>
+    <li><a href="#avakill-rules-create" class="sidebar-link">avakill rules create</a></li>
     <li><a href="#avakill-reset" class="sidebar-link">avakill reset</a></li>
     <li><a href="#avakill-tracking" class="sidebar-link">avakill tracking</a></li>
     <li><a href="#avakill-guide" class="sidebar-link">avakill guide</a></li>
@@ -1007,7 +1010,7 @@
 </code></pre></div>
 
 <h2 id="commands-by-category">Commands by Category</h2>
-<p><strong>Tier 1 — Core:</strong> <a href="#avakill-setup">setup</a> | <a href="#avakill-reset">reset</a> | <a href="#avakill-tracking">tracking</a> | <a href="#avakill-validate">validate</a> | <a href="#avakill-evaluate">evaluate</a> | <a href="#avakill-fix">fix</a> | <a href="#avakill-hook-install">hook install</a> | <a href="#avakill-hook-uninstall">hook uninstall</a> | <a href="#avakill-hook-list">hook list</a> | <a href="#hook-binaries">Hook Binaries</a> | <a href="#avakill-shim">avakill-shim</a> | <a href="#avakill-guide">guide</a></p>
+<p><strong>Tier 1 — Core:</strong> <a href="#avakill-setup">setup</a> | <a href="#avakill-rules">rules</a> | <a href="#avakill-rules-list">rules list</a> | <a href="#avakill-rules-create">rules create</a> | <a href="#avakill-reset">reset</a> | <a href="#avakill-tracking">tracking</a> | <a href="#avakill-validate">validate</a> | <a href="#avakill-evaluate">evaluate</a> | <a href="#avakill-fix">fix</a> | <a href="#avakill-hook-install">hook install</a> | <a href="#avakill-hook-uninstall">hook uninstall</a> | <a href="#avakill-hook-list">hook list</a> | <a href="#hook-binaries">Hook Binaries</a> | <a href="#avakill-shim">avakill-shim</a> | <a href="#avakill-guide">guide</a></p>
 <p><strong>Tier 2 — Operations:</strong> <a href="#avakill-logs">logs</a> | <a href="#avakill-logs-tail">logs tail</a> | <a href="#avakill-dashboard">dashboard</a> | <a href="#avakill-daemon-start">daemon start</a> | <a href="#avakill-daemon-stop">daemon stop</a> | <a href="#avakill-daemon-status">daemon status</a> | <a href="#avakill-review">review</a> | <a href="#avakill-approve">approve</a> | <a href="#avakill-approvals-list">approvals list</a> | <a href="#avakill-approvals-grant">approvals grant</a> | <a href="#avakill-approvals-reject">approvals reject</a></p>
 <p><strong>Tier 3 — Security:</strong> <a href="#avakill-keygen">keygen</a> | <a href="#avakill-sign">sign</a> | <a href="#avakill-verify">verify</a> | <a href="#avakill-harden">harden</a> | <a href="#avakill-check-hardening">check-hardening</a></p>
 <p><strong>Tier 4 — Advanced (shipped):</strong> <a href="#avakill-schema">schema</a> | <a href="#avakill-profile-list">profile list</a> | <a href="#avakill-profile-show">profile show</a> | <a href="#avakill-compliance-report">compliance report</a> | <a href="#avakill-compliance-gaps">compliance gaps</a> | <a href="#avakill-mcp-wrap">mcp-wrap</a> | <a href="#avakill-mcp-unwrap">mcp-unwrap</a></p>
@@ -1050,6 +1053,101 @@
 </tbody>
 </table>
 <p>Non-interactive use: <code>avakill init --template hooks</code></p>
+<hr />
+<h2 id="avakill-rules">avakill rules</h2>
+<p>Manage policy rules — browse the catalog, toggle rules, or create custom ones.</p>
+<div class="codehilite"><pre><span></span><code>avakill rules
+</code></pre></div>
+
+<p>Opens an interactive catalog editor pre-populated with your current policy selections. Custom rules and scan-generated rules are preserved through edits.</p>
+<p>Requires an interactive terminal. Reads <code>avakill.yaml</code> from the current directory or <code>AVAKILL_POLICY</code> env var.</p>
+<hr />
+<h2 id="avakill-rules-list">avakill rules list</h2>
+<p>Show current rules with source classification.</p>
+<div class="codehilite"><pre><span></span><code>avakill rules list [POLICY_FILE]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POLICY_FILE</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to policy file</td>
+</tr>
+</tbody>
+</table>
+<p>Displays a table of all rules with columns: #, Name, Action, Source, Tools.</p>
+<p>Source labels: <strong>base</strong> (always-on essential rules), <strong>catalog</strong> (from the rule catalog), <strong>scan</strong> (auto-generated from file scanning), <strong>custom</strong> (user-defined), <strong>system</strong> (log-all trailer).</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># List rules in the default policy</span>
+avakill<span class="w"> </span>rules<span class="w"> </span>list
+
+<span class="c1"># List rules in a specific policy file</span>
+avakill<span class="w"> </span>rules<span class="w"> </span>list<span class="w"> </span>/etc/avakill/production.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-rules-create">avakill rules create</h2>
+<p>Interactive wizard for defining a custom rule.</p>
+<div class="codehilite"><pre><span></span><code>avakill rules create
+</code></pre></div>
+
+<p>No arguments or options. Launches a step-by-step wizard:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What it collects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Name</td>
+<td>Rule identifier (e.g. <code>block-internal-api</code>)</td>
+</tr>
+<tr>
+<td>2. Tools</td>
+<td>Tool patterns from presets or custom globs</td>
+</tr>
+<tr>
+<td>3. Action</td>
+<td><code>deny</code>, <code>allow</code>, or <code>require_approval</code></td>
+</tr>
+<tr>
+<td>4. Conditions</td>
+<td>Optional argument matching (substring patterns)</td>
+</tr>
+<tr>
+<td>5. Rate limit</td>
+<td>Optional max calls per time window</td>
+</tr>
+<tr>
+<td>6. Message</td>
+<td>Optional message shown when rule triggers</td>
+</tr>
+<tr>
+<td>7. Preview</td>
+<td>Shows rule as YAML for confirmation</td>
+</tr>
+</tbody>
+</table>
+<p>The rule is appended to <code>avakill.yaml</code> (before <code>log-all</code> if present) and validated via <code>PolicyEngine</code>.</p>
+<p>Warns if the chosen name collides with an existing catalog rule.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Create a rule interactively</span>
+avakill<span class="w"> </span>rules<span class="w"> </span>create
+
+<span class="c1"># After creation, verify your policy is still valid</span>
+avakill<span class="w"> </span>validate<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
 <hr />
 <h2 id="avakill-reset">avakill reset</h2>
 <p>Factory-reset AvaKill — reverses everything <code>avakill setup</code> does.</p>
@@ -3017,6 +3115,9 @@ avakill<span class="w"> </span>metrics<span class="w"> </span>--port<span class=
       <ul class="toc-list">
         <li><a href="#commands-by-category" class="toc-link">Commands by Category</a></li>
         <li><a href="#avakill-setup" class="toc-link">avakill setup</a></li>
+        <li><a href="#avakill-rules" class="toc-link">avakill rules</a></li>
+        <li><a href="#avakill-rules-list" class="toc-link">avakill rules list</a></li>
+        <li><a href="#avakill-rules-create" class="toc-link">avakill rules create</a></li>
         <li><a href="#avakill-reset" class="toc-link">avakill reset</a></li>
         <li><a href="#avakill-tracking" class="toc-link">avakill tracking</a></li>
         <li><a href="#avakill-guide" class="toc-link">avakill guide</a></li>

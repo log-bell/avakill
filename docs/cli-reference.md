@@ -8,7 +8,7 @@ avakill [--version] <command> [options]
 
 ## Commands by Category
 
-**Tier 1 — Core:** [setup](#avakill-setup) | [reset](#avakill-reset) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim) | [guide](#avakill-guide)
+**Tier 1 — Core:** [setup](#avakill-setup) | [rules](#avakill-rules) | [rules list](#avakill-rules-list) | [rules create](#avakill-rules-create) | [reset](#avakill-reset) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim) | [guide](#avakill-guide)
 
 **Tier 2 — Operations:** [logs](#avakill-logs) | [logs tail](#avakill-logs-tail) | [dashboard](#avakill-dashboard) | [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status) | [review](#avakill-review) | [approve](#avakill-approve) | [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
 
@@ -39,6 +39,84 @@ No arguments or options. Launches a 5-step interactive flow:
 | 5. Summary | Shows what was configured |
 
 Non-interactive use: `avakill init --template hooks`
+
+---
+
+## avakill rules
+
+Manage policy rules — browse the catalog, toggle rules, or create custom ones.
+
+```
+avakill rules
+```
+
+Opens an interactive catalog editor pre-populated with your current policy selections. Custom rules and scan-generated rules are preserved through edits.
+
+Requires an interactive terminal. Reads `avakill.yaml` from the current directory or `AVAKILL_POLICY` env var.
+
+---
+
+## avakill rules list
+
+Show current rules with source classification.
+
+```
+avakill rules list [POLICY_FILE]
+```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `POLICY_FILE` | `avakill.yaml` | Path to policy file |
+
+Displays a table of all rules with columns: #, Name, Action, Source, Tools.
+
+Source labels: **base** (always-on essential rules), **catalog** (from the rule catalog), **scan** (auto-generated from file scanning), **custom** (user-defined), **system** (log-all trailer).
+
+**Examples:**
+
+```bash
+# List rules in the default policy
+avakill rules list
+
+# List rules in a specific policy file
+avakill rules list /etc/avakill/production.yaml
+```
+
+---
+
+## avakill rules create
+
+Interactive wizard for defining a custom rule.
+
+```
+avakill rules create
+```
+
+No arguments or options. Launches a step-by-step wizard:
+
+| Step | What it collects |
+|------|-----------------|
+| 1. Name | Rule identifier (e.g. `block-internal-api`) |
+| 2. Tools | Tool patterns from presets or custom globs |
+| 3. Action | `deny`, `allow`, or `require_approval` |
+| 4. Conditions | Optional argument matching (substring patterns) |
+| 5. Rate limit | Optional max calls per time window |
+| 6. Message | Optional message shown when rule triggers |
+| 7. Preview | Shows rule as YAML for confirmation |
+
+The rule is appended to `avakill.yaml` (before `log-all` if present) and validated via `PolicyEngine`.
+
+Warns if the chosen name collides with an existing catalog rule.
+
+**Examples:**
+
+```bash
+# Create a rule interactively
+avakill rules create
+
+# After creation, verify your policy is still valid
+avakill validate avakill.yaml
+```
 
 ---
 
