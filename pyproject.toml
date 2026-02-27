@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "avakill"
-version = "0.5.1"
+version = "1.0.0"
 description = "Open-source safety firewall for AI agents. Intercept tool calls. Enforce policies. Kill dangerous operations."
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -13,7 +13,7 @@ authors = [
     { name = "Copyright 2026 AvaKill Contributors" },
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
