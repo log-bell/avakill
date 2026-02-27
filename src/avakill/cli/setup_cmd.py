@@ -4,8 +4,10 @@ Replaces init, guide, and quickstart with a single interactive flow:
   1. Detect agents
   2. Create policy
   3. Install hooks
-  4. Activity tracking
-  5. Summary
+  4. Wrap MCP configs
+  5. OS Sandbox guidance
+  6. Activity tracking
+  7. Summary
 
 Non-interactive use: avakill init --template hooks
 """
@@ -20,42 +22,52 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.text import Text
 
-_ALL_AGENTS = (
-    "claude-code",
-    "gemini-cli",
-    "cursor",
-    "windsurf",
-    "openai-codex",
+# (name, display_name, location_hint)
+_HOOK_AGENTS = (
+    ("claude-code", "Claude Code", "~/.claude/"),
+    ("gemini-cli", "Gemini CLI", "~/.gemini/"),
+    ("cursor", "Cursor", "~/.cursor/"),
+    ("windsurf", "Windsurf", "~/.codeium/windsurf/"),
+    ("openai-codex", "OpenAI Codex", "~/.codex/"),
 )
 
-_AGENT_DISPLAY: dict[str, str] = {
-    "claude-code": "Claude Code",
-    "gemini-cli": "Gemini CLI",
-    "cursor": "Cursor",
-    "windsurf": "Windsurf",
-    "openai-codex": "OpenAI Codex",
-}
+_MCP_AGENTS = (
+    ("claude-desktop", "Claude Desktop", "~/Library/Application Support/Claude/"),
+    ("cline", "Cline", ".vscode/cline_mcp_settings.json"),
+    ("continue", "Continue.dev", "~/.continue/"),
+)
 
-_AGENT_HINTS: dict[str, str] = {
-    "claude-code": "~/.claude/",
-    "gemini-cli": "~/.gemini/",
-    "cursor": "~/.cursor/",
-    "windsurf": "~/.codeium/windsurf/",
-    "openai-codex": "~/.codex/",
-}
+_SANDBOX_AGENTS = (
+    ("openclaw", "OpenClaw", "~/.openclaw/"),
+    ("aider", "Aider", "aider"),
+    ("swe-agent", "SWE-Agent", "sweagent"),
+)
+
+_ALL_AGENT_GROUPS = (
+    ("Hooks", "native agent integration", _HOOK_AGENTS),
+    ("MCP Proxy", "wrap MCP servers", _MCP_AGENTS),
+    ("OS Sandbox", "avakill launch", _SANDBOX_AGENTS),
+)
+
+# Build display name lookup from all groups
+_AGENT_DISPLAY: dict[str, str] = {}
+for _grp in (_HOOK_AGENTS, _MCP_AGENTS, _SANDBOX_AGENTS):
+    for _name, _disp, _hint in _grp:
+        _AGENT_DISPLAY[_name] = _disp
 
 
 def _detect_agent_locations() -> dict[str, str | None]:
-    """Detect agents and return {name: location_hint | None}."""
+    """Detect agents across all groups and return {name: location_hint | None}."""
     from avakill.hooks.installer import AGENT_DETECTORS
 
     results: dict[str, str | None] = {}
-    for agent in _ALL_AGENTS:
-        detector = AGENT_DETECTORS.get(agent)
-        if detector and detector():
-            results[agent] = _AGENT_HINTS.get(agent, "detected")
-        else:
-            results[agent] = None
+    for _grp in (_HOOK_AGENTS, _MCP_AGENTS, _SANDBOX_AGENTS):
+        for agent, _display, hint in _grp:
+            detector = AGENT_DETECTORS.get(agent)
+            if detector and detector():
+                results[agent] = hint
+            else:
+                results[agent] = None
     return results
 
 
@@ -71,6 +83,18 @@ def _display_config_path(agent: str) -> str:
     if display.startswith(cwd + "/"):
         return display[len(cwd) + 1 :]
     # Home-relative paths (e.g. ~/.claude/settings.json)
+    home = str(Path.home())
+    if display.startswith(home):
+        return "~" + display[len(home) :]
+    return display
+
+
+def _friendly_path(path: Path) -> str:
+    """Return a human-friendly display path (~ for home, cwd-relative)."""
+    display = str(path)
+    cwd = str(Path.cwd())
+    if display.startswith(cwd + "/"):
+        return display[len(cwd) + 1 :]
     home = str(Path.home())
     if display.startswith(home):
         return "~" + display[len(home) :]
@@ -110,10 +134,12 @@ def setup() -> None:
     if not detected:
         console.print("    [bold]No AI coding agents detected.[/bold]")
         console.print()
-        console.print("    AvaKill protects Claude Code, Gemini CLI, Cursor, Windsurf, and")
+        console.print("    AvaKill protects agents via hooks (Claude Code, Gemini CLI,")
+        console.print("    Cursor, Windsurf, Codex), MCP proxy (Claude Desktop, Cline,")
+        console.print("    Continue), and OS sandbox (OpenClaw, Aider, SWE-Agent).")
+        console.print()
         console.print(
-            "    OpenAI Codex. Install one of these agents, then run"
-            " [bold cyan]avakill setup[/bold cyan] again."
+            "    Install a supported agent, then run [bold cyan]avakill setup[/bold cyan] again."
         )
         console.print()
         console.print(
@@ -122,19 +148,30 @@ def setup() -> None:
         console.print()
         return
 
-    # Show detection results
+    # Show detection results grouped by protection path
     console.print("    [bold]Agents found:[/bold]")
-    for agent in _ALL_AGENTS:
-        display = _AGENT_DISPLAY[agent]
-        location = agent_status[agent]
-        line = Text()
-        if location is not None:
-            line.append(f"      \u2713 {display:<18s}", style="green")
-            line.append(location, style="#6B7280")
-        else:
-            line.append(f"      \u00b7 {display:<18s}", style="#6B7280")
-            line.append("not detected", style="#6B7280")
-        console.print(line)
+    console.print()
+
+    detected_mcp: list[str] = []
+    detected_sandbox: list[str] = []
+
+    for group_label, group_desc, agents in _ALL_AGENT_GROUPS:
+        console.print(f"      [bold]{group_label}[/bold] [dim]({group_desc}):[/dim]")
+        for agent, display, _hint in agents:
+            location = agent_status.get(agent)
+            line = Text()
+            if location is not None:
+                line.append(f"        \u2713 {display:<18s}", style="green")
+                line.append(location, style="#6B7280")
+                if agents is _MCP_AGENTS:
+                    detected_mcp.append(agent)
+                elif agents is _SANDBOX_AGENTS:
+                    detected_sandbox.append(agent)
+            else:
+                line.append(f"        \u00b7 {display:<18s}", style="#6B7280")
+                line.append("not detected", style="#6B7280")
+            console.print(line)
+        console.print()
 
     # ------------------------------------------------------------------
     # Phase 2: Policy
@@ -163,78 +200,164 @@ def setup() -> None:
         selected_rules = _create_policy(console, policy_path)
 
     # ------------------------------------------------------------------
-    # Phase 3: Hooks
+    # Phase 3: Hooks (only for hook-capable agents)
     # ------------------------------------------------------------------
-    console.print()
-    console.print("  [bold]Install hooks for your detected agents?[/bold]")
-    console.print()
-    console.print("    This adds AvaKill as a pre-tool-use check. Your agents will work")
-    console.print("    normally \u2014 AvaKill only intervenes when a tool call matches a")
-    console.print("    block rule.")
-    console.print()
-
-    # Show exactly which files will be modified
-    for agent in detected:
-        display = _AGENT_DISPLAY[agent]
-        cfg_path = _display_config_path(agent)
-        console.print(
-            f"    \u2022 {display:<16s}\u2192 {cfg_path}",
-            style="dim",
-        )
-
-    console.print()
-    confirm = Prompt.ask(
-        "  Install?",
-        choices=["y", "n"],
-        default="y",
-        console=console,
-    )
+    hook_agent_names = {name for name, _, _ in _HOOK_AGENTS}
+    detected_hook_agents = [a for a in detected if a in hook_agent_names]
 
     hooks_installed: list[str] = []
     hooks_ok = True
-    if confirm == "y":
-        console.print()
-        from avakill.hooks.installer import install_hook
 
-        for agent in detected:
-            display = _AGENT_DISPLAY[agent]
-            try:
-                result = install_hook(agent)
-                if result.smoke_test_passed is False:
-                    console.print(
-                        f"    [yellow]\u26a0[/yellow] {display}"
-                        "    [yellow]hook installed"
-                        " (smoke test FAILED)[/yellow]"
-                    )
-                    console.print(f"      {result.command} not found on PATH.")
-                    console.print("      Run: [cyan]pipx ensurepath && exec $SHELL[/cyan]")
-                    hooks_installed.append(agent)
-                    hooks_ok = False
-                else:
-                    console.print(
-                        f"    [green]\u2713[/green] {display}"
-                        "    hook installed"
-                        " [dim](smoke test passed)[/dim]"
-                    )
-                    hooks_installed.append(agent)
-                for w in result.warnings:
-                    console.print(f"      [yellow]Warning:[/yellow] {w}")
-            except Exception as exc:
-                console.print(f"    [red]\u2717[/red] {display}  [red]{exc}[/red]")
-                hooks_ok = False
-    else:
+    if detected_hook_agents:
         console.print()
-        console.print("    [dim]\u00b7 Hook installation skipped.[/dim]")
-        console.print("      You can install later: [cyan]avakill hook install --agent all[/cyan]")
+        console.print("  [bold]Install hooks for your detected agents?[/bold]")
+        console.print()
+        console.print("    This adds AvaKill as a pre-tool-use check. Your agents will work")
+        console.print("    normally \u2014 AvaKill only intervenes when a tool call matches a")
+        console.print("    block rule.")
+        console.print()
+
+        # Show exactly which files will be modified
+        for agent in detected_hook_agents:
+            display = _AGENT_DISPLAY[agent]
+            cfg_path = _display_config_path(agent)
+            console.print(
+                f"    \u2022 {display:<16s}\u2192 {cfg_path}",
+                style="dim",
+            )
+
+        console.print()
+        confirm = Prompt.ask(
+            "  Install?",
+            choices=["y", "n"],
+            default="y",
+            console=console,
+        )
+
+        if confirm == "y":
+            console.print()
+            from avakill.hooks.installer import install_hook
+
+            for agent in detected_hook_agents:
+                display = _AGENT_DISPLAY[agent]
+                try:
+                    result = install_hook(agent)
+                    if result.smoke_test_passed is False:
+                        console.print(
+                            f"    [yellow]\u26a0[/yellow] {display}"
+                            "    [yellow]hook installed"
+                            " (smoke test FAILED)[/yellow]"
+                        )
+                        console.print(f"      {result.command} not found on PATH.")
+                        console.print("      Run: [cyan]pipx ensurepath && exec $SHELL[/cyan]")
+                        hooks_installed.append(agent)
+                        hooks_ok = False
+                    else:
+                        console.print(
+                            f"    [green]\u2713[/green] {display}"
+                            "    hook installed"
+                            " [dim](smoke test passed)[/dim]"
+                        )
+                        hooks_installed.append(agent)
+                    for w in result.warnings:
+                        console.print(f"      [yellow]Warning:[/yellow] {w}")
+                except Exception as exc:
+                    console.print(f"    [red]\u2717[/red] {display}  [red]{exc}[/red]")
+                    hooks_ok = False
+        else:
+            console.print()
+            console.print("    [dim]\u00b7 Hook installation skipped.[/dim]")
+            console.print(
+                "      You can install later: [cyan]avakill hook install --agent all[/cyan]"
+            )
 
     # ------------------------------------------------------------------
-    # Phase 4: Activity tracking
+    # Phase 4: MCP Proxy wrapping (only for MCP-capable agents)
+    # ------------------------------------------------------------------
+    mcp_wrapped: list[str] = []
+
+    if detected_mcp:
+        console.print()
+        console.print("  [bold]Wrap MCP servers for your detected agents?[/bold]")
+        console.print()
+        console.print("    This intercepts all MCP server traffic through AvaKill's proxy.")
+        console.print("    Your MCP servers work normally \u2014 AvaKill scans requests and")
+        console.print("    responses for policy violations.")
+        console.print()
+
+        from avakill.mcp.config import discover_mcp_configs, is_already_wrapped
+
+        mcp_configs: list = []
+        for agent in detected_mcp:
+            configs = discover_mcp_configs(agent=agent)
+            for cfg in configs:
+                unwrapped = [s for s in cfg.servers if not is_already_wrapped(s)]
+                if unwrapped:
+                    mcp_configs.append((agent, cfg, unwrapped))
+                    display = _AGENT_DISPLAY[agent]
+                    cfg_display = _friendly_path(cfg.config_path)
+                    count = len(unwrapped)
+                    console.print(
+                        f"    \u2022 {display:<16s}\u2192 {cfg_display}"
+                        f" ({count} server{'s' if count != 1 else ''})",
+                        style="dim",
+                    )
+                else:
+                    display = _AGENT_DISPLAY[agent]
+                    console.print(
+                        f"    [green]\u2713[/green] {display}    [dim]already wrapped[/dim]",
+                    )
+                    mcp_wrapped.append(agent)
+
+        if mcp_configs:
+            console.print()
+            confirm_mcp = Prompt.ask(
+                "  Install?",
+                choices=["y", "n"],
+                default="y",
+                console=console,
+            )
+
+            if confirm_mcp == "y":
+                console.print()
+                from avakill.mcp.wrapper import wrap_mcp_config, write_mcp_config
+
+                for agent, cfg, _unwrapped in mcp_configs:
+                    display = _AGENT_DISPLAY[agent]
+                    try:
+                        wrapped = wrap_mcp_config(cfg, policy=str(policy_path.resolve()))
+                        write_mcp_config(wrapped)
+                        console.print(f"    [green]\u2713[/green] {display}    MCP servers wrapped")
+                        mcp_wrapped.append(agent)
+                    except Exception as exc:
+                        console.print(f"    [red]\u2717[/red] {display}  [red]{exc}[/red]")
+            else:
+                console.print()
+                console.print("    [dim]\u00b7 MCP wrapping skipped.[/dim]")
+                console.print("      You can wrap later: [cyan]avakill mcp-wrap --agent all[/cyan]")
+
+    # ------------------------------------------------------------------
+    # Phase 5: OS Sandbox guidance
+    # ------------------------------------------------------------------
+    if detected_sandbox:
+        console.print()
+        console.print("  [bold]OS Sandbox agents detected[/bold]")
+        console.print()
+        console.print("    These agents are protected by running them through AvaKill's")
+        console.print("    OS-level sandbox. No config changes needed \u2014 just launch with:")
+        console.print()
+        for agent in detected_sandbox:
+            display = _AGENT_DISPLAY[agent]
+            console.print(f"    \u2022 {display:<16s}[cyan]avakill launch --agent {agent}[/cyan]")
+
+    # ------------------------------------------------------------------
+    # Phase 6: Activity tracking
     # ------------------------------------------------------------------
     console.print()
     tracking_enabled = _offer_tracking(console, policy_path)
 
     # ------------------------------------------------------------------
-    # Phase 5: Verify + Summary
+    # Phase 7: Verify + Summary
     # ------------------------------------------------------------------
     console.print()
     _verify_policy(console, policy_path)
@@ -258,6 +381,9 @@ def setup() -> None:
         hooks_installed=hooks_installed,
         all_ok=hooks_ok,
         selected_rules=selected_rules,
+        detected_mcp=detected_mcp,
+        detected_sandbox=detected_sandbox,
+        mcp_wrapped=mcp_wrapped,
     )
 
 
@@ -333,6 +459,9 @@ def _print_summary(
     hooks_installed: list[str],
     all_ok: bool,
     selected_rules: list[str] | None = None,
+    detected_mcp: list[str] | None = None,
+    detected_sandbox: list[str] | None = None,
+    mcp_wrapped: list[str] | None = None,
 ) -> None:
     """Print the final setup summary."""
     sep = "\u2500" * min(53, console.width - 4)
@@ -374,10 +503,38 @@ def _print_summary(
 
     # Hooks line
     if hooks_installed:
-        names = ", ".join(hooks_installed)
+        names = ", ".join(_AGENT_DISPLAY.get(a, a) for a in hooks_installed)
         console.print(f"    Hooks:      {names}")
     else:
         console.print("    Hooks:      [dim]none installed[/dim]")
+
+    # MCP line
+    _mcp_wrapped_set = set(mcp_wrapped or [])
+    if detected_mcp or mcp_wrapped:
+        wrapped_names = []
+        unwrapped_agents = []
+        for agent in detected_mcp or []:
+            if agent in _mcp_wrapped_set:
+                wrapped_names.append(_AGENT_DISPLAY.get(agent, agent))
+            else:
+                unwrapped_agents.append(agent)
+        if wrapped_names:
+            console.print(f"    MCP:        {', '.join(wrapped_names)}")
+        for agent in unwrapped_agents:
+            display = _AGENT_DISPLAY.get(agent, agent)
+            console.print(
+                f"    MCP:        {display}"
+                f" [dim](protect with: avakill mcp-wrap --agent {agent})[/dim]"
+            )
+
+    # Sandbox line
+    if detected_sandbox:
+        for agent in detected_sandbox:
+            display = _AGENT_DISPLAY.get(agent, agent)
+            console.print(
+                f"    Sandbox:    {display}"
+                f" [dim](protect with: avakill launch --agent {agent})[/dim]"
+            )
 
     # Action items
     console.print()
