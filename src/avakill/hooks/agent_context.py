@@ -69,7 +69,7 @@ policies:
 - `avakill validate {policy_path}` — check policy syntax
 - `avakill dashboard` — real-time monitoring
 - `avakill schema --format=prompt` — generate a full policy-writing prompt
-- `avakill guide policy` — interactive policy creation wizard
+- `avakill setup` — interactive setup wizard
 
 ### Rules
 

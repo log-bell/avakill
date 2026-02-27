@@ -962,7 +962,7 @@
     <li><a href="#test-tool-calls-from-the-cli" class="sidebar-link sidebar-link--sub">Test tool calls from the CLI</a></li>
     <li><a href="#going-further" class="sidebar-link">Going Further</a></li>
     <li><a href="#os-sandboxing" class="sidebar-link sidebar-link--sub">OS sandboxing</a></li>
-    <li><a href="#interactive-guide" class="sidebar-link sidebar-link--sub">Interactive guide</a></li>
+    <li><a href="#whats-next" class="sidebar-link sidebar-link--sub">What's next</a></li>
     <li><a href="#reference" class="sidebar-link sidebar-link--sub">Reference</a></li>
   </ul>
 </div>
@@ -1356,13 +1356,13 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 <span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
 <span class="nt">default_action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 
-<span class="nt">rules</span><span class="p">:</span>
+<span class="nt">policies</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-search</span>
-<span class="w">    </span><span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*_search&quot;</span>
+<span class="w">    </span><span class="nt">tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;*_search&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-get</span>
-<span class="w">    </span><span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;get_*&quot;</span>
+<span class="w">    </span><span class="nt">tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;get_*&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
 </code></pre></div>
 
@@ -1570,7 +1570,7 @@ avakill<span class="w"> </span>logs<span class="w"> </span>tail<span class="w"> 
 <p>Exit codes: <code>0</code> = allowed, <code>2</code> = denied, <code>1</code> = error.</p>
 <p>For the full set of options, see the <a href="/docs/cli-reference/">CLI Reference</a> (<code>avakill logs</code>, <code>avakill evaluate</code>). For writing and tuning rules, see the <a href="/docs/policy-reference/">Policy Reference</a>.</p>
 <h2 id="going-further">Going Further</h2>
-<p>You now have a working policy, hooks that enforce it, and visibility into what's happening. This section covers two ways to go deeper: OS-level sandboxing for defense in depth, and the interactive guide for advanced topics like signing, compliance, and MCP wrapping.</p>
+<p>You now have a working policy, hooks that enforce it, and visibility into what's happening.</p>
 <h3 id="os-sandboxing">OS sandboxing</h3>
 <p>Hooks enforce your policy at the tool-call level — they intercept and block before the tool runs. OS sandboxing adds a second layer underneath: it restricts what the agent process itself can do at the operating-system level (filesystem access, network, process creation). Even if a tool call slips past policy, the sandbox catches it.</p>
 <p>AvaKill ships sandbox profiles for Linux (Landlock), macOS (sandbox-exec), and Windows (AppContainer). Each profile defines what an agent is allowed to touch:</p>
@@ -1580,18 +1580,15 @@ avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class=
 avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>aider<span class="w">   </span><span class="c1"># Launch with OS sandbox</span>
 </code></pre></div>
 
-<h3 id="interactive-guide">Interactive guide</h3>
-<p>The <code>avakill guide</code> command launches a menu-driven TUI that walks you through advanced setup topics:</p>
+<h3 id="whats-next">What's next</h3>
+<p>Run <code>avakill --help</code> to see all available commands grouped by category. For advanced topics:</p>
 <ul>
-<li><strong>Signing &amp; verification</strong> — sign policies with Ed25519 or HMAC so tampering is detected</li>
-<li><strong>Compliance frameworks</strong> — generate SOC 2, NIST AI RMF, EU AI Act, and ISO 42001 reports</li>
-<li><strong>MCP proxy wrapping</strong> — route MCP servers through AvaKill so every tool call is evaluated</li>
-<li><strong>Approval workflows</strong> — require human sign-off before sensitive operations execute</li>
-<li><strong>Daemon configuration</strong> — persistent evaluation, audit logging, and shared state</li>
+<li><strong>Signing &amp; verification</strong> — <code>avakill keygen</code>, <code>avakill sign</code>, <code>avakill verify</code></li>
+<li><strong>Compliance frameworks</strong> — <code>avakill compliance report</code>, <code>avakill compliance gaps</code></li>
+<li><strong>MCP proxy wrapping</strong> — <code>avakill mcp-wrap</code></li>
+<li><strong>Approval workflows</strong> — <code>avakill approvals</code></li>
+<li><strong>Daemon configuration</strong> — <code>avakill daemon start</code></li>
 </ul>
-<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>guide
-</code></pre></div>
-
 <h3 id="reference">Reference</h3>
 <ul>
 <li><strong><a href="/docs/policy-reference/">Policy Reference</a></strong> -- YAML format, conditions, rate limiting, examples</li>

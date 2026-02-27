@@ -17,7 +17,6 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "enforce": ("avakill.cli.enforce_cmd", "enforce"),
     "evaluate": ("avakill.cli.evaluate_cmd", "evaluate"),
     "fix": ("avakill.cli.fix_cmd", "fix"),
-    "guide": ("avakill.cli.guide_cmd", "guide"),
     "harden": ("avakill.cli.harden_cmd", "harden"),
     "hook": ("avakill.cli.hook_cmd", "hook"),
     "launch": ("avakill.cli.launch_cmd", "launch"),
@@ -40,14 +39,11 @@ _COMMANDS: dict[str, tuple[str, str]] = {
 }
 
 _COMMAND_GROUPS: list[tuple[str, list[str]]] = [
-    ("Getting Started", ["setup", "rules", "validate", "dashboard", "reset"]),
-    (
-        "Integrations",
-        ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "hook", "evaluate", "launch", "profile"],
-    ),
+    ("Getting Started", ["setup", "rules", "validate", "evaluate", "fix", "dashboard", "reset"]),
+    ("Integrations", ["hook", "mcp-wrap", "mcp-unwrap", "launch", "profile"]),
     ("Security", ["sign", "verify", "keygen", "harden", "check-hardening", "review", "approve"]),
-    ("Daemon Integration", ["daemon", "tracking", "logs", "fix", "approvals", "metrics"]),
-    ("Advanced", ["enforce", "compliance", "schema", "guide"]),
+    ("Operations", ["daemon", "tracking", "logs", "approvals", "metrics"]),
+    ("Advanced", ["enforce", "compliance", "schema", "mcp-proxy"]),
 ]
 
 

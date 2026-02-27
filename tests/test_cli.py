@@ -89,7 +89,7 @@ class TestCLIBasics:
         assert result.exit_code == 0
         assert "AvaKill" in result.output
         assert "approve" in result.output
-        assert "guide" in result.output
+        assert "setup" in result.output
         assert "dashboard" in result.output
         assert "logs" in result.output
         assert "mcp-proxy" in result.output

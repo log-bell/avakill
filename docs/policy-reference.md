@@ -215,6 +215,8 @@ These are the built-in mappings from each agent's native tool names to canonical
 | `openai-codex` | `read_file` | `file_read` |
 | `openai-codex` | `list_dir` | `file_list` |
 | `openai-codex` | `grep_files` | `content_search` |
+| `cursor` | `shell_command` | `shell_execute` |
+| `cursor` | `read_file` | `file_read` |
 
 MCP tools (prefixed with `mcp__` or `mcp:`) pass through unchanged and are never normalized.
 
@@ -505,6 +507,39 @@ conditions:
   path_not_match:
     file_path: ["__workspace__"]
   workspace: "/home/user/myproject"
+```
+
+### `content_scan`
+
+The `content_scan` condition scans all string argument values for dangerous content. Specify one or more scanner types:
+
+| Scanner | Detects |
+|---------|---------|
+| `"secrets"` | API keys, tokens, credentials, private keys |
+| `"prompt_injection"` | Prompt injection and jailbreak attempts |
+
+```yaml
+conditions:
+  content_scan: ["secrets"]
+```
+
+If any scanner finds a match in any argument value, the condition is satisfied and the rule matches. Use this with a deny action to block tool calls that leak secrets or contain injection attempts:
+
+```yaml
+policies:
+  - name: block-secret-leaks
+    tools: ["shell_execute", "Bash", "web_fetch"]
+    action: deny
+    conditions:
+      content_scan: ["secrets"]
+    message: "Blocked: argument contains a secret or credential."
+
+  - name: block-prompt-injection
+    tools: ["*"]
+    action: deny
+    conditions:
+      content_scan: ["prompt_injection"]
+    message: "Blocked: prompt injection detected in arguments."
 ```
 
 ### Combining `args_match` and `path_match`
@@ -1006,7 +1041,7 @@ avakill verify avakill.yaml
 
 ### Starting from a template
 
-AvaKill ships four policy templates. Use `avakill guide` to generate one interactively, or copy from `src/avakill/templates/`:
+AvaKill ships four policy templates. Use `avakill setup` to generate one interactively, or copy from `src/avakill/templates/`:
 
 | Template | `default_action` | Description |
 |----------|-------------------|-------------|

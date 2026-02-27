@@ -73,33 +73,24 @@ pip install -e ".[dev]"
 
 ## Getting Started
 
-### Interactive setup with `avakill guide`
+### Interactive setup with `avakill setup`
 
 The recommended way to get started:
 
 ```bash
 pipx install avakill
-avakill guide
+avakill setup
 ```
 
-`avakill guide` opens a 7-section interactive TUI menu:
-
-| # | Section | What it covers |
-|---|---------|----------------|
-| 1 | Set up AvaKill | Detect agents, select template, generate policy, install hooks |
-| 2 | Policies | Writing, validating, testing policies |
-| 3 | Hooks & Agents | Install hooks, agent profiles, self-protection |
-| 4 | Signing & Hardening | Sign/verify policies, immutable flags |
-| 5 | Monitoring | Dashboard, logs, fix |
-| 6 | Advanced | Compliance, approvals, MCP wrapping, daemon, schema |
-| 7 | Quick Reference | All commands at a glance |
-
-Selecting "Set up AvaKill" walks you through:
+`avakill setup` walks you through a 5-step interactive flow:
 
 1. Detects installed agents (claude-code, gemini-cli, cursor, windsurf, openai-codex)
-2. Prompts for a template (hooks, default, strict, permissive)
-3. Copies the template to `avakill.yaml` and validates it
-4. Offers to install hooks for every detected agent
+2. Creates a policy (`avakill.yaml`) from the `hooks` template
+3. Installs hooks for detected agents
+4. Optionally enables activity tracking
+5. Shows a summary of what was configured
+
+Run `avakill --help` to see all available commands grouped by category.
 
 ### Non-interactive alternative
 
@@ -778,7 +769,6 @@ await proxy.run()
 
 | Command | Description |
 |---------|-------------|
-| `avakill guide` | Interactive TUI — setup, learning, reference |
 | `avakill validate [POLICY_FILE]` | Validate a policy file for correctness. Exits 0 if valid, 1 if invalid. |
 | `avakill evaluate --agent AGENT [--policy FILE] [--json]` | Evaluate a tool call (JSON on stdin) against policy. Exit 0=allow, 2=deny, 1=error. |
 | `avakill fix [--last] [--all] [--db PATH] [--json]` | Show recovery steps for recent denials with YAML snippets. |
@@ -1270,7 +1260,7 @@ avakill approvals reject REQUEST_ID --approver admin
 pipx install avakill
 
 # Interactive setup (detects agents, generates policy, installs hooks)
-avakill guide
+avakill setup
 
 # Or manual setup:
 avakill init --template default

@@ -405,13 +405,13 @@ Here's a minimal policy the examples below depend on:
 version: "1"
 default_action: deny
 
-rules:
+policies:
   - name: allow-search
-    pattern: "*_search"
+    tools: ["*_search"]
     action: allow
 
   - name: allow-get
-    pattern: "get_*"
+    tools: ["get_*"]
     action: allow
 ```
 
@@ -642,7 +642,7 @@ For the full set of options, see the [CLI Reference](cli-reference.md) (`avakill
 
 ## Going Further
 
-You now have a working policy, hooks that enforce it, and visibility into what's happening. This section covers two ways to go deeper: OS-level sandboxing for defense in depth, and the interactive guide for advanced topics like signing, compliance, and MCP wrapping.
+You now have a working policy, hooks that enforce it, and visibility into what's happening.
 
 ### OS sandboxing
 
@@ -657,19 +657,15 @@ avakill launch --agent aider --dry-run                        # Test sandbox res
 avakill launch --agent aider --policy avakill.yaml -- aider   # Launch with OS sandbox
 ```
 
-### Interactive guide
+### What's next
 
-The `avakill guide` command launches a menu-driven TUI that walks you through advanced setup topics:
+Run `avakill --help` to see all available commands grouped by category. For advanced topics:
 
-- **Signing & verification** — sign policies with Ed25519 or HMAC so tampering is detected
-- **Compliance frameworks** — generate SOC 2, NIST AI RMF, EU AI Act, and ISO 42001 reports
-- **MCP proxy wrapping** — route MCP servers through AvaKill so every tool call is evaluated
-- **Approval workflows** — require human sign-off before sensitive operations execute
-- **Daemon configuration** — persistent evaluation, audit logging, and shared state
-
-```bash
-avakill guide
-```
+- **Signing & verification** — `avakill keygen`, `avakill sign`, `avakill verify`
+- **Compliance frameworks** — `avakill compliance report`, `avakill compliance gaps`
+- **MCP proxy wrapping** — `avakill mcp-wrap`
+- **Approval workflows** — `avakill approvals`
+- **Daemon configuration** — `avakill daemon start`
 
 ### Reference
 

@@ -960,6 +960,7 @@
     <li><a href="#path_match" class="sidebar-link sidebar-link--sub">path_match</a></li>
     <li><a href="#path_not_match" class="sidebar-link sidebar-link--sub">path_not_match</a></li>
     <li><a href="#workspace" class="sidebar-link sidebar-link--sub">workspace</a></li>
+    <li><a href="#content_scan" class="sidebar-link sidebar-link--sub">content_scan</a></li>
     <li><a href="#combining-args_match-and-path_match" class="sidebar-link sidebar-link--sub">Combining args_match and path_match</a></li>
     <li><a href="#rate-limiting" class="sidebar-link">Rate Limiting</a></li>
     <li><a href="#window-syntax" class="sidebar-link sidebar-link--sub">Window syntax</a></li>
@@ -1498,6 +1499,16 @@
 <td><code>grep_files</code></td>
 <td><code>content_search</code></td>
 </tr>
+<tr>
+<td><code>cursor</code></td>
+<td><code>shell_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td><code>read_file</code></td>
+<td><code>file_read</code></td>
+</tr>
 </tbody>
 </table>
 <p>MCP tools (prefixed with <code>mcp__</code> or <code>mcp:</code>) pass through unchanged and are never normalized.</p>
@@ -1797,6 +1808,47 @@
 <span class="w">  </span><span class="nt">path_not_match</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">file_path</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;__workspace__&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="nt">workspace</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/home/user/myproject&quot;</span>
+</code></pre></div>
+
+<h3 id="content_scan"><code>content_scan</code></h3>
+<p>The <code>content_scan</code> condition scans all string argument values for dangerous content. Specify one or more scanner types:</p>
+<table>
+<thead>
+<tr>
+<th>Scanner</th>
+<th>Detects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"secrets"</code></td>
+<td>API keys, tokens, credentials, private keys</td>
+</tr>
+<tr>
+<td><code>"prompt_injection"</code></td>
+<td>Prompt injection and jailbreak attempts</td>
+</tr>
+</tbody>
+</table>
+<div class="codehilite"><pre><span></span><code><span class="nt">conditions</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">content_scan</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;secrets&quot;</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+
+<p>If any scanner finds a match in any argument value, the condition is satisfied and the rule matches. Use this with a deny action to block tool calls that leak secrets or contain injection attempts:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">policies</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">block-secret-leaks</span>
+<span class="w">    </span><span class="nt">tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;shell_execute&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Bash&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;web_fetch&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<span class="w">    </span><span class="nt">conditions</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">content_scan</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;secrets&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Blocked:</span><span class="nv"> </span><span class="s">argument</span><span class="nv"> </span><span class="s">contains</span><span class="nv"> </span><span class="s">a</span><span class="nv"> </span><span class="s">secret</span><span class="nv"> </span><span class="s">or</span><span class="nv"> </span><span class="s">credential.&quot;</span>
+
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">block-prompt-injection</span>
+<span class="w">    </span><span class="nt">tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;*&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<span class="w">    </span><span class="nt">conditions</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">content_scan</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;prompt_injection&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Blocked:</span><span class="nv"> </span><span class="s">prompt</span><span class="nv"> </span><span class="s">injection</span><span class="nv"> </span><span class="s">detected</span><span class="nv"> </span><span class="s">in</span><span class="nv"> </span><span class="s">arguments.&quot;</span>
 </code></pre></div>
 
 <h3 id="combining-args_match-and-path_match">Combining <code>args_match</code> and <code>path_match</code></h3>
@@ -2336,7 +2388,7 @@ avakill<span class="w"> </span>verify<span class="w"> </span>avakill.yaml
 </code></pre></div>
 
 <h3 id="starting-from-a-template">Starting from a template</h3>
-<p>AvaKill ships four policy templates. Use <code>avakill guide</code> to generate one interactively, or copy from <code>src/avakill/templates/</code>:</p>
+<p>AvaKill ships four policy templates. Use <code>avakill setup</code> to generate one interactively, or copy from <code>src/avakill/templates/</code>:</p>
 <table>
 <thead>
 <tr>

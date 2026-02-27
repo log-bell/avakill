@@ -1287,6 +1287,28 @@
       justify-content: center;
     }
 
+    .sponsor-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      background: var(--surface-elevated);
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      text-decoration: none;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .sponsor-btn:hover {
+      background: rgba(0, 212, 255, 0.08);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+    }
+
     @media (max-width: 768px) {
       .sponsor-section {
         padding: 60px 16px 72px;
@@ -1294,10 +1316,6 @@
 
       .sponsor-card {
         padding: 40px 24px;
-      }
-
-      .sponsor-embed iframe {
-        width: 100%;
       }
     }
 
@@ -1860,13 +1878,13 @@
     <p class="hero-tagline">The AI Safety Firewall.</p>
 
     <div class="hero-desc">
-      <p>Intercepts agent tool calls in real-time. Blocks destructive operations before they execute. Protects your databases, files, and infrastructure from rogue AI.</p>
-      <p>Native hooks for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex. One YAML policy protects every agent.</p>
+      <p>One YAML policy. Three independent enforcement paths. Every agent protected. Each path works standalone &mdash; no daemon required, no single point of failure.</p>
+      <p>Native hooks for Claude Code, Cursor, Windsurf, Gemini CLI, and Codex. MCP proxy for tool servers. OS-level sandboxing. &lt;1ms overhead.</p>
     </div>
 
     <a href="https://pypi.org/project/avakill/" class="hero-pill">
       <span class="badge">New</span>
-      <span class="pill-text">AvaKill v0.5.1 — Hooks for 4 Agents</span>
+      <span class="pill-text">AvaKill v0.5.1 — Hooks for 5 Agents</span>
       <span class="arrow">&rarr;</span>
     </a>
   </section>
@@ -1900,7 +1918,7 @@
         </div>
         <div class="terminal-code">
           <div class="terminal-comment"># Install AvaKill and set up hooks for your agents.</div>
-          <div><span class="terminal-prompt">$ </span><span class="terminal-command" id="terminal-cmd">pipx install avakill &amp;&amp; avakill guide</span></div>
+          <div><span class="terminal-prompt">$ </span><span class="terminal-command" id="terminal-cmd">pipx install avakill &amp;&amp; avakill setup</span></div>
           <button class="terminal-copy" id="copy-btn" aria-label="Copy to clipboard">
             <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span class="tooltip" id="copy-tooltip">Copied!</span>
@@ -1914,49 +1932,17 @@
   <!-- What It Does Section -->
   <section class="features" id="features-section">
     <div class="section-header">
-      <h2 class="section-title"><span class="chevron">&rsaquo;</span>What It Does</h2>
+      <h2 class="section-title"><span class="chevron">&rsaquo;</span>How It Works</h2>
     </div>
 
     <div class="features-grid">
 
       <div class="feature-card">
         <div class="feature-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
-        <h3 class="feature-title">Tool-Call Interception</h3>
-        <p class="feature-desc">Intercepts every tool call between your AI agent and its tools. Blocks destructive operations before they execute &mdash; not after.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        </div>
-        <h3 class="feature-title">Sub-Millisecond Latency</h3>
-        <p class="feature-desc">Pure rule evaluation, no ML models. Adds &lt;1ms overhead to tool calls that already take 500ms&ndash;5s. Your agents won&rsquo;t even notice.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
-        <h3 class="feature-title">YAML Policies</h3>
-        <p class="feature-desc">Simple, readable safety rules anyone can write. Deny-by-default, allow lists, rate limits, argument pattern matching. Version-controlled security.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/><line x1="11" y1="6.5" x2="13" y2="6.5"/><line x1="6.5" y1="11" x2="6.5" y2="13"/><line x1="17.5" y1="11" x2="17.5" y2="13"/></svg>
-        </div>
-        <h3 class="feature-title">Framework Agnostic</h3>
-        <p class="feature-desc">OpenAI, Anthropic, LangChain, LangGraph, MCP. Drop-in wrappers for major frameworks, plus a decorator for any Python function.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
-        </div>
-        <h3 class="feature-title">Complete Audit Trail</h3>
-        <p class="feature-desc">Every tool call logged with decision, policy, latency, and full arguments. SQLite storage, CLI queries, JSON export. Built-in analytics.</p>
+        <h3 class="feature-title">One Policy File</h3>
+        <p class="feature-desc">avakill.yaml is the single source of truth. Deny-by-default, allow lists, rate limits, argument pattern matching. Version-controlled security for every agent.</p>
       </div>
 
       <div class="feature-card">
@@ -1964,7 +1950,39 @@
           <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
         <h3 class="feature-title">Native Agent Hooks</h3>
-        <p class="feature-desc">Drop-in hooks for Claude Code, Gemini CLI, Windsurf, and OpenAI Codex. One command to install &mdash; no code changes to your agent.</p>
+        <p class="feature-desc">Drop-in hooks for Claude Code, Cursor, Windsurf, Gemini CLI, and Codex. One command to install. Works standalone, evaluates in-process &mdash; no daemon required.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/><line x1="11" y1="6.5" x2="13" y2="6.5"/><line x1="6.5" y1="11" x2="6.5" y2="13"/><line x1="17.5" y1="11" x2="17.5" y2="13"/></svg>
+        </div>
+        <h3 class="feature-title">MCP Proxy</h3>
+        <p class="feature-desc">Wraps any MCP server with policy enforcement. Scans tool responses for secrets, PII, and prompt injection. Works standalone, evaluates in-process.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3 class="feature-title">OS Sandbox</h3>
+        <p class="feature-desc">Launch agents in OS-level sandboxes. Landlock on Linux, sandbox-exec on macOS, Tetragon for Kubernetes, AppContainer on Windows. Enforce at the kernel.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h3 class="feature-title">Sub-Millisecond</h3>
+        <p class="feature-desc">Pure rule evaluation, no ML models. Adds &lt;1ms overhead to tool calls that already take 500ms&ndash;5s. Three enforcement paths, zero bottlenecks.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
+        </div>
+        <h3 class="feature-title">Optional Daemon</h3>
+        <p class="feature-desc">Shared evaluation, audit logging, and visibility tooling. Hooks and proxy can talk to it when running. Enables logs, tracking, approvals, and metrics.</p>
       </div>
 
     </div>
@@ -1981,9 +1999,10 @@
       <div class="integrations-row-label">Native Agent Hooks</div>
       <div class="integrations-row">
         <span class="integration-pill"><span class="integration-dot" style="background: #D97757;"></span>Claude Code</span>
-        <span class="integration-pill"><span class="integration-dot" style="background: #4285F4;"></span>Gemini CLI</span>
+        <span class="integration-pill"><span class="integration-dot" style="background: #6366F1;"></span>Cursor</span>
         <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>Windsurf</span>
-        <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>OpenAI Codex</span>
+        <span class="integration-pill"><span class="integration-dot" style="background: #4285F4;"></span>Gemini CLI</span>
+        <span class="integration-pill"><span class="integration-dot" style="background: #22C55E;"></span>Codex</span>
       </div>
 
       <!-- Row 1: Python SDK -->
@@ -2109,7 +2128,10 @@
       <h2 class="sponsor-title"><span class="chevron">&rsaquo;</span>Support AvaKill</h2>
       <p class="sponsor-desc">AvaKill is free and open source. If it's protecting your agents and infrastructure, consider sponsoring the project. Your support helps us maintain, improve, and keep it independent.</p>
       <div class="sponsor-embed">
-        <iframe src="https://github.com/sponsors/log-bell/card" title="Sponsor log-bell" height="225" width="600" style="border: 0; max-width: 100%; border-radius: 12px;"></iframe>
+        <a href="https://github.com/sponsors/log-bell" class="sponsor-btn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex-shrink:0;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          Sponsor on GitHub
+        </a>
       </div>
     </div>
   </section>
@@ -2261,8 +2283,8 @@
 
     /* ----- Terminal tab switching ----- */
     const commands = {
-      pipx: 'pipx install avakill && avakill guide',
-      pip: 'pip install avakill && avakill guide',
+      pipx: 'pipx install avakill && avakill setup',
+      pip: 'pip install avakill && avakill setup',
       hooks: 'avakill hook install --agent all',
     };
 
