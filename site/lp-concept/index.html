@@ -424,6 +424,24 @@
       flex-shrink: 0;
     }
 
+    .z2-intercept[data-result="denied"].flash {
+      animation: denyFlash 0.4s ease;
+    }
+
+    @keyframes denyFlash {
+      0% { background: rgba(239, 68, 68, 0.3); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+      100% { background: var(--code-bg); box-shadow: none; }
+    }
+
+    .z2-intercept[data-result="ratelimited"].flash {
+      animation: warnFlash 0.4s ease;
+    }
+
+    @keyframes warnFlash {
+      0% { background: rgba(245, 158, 11, 0.3); box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); }
+      100% { background: var(--code-bg); box-shadow: none; }
+    }
+
     /* =========================================================
        Zone 2C: Architecture Reveal
        ========================================================= */
@@ -613,6 +631,7 @@
 
     .z3-node.pulse {
       box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+      transition: box-shadow 0.3s ease;
     }
 
     /* Last row: 3 items — center them */
@@ -960,6 +979,14 @@
     .z4-newsletter-btn:hover {
       background: rgba(0, 212, 255, 0.1);
       border-color: var(--neon-blue);
+    }
+
+    .z4-mascot {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      opacity: 0.5;
+      margin-top: 8px;
     }
 
     /* =========================================================
@@ -1310,6 +1337,7 @@
             <button type="submit" class="z4-newsletter-btn">Subscribe &rarr;</button>
           </form>
         </div>
+        <img src="../avakill-logo.png" alt="" class="z4-mascot" aria-hidden="true">
       </div>
     </section>
   </main>
@@ -1507,6 +1535,8 @@
       interceptEls.push(el);
     });
 
+    const interceptTriggered = new Set();
+
     onFrame((p) => {
       // Show intercept area during z2b
       const areaOpacity = Math.min(1, p.z2b * 3);
@@ -1524,6 +1554,12 @@
         const clamped = Math.min(1, localP * 2.5);
         el.style.opacity = String(clamped);
         el.style.transform = `translateY(${(1 - clamped) * -20}px)`;
+
+        // Flash once when interception first appears
+        if (clamped > 0.5 && !interceptTriggered.has(i)) {
+          interceptTriggered.add(i);
+          el.classList.add('flash');
+        }
       });
 
       // Fade out intercepts as z2c begins
@@ -1577,6 +1613,8 @@
     const z3Nodes = document.querySelectorAll('.z3-node');
     const z3Yaml = document.getElementById('z3-yaml');
 
+    const z3NodeTriggered = new Set();
+
     onFrame((p) => {
       if (p.z3 <= 0) return;
 
@@ -1596,6 +1634,12 @@
         const nodeP = Math.max(0, Math.min(1, (p.z3 - nodeStart) * 4));
         node.style.opacity = String(nodeP);
         node.style.transform = `translateY(${(1 - nodeP) * 15}px)`;
+
+        if (nodeP > 0.8 && !z3NodeTriggered.has(i)) {
+          z3NodeTriggered.add(i);
+          node.classList.add('pulse');
+          setTimeout(() => node.classList.remove('pulse'), 600);
+        }
       });
 
       // YAML block fades in later
@@ -1646,6 +1690,33 @@
       });
     }
 
+    /* ===== Newsletter Form ===== */
+    const z4Form = document.getElementById('z4-newsletter-form');
+    if (z4Form) {
+      z4Form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(z4Form);
+        const btn = z4Form.querySelector('.z4-newsletter-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Sending...';
+        btn.disabled = true;
+
+        fetch(z4Form.action, {
+          method: 'POST',
+          body: new URLSearchParams(formData),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        }).then(() => {
+          btn.textContent = 'Subscribed!';
+          z4Form.querySelector('.z4-newsletter-input').value = '';
+          setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 3000);
+        }).catch(() => {
+          btn.textContent = 'Error — try again';
+          btn.disabled = false;
+          setTimeout(() => { btn.textContent = originalText; }, 3000);
+        });
+      });
+    }
+
     /* ===== Particle System ===== */
     const particleCanvas = document.getElementById('particle-canvas');
     const pCtx = particleCanvas.getContext('2d');
@@ -1657,11 +1728,7 @@
 
     function pResize() {
       pW = particleCanvas.width = window.innerWidth;
-      pH = particleCanvas.height = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight,
-        window.innerHeight
-      );
+      pH = particleCanvas.height = window.innerHeight;
     }
 
     function createParticle(startAtTop) {
@@ -1719,18 +1786,6 @@
     window.addEventListener('resize', () => {
       clearTimeout(pResizeTimer);
       pResizeTimer = setTimeout(pResize, 100);
-    }, { passive: true });
-
-    // Adjust canvas height on scroll if page grows
-    window.addEventListener('scroll', () => {
-      const newH = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight,
-        window.innerHeight
-      );
-      if (Math.abs(newH - pH) > 50) {
-        pH = particleCanvas.height = newH;
-      }
     }, { passive: true });
 
     // Initialize
