@@ -308,7 +308,83 @@
     </div>
   </footer>
   <script>
-    /* Scroll engine and animations will be added here */
+    /* ===== Scroll Engine =====
+     * Tracks scroll position and calculates per-zone progress (0–1).
+     * All animations read from `zoneProgress` on each frame.
+     */
+    const zones = {};
+    const zoneProgress = { z1: 0, z2: 0, z2a: 0, z2b: 0, z2c: 0, z3: 0, z4: 0 };
+
+    function initZones() {
+      ['zone-1', 'zone-2', 'zone-3', 'zone-4'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) zones[id] = el;
+      });
+    }
+
+    function updateProgress() {
+      const scrollY = window.scrollY;
+      const vh = window.innerHeight;
+
+      for (const [id, el] of Object.entries(zones)) {
+        const top = el.offsetTop;
+        const height = el.offsetHeight;
+        // Progress: 0 when zone top hits viewport bottom, 1 when zone bottom hits viewport top
+        const raw = (scrollY + vh - top) / (height + vh);
+        const key = id.replace('zone-', 'z');
+        zoneProgress[key] = Math.max(0, Math.min(1, raw));
+      }
+
+      // Sub-zones for Zone 2 (split into thirds: 2a, 2b, 2c)
+      const z2El = zones['zone-2'];
+      if (z2El) {
+        const z2Top = z2El.offsetTop;
+        const z2Height = z2El.offsetHeight;
+        const z2Scroll = scrollY - z2Top + vh;
+        const third = z2Height / 3;
+        zoneProgress.z2a = Math.max(0, Math.min(1, z2Scroll / third));
+        zoneProgress.z2b = Math.max(0, Math.min(1, (z2Scroll - third) / third));
+        zoneProgress.z2c = Math.max(0, Math.min(1, (z2Scroll - 2 * third) / third));
+      }
+    }
+
+    // Animation callbacks registered by each zone
+    const frameCallbacks = [];
+    function onFrame(cb) { frameCallbacks.push(cb); }
+
+    let ticking = false;
+    function tick() {
+      updateProgress();
+      for (const cb of frameCallbacks) cb(zoneProgress);
+      ticking = false;
+    }
+
+    // Use rAF-throttled scroll listener for performance
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(tick);
+        ticking = true;
+      }
+    }, { passive: true });
+
+    // Recalculate zone positions on resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { initZones(); tick(); }, 100);
+    }, { passive: true });
+
+    // Debug overlay — shows zone progress values. Remove in Task 10.
+    const debugEl = document.createElement('div');
+    debugEl.style.cssText = 'position:fixed;top:10px;left:10px;background:rgba(0,0,0,0.85);color:#0f0;font:11px/1.6 monospace;padding:8px 12px;z-index:9999;pointer-events:none;border-radius:6px;white-space:pre;';
+    document.body.appendChild(debugEl);
+    onFrame((p) => {
+      debugEl.textContent = Object.entries(p).map(([k, v]) => `${k}: ${v.toFixed(3)}`).join('\n');
+    });
+
+    // Initialize
+    initZones();
+    tick();
   </script>
 </body>
 </html>
