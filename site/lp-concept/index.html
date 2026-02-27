@@ -662,7 +662,305 @@
       font-family: inherit;
     }
 
-    .zone-4 { min-height: 100vh; }
+    /* =========================================================
+       Zone 4: The Proof
+       ========================================================= */
+    .zone-4 {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 60px;
+      padding: 80px 24px;
+      position: relative;
+    }
+
+    .z4-sub {
+      width: 100%;
+      max-width: 640px;
+      opacity: 0;
+      transform: translateY(25px);
+    }
+
+    .z4-section-label {
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    /* ---- 4A: Terminal ---- */
+    .z4-term-window {
+      background: var(--code-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    .z4-term-titlebar {
+      height: 36px;
+      background: #161B22;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+    }
+
+    .z4-term-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .z4-term-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .z4-term-title {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      flex: 1;
+      text-align: center;
+    }
+
+    .z4-term-spacer {
+      width: 44px;
+    }
+
+    .z4-term-body {
+      padding: 18px 20px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      position: relative;
+    }
+
+    .z4-term-comment {
+      color: var(--text-muted);
+    }
+
+    .z4-term-prompt {
+      color: var(--text-muted);
+    }
+
+    .z4-term-cmd {
+      color: var(--code-text);
+    }
+
+    .z4-term-copy {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: color 0.2s ease, background 0.2s ease;
+    }
+
+    .z4-term-copy:hover {
+      color: var(--text-primary);
+      background: var(--surface-elevated);
+    }
+
+    .z4-copy-tooltip {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface-elevated);
+      color: var(--neon-blue);
+      font-size: 0.65rem;
+      font-family: 'Satoshi', sans-serif;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .z4-copy-tooltip.show {
+      opacity: 1;
+    }
+
+    /* ---- 4B: Integration Pills ---- */
+    .z4-integrations {
+      text-align: center;
+    }
+
+    .z4-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .z4-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .z4-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ---- 4C: Stats ---- */
+    .z4-stats {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+    }
+
+    .z4-stat {
+      text-align: center;
+    }
+
+    .z4-stat-number {
+      font-size: clamp(2.5rem, 6vw, 3.5rem);
+      font-weight: 900;
+      color: var(--neon-blue);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .z4-stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ---- 4D: CTA + Newsletter ---- */
+    .z4-cta {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .z4-cta-headline {
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .z4-cta-links {
+      display: flex;
+      gap: 12px;
+    }
+
+    .z4-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .z4-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .z4-btn-primary {
+      background: var(--neon-blue);
+      color: var(--base-dark);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .z4-btn-primary:hover {
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    }
+
+    .z4-btn-secondary {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+    }
+
+    .z4-newsletter {
+      margin-top: 8px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .z4-newsletter-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .z4-newsletter-form {
+      display: flex;
+      gap: 8px;
+    }
+
+    .z4-newsletter-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .z4-newsletter-input:focus {
+      border-color: var(--neon-blue);
+    }
+
+    .z4-newsletter-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .z4-newsletter-btn {
+      padding: 10px 18px;
+      background: var(--surface-elevated);
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .z4-newsletter-btn:hover {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: var(--neon-blue);
+    }
 
     /* =========================================================
        Footer
@@ -841,7 +1139,80 @@
         </div>
       </div>
     </section>
-    <section class="zone zone-4" id="zone-4"><!-- The Proof --></section>
+    <section class="zone zone-4" id="zone-4">
+      <!-- 4A: Quick Start Terminal -->
+      <div class="z4-terminal z4-sub">
+        <div class="z4-section-label">Get started in 30 seconds</div>
+        <div class="z4-term-window">
+          <div class="z4-term-titlebar">
+            <div class="z4-term-dots">
+              <span style="background: #EF4444;"></span>
+              <span style="background: #F59E0B;"></span>
+              <span style="background: #22C55E;"></span>
+            </div>
+            <span class="z4-term-title">Terminal</span>
+            <div class="z4-term-spacer"></div>
+          </div>
+          <div class="z4-term-body">
+            <div class="z4-term-comment"># Install AvaKill and set up hooks for your agents</div>
+            <div><span class="z4-term-prompt">$ </span><span class="z4-term-cmd" id="z4-cmd">pipx install avakill &amp;&amp; avakill guide</span></div>
+            <button class="z4-term-copy" id="z4-copy-btn" aria-label="Copy to clipboard">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span class="z4-copy-tooltip" id="z4-copy-tooltip">Copied!</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4B: Integrations -->
+      <div class="z4-integrations z4-sub">
+        <div class="z4-section-label">Works with everything you use</div>
+        <div class="z4-pills">
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #D97757;"></span>Claude Code</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #4285F4;"></span>Gemini CLI</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #22C55E;"></span>Windsurf</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #22C55E;"></span>Codex</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #22C55E;"></span>OpenAI</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #D97757;"></span>Anthropic</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: #1A8A7D;"></span>LangChain</span>
+          <span class="z4-pill"><span class="z4-pill-dot" style="background: var(--neon-blue);"></span>MCP</span>
+        </div>
+      </div>
+
+      <!-- 4C: Key Stats -->
+      <div class="z4-stats z4-sub">
+        <div class="z4-stat">
+          <div class="z4-stat-number">&lt;1ms</div>
+          <div class="z4-stat-label">Evaluation latency</div>
+        </div>
+        <div class="z4-stat">
+          <div class="z4-stat-number">6</div>
+          <div class="z4-stat-label">Native agent hooks</div>
+        </div>
+        <div class="z4-stat">
+          <div class="z4-stat-number">&infin;</div>
+          <div class="z4-stat-label">YAML rules you can write</div>
+        </div>
+      </div>
+
+      <!-- 4D: Final CTA + Newsletter -->
+      <div class="z4-cta z4-sub">
+        <h2 class="z4-cta-headline">Protect your agents today.</h2>
+        <div class="z4-cta-links">
+          <a href="https://github.com/log-bell/avakill" class="z4-btn z4-btn-primary">View on GitHub &rarr;</a>
+          <a href="https://discord.gg/gTBvbkSV2" class="z4-btn z4-btn-secondary">Join Discord</a>
+        </div>
+        <div class="z4-newsletter">
+          <p class="z4-newsletter-label">Get updates on new features and agent safety intelligence.</p>
+          <form class="z4-newsletter-form" id="z4-newsletter-form"
+                action="https://app.loops.so/api/newsletter-form/cmlskik3k0bwe0iyvuey1qawn"
+                method="post">
+            <input type="email" name="email" class="z4-newsletter-input" placeholder="your@email.com" required aria-label="Email address">
+            <button type="submit" class="z4-newsletter-btn">Subscribe &rarr;</button>
+          </form>
+        </div>
+      </div>
+    </section>
   </main>
   <footer class="footer">
     <nav class="footer-links">
@@ -1139,6 +1510,48 @@
       z3Yaml.style.opacity = String(yamlP);
       z3Yaml.style.transform = `translateY(${(1 - yamlP) * 15}px)`;
     });
+
+    /* ===== Zone 4: The Proof ===== */
+    const z4Subs = document.querySelectorAll('.z4-sub');
+
+    onFrame((p) => {
+      if (p.z4 <= 0) return;
+
+      z4Subs.forEach((el, i) => {
+        const triggerAt = i * 0.15;
+        const localP = Math.max(0, Math.min(1, (p.z4 - triggerAt) * 3));
+        el.style.opacity = String(localP);
+        el.style.transform = `translateY(${(1 - localP) * 25}px)`;
+      });
+    });
+
+    /* ===== Terminal Copy Button ===== */
+    const z4CopyBtn = document.getElementById('z4-copy-btn');
+    const z4CopyTooltip = document.getElementById('z4-copy-tooltip');
+    const z4Cmd = document.getElementById('z4-cmd');
+
+    if (z4CopyBtn && z4Cmd) {
+      z4CopyBtn.addEventListener('click', () => {
+        const text = z4Cmd.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            z4CopyTooltip.classList.add('show');
+            setTimeout(() => z4CopyTooltip.classList.remove('show'), 1500);
+          });
+        } else {
+          // Fallback
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;left:-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch(e) {}
+          document.body.removeChild(ta);
+          z4CopyTooltip.classList.add('show');
+          setTimeout(() => z4CopyTooltip.classList.remove('show'), 1500);
+        }
+      });
+    }
 
     // Initialize
     initZones();
