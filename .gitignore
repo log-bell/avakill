@@ -55,6 +55,8 @@ htmlcov/
 # Project-local config
 CLAUDE.md
 .claude/
+avakill.yaml
+avakill.yml
 docs/plans/
 docs/audit.md
 
