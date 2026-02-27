@@ -103,7 +103,110 @@
       z-index: 1;
     }
 
-    .zone-1 { min-height: 100vh; }
+    /* =========================================================
+       Zone 1: The Agent Layer
+       ========================================================= */
+    .zone-1 {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 80px 24px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .z1-agents {
+      display: flex;
+      gap: 48px;
+      margin-bottom: 60px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .z1-agent {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      animation: fadeInDown 0.6s ease forwards;
+    }
+
+    .z1-agent:nth-child(1) { animation-delay: 0.1s; }
+    .z1-agent:nth-child(2) { animation-delay: 0.25s; }
+    .z1-agent:nth-child(3) { animation-delay: 0.4s; }
+    .z1-agent:nth-child(4) { animation-delay: 0.55s; }
+
+    .z1-agent-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .z1-agent-icon svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--neon-blue);
+      stroke-width: 1.5;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .z1-agent span {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .z1-copy {
+      text-align: center;
+      max-width: 700px;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      animation: fadeInUp 0.8s ease 0.6s forwards;
+    }
+
+    .z1-headline {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+
+    .z1-sub {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .z1-packet-field {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .zone-2 { min-height: 200vh; }
     .zone-3 { min-height: 100vh; }
     .zone-4 { min-height: 100vh; }
@@ -151,7 +254,41 @@
 <body>
   <canvas id="particle-canvas"></canvas>
   <main>
-    <section class="zone zone-1" id="zone-1"><!-- Agent Layer --></section>
+    <section class="zone zone-1" id="zone-1">
+      <div class="z1-agents" id="z1-agents">
+        <div class="z1-agent" data-agent="claude">
+          <div class="z1-agent-icon">
+            <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <span>Claude Code</span>
+        </div>
+        <div class="z1-agent" data-agent="gemini">
+          <div class="z1-agent-icon">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <span>Gemini CLI</span>
+        </div>
+        <div class="z1-agent" data-agent="windsurf">
+          <div class="z1-agent-icon">
+            <svg viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
+          </div>
+          <span>Windsurf</span>
+        </div>
+        <div class="z1-agent" data-agent="codex">
+          <div class="z1-agent-icon">
+            <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <span>Codex</span>
+        </div>
+      </div>
+
+      <div class="z1-copy">
+        <h1 class="z1-headline">Your agents make thousands of tool calls.</h1>
+        <p class="z1-sub">Every one of them reaches your files, databases, and infrastructure.<br>Who decides what gets through?</p>
+      </div>
+
+      <div class="z1-packet-field" id="z1-packet-field"></div>
+    </section>
     <section class="zone zone-2" id="zone-2"><!-- Firewall --></section>
     <section class="zone zone-3" id="zone-3"><!-- Protected World --></section>
     <section class="zone zone-4" id="zone-4"><!-- The Proof --></section>
