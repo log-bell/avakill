@@ -1,0 +1,2700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference — AvaKill</title>
+  <meta name="description" content="Python SDK: Guard, PolicyEngine, models, and framework wrappers.">
+  <meta name="theme-color" content="#0A0F1E">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       CSS Custom Properties (matched to landing page)
+       ========================================================= */
+    :root {
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --neon-blue-dim: #0088CC;
+
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --subtle-blue-tint: #0D1B3D;
+
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --color-info: #00D4FF;
+
+      --code-bg: #0D1117;
+      --code-text: #E6EDF3;
+
+      --sidebar-width: 260px;
+      --toc-width: 200px;
+      --nav-height: 56px;
+      --subnav-height: 44px;
+      --content-max: 720px;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-height) + var(--subnav-height) + 24px);
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding-top: calc(var(--nav-height) + var(--subnav-height));
+    }
+
+    a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================================================
+       Noise Texture Overlay (matched to landing page)
+       ========================================================= */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* =========================================================
+       Top Navigation (matched to landing page)
+       ========================================================= */
+    .site-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: var(--nav-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--neon-blue);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .nav-brand:hover {
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(2) {
+      opacity: 0;
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    /* =========================================================
+       Sub Navigation (doc categories)
+       ========================================================= */
+    .doc-subnav {
+      position: fixed;
+      top: var(--nav-height);
+      left: 0;
+      right: 0;
+      z-index: 999;
+      height: var(--subnav-height);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .doc-subnav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .doc-subnav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-radius: 6px;
+      transition: color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .doc-subnav a:hover {
+      color: var(--text-secondary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .doc-subnav a.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .doc-subnav a svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       Three-Column Layout
+       ========================================================= */
+    .docs-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+      min-height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    /* =========================================================
+       Left Sidebar
+       ========================================================= */
+    .docs-sidebar {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 20px 40px 24px;
+      border-right: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.12) transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+    }
+
+    .sidebar-group {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 0 10px 12px;
+    }
+
+    .sidebar-list {
+      list-style: none;
+    }
+
+    .sidebar-list li {
+      position: relative;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      transition: color 0.15s ease, background 0.15s ease;
+      text-decoration: none;
+      line-height: 1.4;
+    }
+
+    .sidebar-link:hover {
+      color: var(--text-primary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .sidebar-link.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    /* Active indicator bar */
+    .sidebar-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    .sidebar-link--sub {
+      padding-left: 28px;
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .sidebar-link--sub:hover {
+      color: var(--text-secondary);
+    }
+
+    .sidebar-link--sub.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    /* =========================================================
+       Main Content — Rendered Markdown
+       ========================================================= */
+    .docs-content {
+      padding: 36px 48px 80px;
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .docs-content h1 {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .docs-content h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content h2:first-of-type {
+      border-top: none;
+      margin-top: 32px;
+      padding-top: 0;
+    }
+
+    .docs-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .docs-content h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .docs-content > p:first-of-type {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .docs-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .docs-content p strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .docs-content p a {
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: rgba(0, 212, 255, 0.3);
+      text-underline-offset: 2px;
+    }
+
+    .docs-content p a:hover {
+      text-decoration-color: var(--neon-blue);
+    }
+
+    .docs-content p code,
+    .docs-content li code,
+    .docs-content td code {
+      background: var(--code-bg);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* Code blocks */
+    .docs-content .codehilite,
+    .docs-content pre {
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .docs-content .codehilite pre,
+    .docs-content pre code {
+      display: block;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: var(--code-text);
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    /* Pygments syntax highlighting — dark theme */
+    .codehilite .hll { background-color: rgba(0, 212, 255, 0.08); }
+    .codehilite .c, .codehilite .c1, .codehilite .cm, .codehilite .cs, .codehilite .cp { color: var(--text-muted); font-style: italic; } /* comments */
+    .codehilite .k, .codehilite .kn, .codehilite .kp, .codehilite .kr, .codehilite .kd, .codehilite .kt { color: #FF7B72; } /* keywords */
+    .codehilite .s, .codehilite .s1, .codehilite .s2, .codehilite .sa, .codehilite .sb, .codehilite .sc, .codehilite .sd, .codehilite .se, .codehilite .sh, .codehilite .si, .codehilite .sr, .codehilite .ss, .codehilite .sx { color: #A5D6FF; } /* strings */
+    .codehilite .nf, .codehilite .fm, .codehilite .nb { color: #D2A8FF; } /* functions/builtins */
+    .codehilite .mi, .codehilite .mf, .codehilite .mh, .codehilite .mo { color: #79C0FF; } /* numbers */
+    .codehilite .na { color: #79C0FF; } /* attribute names */
+    .codehilite .nc, .codehilite .nn { color: #FFA657; } /* class/module names */
+    .codehilite .no { color: #79C0FF; } /* constants */
+    .codehilite .o, .codehilite .ow { color: #FF7B72; } /* operators */
+    .codehilite .p { color: var(--code-text); } /* punctuation */
+    .codehilite .nl { color: #FFA657; } /* YAML keys */
+    .codehilite .nt { color: #7EE787; } /* HTML/XML tags */
+    .codehilite .err { color: #f85149; } /* errors */
+
+    /* Lists */
+    .docs-content ul, .docs-content ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .docs-content li {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 4px;
+    }
+
+    .docs-content li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Tables */
+    .docs-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .docs-content th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid rgba(0, 212, 255, 0.12);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .docs-content td {
+      padding: 8px 14px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content tr:hover td {
+      background: rgba(0, 212, 255, 0.02);
+    }
+
+    /* Blockquotes (used for callouts) */
+    .docs-content blockquote {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      border-left: 3px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .docs-content blockquote p {
+      margin-bottom: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Horizontal rules */
+    .docs-content hr {
+      border: none;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.06);
+      margin: 40px 0;
+    }
+
+    /* Bottom nav (prev/next) */
+    .docs-nav-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 56px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-nav-card {
+      padding: 20px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .docs-nav-card:hover {
+      border-color: rgba(0, 212, 255, 0.25);
+      background: rgba(0, 212, 255, 0.02);
+      text-decoration: none;
+    }
+
+    .docs-nav-card--next {
+      text-align: right;
+    }
+
+    .docs-nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .docs-nav-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--neon-blue);
+    }
+
+    /* =========================================================
+       Right TOC Sidebar ("On this page")
+       ========================================================= */
+    .docs-toc {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 24px 40px 20px;
+      border-left: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.08) transparent;
+    }
+
+    .docs-toc::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .docs-toc::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 2px;
+    }
+
+    .toc-heading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .toc-heading svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .toc-list {
+      list-style: none;
+      border-left: 1px solid rgba(0, 212, 255, 0.08);
+      padding-left: 0;
+    }
+
+    .toc-list li {
+      position: relative;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0 4px 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      line-height: 1.5;
+    }
+
+    .toc-link:hover {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .toc-link.active {
+      color: var(--neon-blue);
+    }
+
+    .toc-link.active::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    /* =========================================================
+       Footer (matched to landing page)
+       ========================================================= */
+    .footer {
+      position: relative;
+      z-index: 1;
+      padding: 48px 24px 32px;
+      text-align: center;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      font-size: 0.85rem;
+    }
+
+    .footer-links a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links .sep {
+      color: var(--text-muted);
+      margin: 0 12px;
+    }
+
+    .footer-attribution {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       Mobile Sidebar Overlay
+       ========================================================= */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 998;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+
+    .mobile-sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 997;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-sidebar-toggle svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 1100px) {
+      :root {
+        --toc-width: 0px;
+      }
+
+      .docs-layout {
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      }
+
+      .docs-toc {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 0px;
+      }
+
+      body {
+        padding-top: calc(var(--nav-height) + var(--subnav-height));
+      }
+
+      .docs-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 1001;
+        background: var(--base-dark);
+        border-right: 1px solid rgba(0, 212, 255, 0.1);
+        padding-top: 20px;
+      }
+
+      .docs-sidebar.mobile-open {
+        display: block;
+      }
+
+      .sidebar-overlay.open ~ .docs-layout .docs-sidebar {
+        display: block;
+      }
+
+      .mobile-sidebar-toggle {
+        display: flex;
+      }
+
+      .docs-content {
+        padding: 24px 20px 60px;
+      }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: var(--nav-height);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        padding: 8px 0;
+      }
+
+      .site-nav.nav-open .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
+      .docs-nav-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-nav-card--next {
+        text-align: left;
+      }
+    }
+
+    /* =========================================================
+       Entrance Animations
+       ========================================================= */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .docs-content {
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .docs-content {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== Top Navigation ========== -->
+  <header class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">AvaKill</a>
+    <nav class="nav-links">
+      <a href="/">Home</a>
+      <a href="/rules">Rules</a>
+      <a href="/docs" class="active">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+    </nav>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ========== Sub Navigation (Doc Categories) ========== -->
+  <nav class="doc-subnav">
+  <a href="/docs/getting-started/">
+    <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Getting Started
+  </a>
+  <a href="/docs/policy-reference/">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Policy Reference
+  </a>
+  <a href="/docs/cli-reference/">
+    <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    CLI Reference
+  </a>
+  <a href="/docs/api-reference/" class="active">
+    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    API Reference
+  </a>
+  <a href="/docs/architecture/">
+    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    Architecture
+  </a>
+</nav>
+
+  <!-- ========== Mobile Sidebar Toggle ========== -->
+  <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- ========== Three-Column Layout ========== -->
+  <div class="docs-layout">
+
+    <!-- ===== Left Sidebar ===== -->
+    <aside class="docs-sidebar" id="docs-sidebar">
+      <div class="sidebar-group">
+  <div class="sidebar-label">On this page</div>
+  <ul class="sidebar-list">
+    <li><a href="#avakillguard" class="sidebar-link">avakill.Guard</a></li>
+    <li><a href="#constructor" class="sidebar-link sidebar-link--sub">Constructor</a></li>
+    <li><a href="#evaluate" class="sidebar-link sidebar-link--sub">evaluate()</a></li>
+    <li><a href="#evaluate_or_raise" class="sidebar-link sidebar-link--sub">evaluate_or_raise()</a></li>
+    <li><a href="#session" class="sidebar-link sidebar-link--sub">session()</a></li>
+    <li><a href="#reload_policy" class="sidebar-link sidebar-link--sub">reload_policy()</a></li>
+    <li><a href="#watch" class="sidebar-link sidebar-link--sub">watch()</a></li>
+    <li><a href="#unwatch" class="sidebar-link sidebar-link--sub">unwatch()</a></li>
+    <li><a href="#policy_status" class="sidebar-link sidebar-link--sub">policy_status</a></li>
+    <li><a href="#avakillguardsession" class="sidebar-link">avakill.GuardSession</a></li>
+    <li><a href="#properties" class="sidebar-link sidebar-link--sub">Properties</a></li>
+    <li><a href="#methods" class="sidebar-link sidebar-link--sub">Methods</a></li>
+    <li><a href="#avakillprotect" class="sidebar-link">avakill.protect</a></li>
+    <li><a href="#exceptions" class="sidebar-link">Exceptions</a></li>
+    <li><a href="#avakillpolicyviolation" class="sidebar-link sidebar-link--sub">avakill.PolicyViolation</a></li>
+    <li><a href="#avakillconfigerror" class="sidebar-link sidebar-link--sub">avakill.ConfigError</a></li>
+    <li><a href="#avakillratelimitexceeded" class="sidebar-link sidebar-link--sub">avakill.RateLimitExceeded</a></li>
+    <li><a href="#data-models" class="sidebar-link">Data Models</a></li>
+    <li><a href="#decision" class="sidebar-link sidebar-link--sub">Decision</a></li>
+    <li><a href="#toolcall" class="sidebar-link sidebar-link--sub">ToolCall</a></li>
+    <li><a href="#auditevent" class="sidebar-link sidebar-link--sub">AuditEvent</a></li>
+    <li><a href="#framework-integrations" class="sidebar-link">Framework Integrations</a></li>
+    <li><a href="#avakillguardedopenaiclient" class="sidebar-link sidebar-link--sub">avakill.GuardedOpenAIClient</a></li>
+    <li><a href="#avakillguardedanthropicclient" class="sidebar-link sidebar-link--sub">avakill.GuardedAnthropicClient</a></li>
+    <li><a href="#avakillavakillcallbackhandler" class="sidebar-link sidebar-link--sub">avakill.AvaKillCallbackHandler</a></li>
+    <li><a href="#avakillmcpproxyserver" class="sidebar-link sidebar-link--sub">avakill.MCPProxyServer</a></li>
+    <li><a href="#security--integrity" class="sidebar-link">Security &amp; Integrity</a></li>
+    <li><a href="#avakillpolicyintegrity" class="sidebar-link sidebar-link--sub">avakill.PolicyIntegrity</a></li>
+    <li><a href="#avakillfilesnapshot" class="sidebar-link sidebar-link--sub">avakill.FileSnapshot</a></li>
+    <li><a href="#schema--prompts" class="sidebar-link">Schema &amp; Prompts</a></li>
+    <li><a href="#avakillget_json_schema" class="sidebar-link sidebar-link--sub">avakill.get_json_schema</a></li>
+    <li><a href="#avakillgenerate_prompt" class="sidebar-link sidebar-link--sub">avakill.generate_prompt</a></li>
+    <li><a href="#observability" class="sidebar-link">Observability</a></li>
+    <li><a href="#avakillget_metrics_registry" class="sidebar-link sidebar-link--sub">avakill.get_metrics_registry</a></li>
+    <li><a href="#avakillpolicywatcher" class="sidebar-link sidebar-link--sub">avakill.PolicyWatcher</a></li>
+    <li><a href="#avakilldaemonserver" class="sidebar-link">avakill.DaemonServer</a></li>
+    <li><a href="#constructor_1" class="sidebar-link sidebar-link--sub">Constructor</a></li>
+    <li><a href="#start" class="sidebar-link sidebar-link--sub">start()</a></li>
+    <li><a href="#stop" class="sidebar-link sidebar-link--sub">stop()</a></li>
+    <li><a href="#serve_forever" class="sidebar-link sidebar-link--sub">serve_forever()</a></li>
+    <li><a href="#is_running" class="sidebar-link sidebar-link--sub">is_running()</a></li>
+    <li><a href="#avakilldaemonclient" class="sidebar-link">avakill.DaemonClient</a></li>
+    <li><a href="#constructor_2" class="sidebar-link sidebar-link--sub">Constructor</a></li>
+    <li><a href="#evaluate_1" class="sidebar-link sidebar-link--sub">evaluate()</a></li>
+    <li><a href="#ping" class="sidebar-link sidebar-link--sub">ping()</a></li>
+    <li><a href="#try_evaluate" class="sidebar-link sidebar-link--sub">try_evaluate()</a></li>
+    <li><a href="#wire-protocol-models" class="sidebar-link">Wire Protocol Models</a></li>
+    <li><a href="#evaluaterequest" class="sidebar-link sidebar-link--sub">EvaluateRequest</a></li>
+    <li><a href="#evaluateresponse" class="sidebar-link sidebar-link--sub">EvaluateResponse</a></li>
+    <li><a href="#serialization" class="sidebar-link sidebar-link--sub">Serialization</a></li>
+    <li><a href="#avakilltoolnormalizer" class="sidebar-link">avakill.ToolNormalizer</a></li>
+    <li><a href="#constructor_3" class="sidebar-link sidebar-link--sub">Constructor</a></li>
+    <li><a href="#normalize" class="sidebar-link sidebar-link--sub">normalize()</a></li>
+    <li><a href="#denormalize" class="sidebar-link sidebar-link--sub">denormalize()</a></li>
+    <li><a href="#agent_tool_map" class="sidebar-link sidebar-link--sub">AGENT_TOOL_MAP</a></li>
+    <li><a href="#avakillpolicycascade" class="sidebar-link">avakill.PolicyCascade</a></li>
+    <li><a href="#discover" class="sidebar-link sidebar-link--sub">discover()</a></li>
+    <li><a href="#load" class="sidebar-link sidebar-link--sub">load()</a></li>
+    <li><a href="#merge" class="sidebar-link sidebar-link--sub">merge()</a></li>
+    <li><a href="#hook-adapters" class="sidebar-link">Hook Adapters</a></li>
+    <li><a href="#hookadapter-base-class" class="sidebar-link sidebar-link--sub">HookAdapter (base class)</a></li>
+    <li><a href="#built-in-adapters" class="sidebar-link sidebar-link--sub">Built-in Adapters</a></li>
+    <li><a href="#enforcement-backends" class="sidebar-link">Enforcement Backends</a></li>
+    <li><a href="#landlockenforcer" class="sidebar-link sidebar-link--sub">LandlockEnforcer</a></li>
+    <li><a href="#sandboxexecenforcer" class="sidebar-link sidebar-link--sub">SandboxExecEnforcer</a></li>
+    <li><a href="#tetragonpolicygenerator" class="sidebar-link sidebar-link--sub">TetragonPolicyGenerator</a></li>
+    <li><a href="#compliance--approvals" class="sidebar-link">Compliance &amp; Approvals</a></li>
+    <li><a href="#complianceassessor" class="sidebar-link sidebar-link--sub">ComplianceAssessor</a></li>
+    <li><a href="#compliancereporter" class="sidebar-link sidebar-link--sub">ComplianceReporter</a></li>
+    <li><a href="#approvalstore" class="sidebar-link sidebar-link--sub">ApprovalStore</a></li>
+    <li><a href="#auditanalytics" class="sidebar-link sidebar-link--sub">AuditAnalytics</a></li>
+    <li><a href="#avakillprocesslauncher" class="sidebar-link">avakill.ProcessLauncher</a></li>
+    <li><a href="#internal-for-contributors" class="sidebar-link">Internal (for contributors)</a></li>
+  </ul>
+</div>
+<div class="sidebar-group">
+  <div class="sidebar-label">Documentation</div>
+  <ul class="sidebar-list">
+    <li><a href="/docs/getting-started/" class="sidebar-link">Getting Started</a></li>
+    <li><a href="/docs/policy-reference/" class="sidebar-link">Policy Reference</a></li>
+    <li><a href="/docs/cli-reference/" class="sidebar-link">CLI Reference</a></li>
+    <li><a href="/docs/api-reference/" class="sidebar-link active">API Reference</a></li>
+    <li><a href="/docs/architecture/" class="sidebar-link">Architecture</a></li>
+  </ul>
+</div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <main class="docs-content">
+      <h1 id="api-reference">API Reference</h1>
+<p>This is the public Python API for AvaKill. All classes listed here are importable from the top-level <code>avakill</code> package unless otherwise noted.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span><span class="p">,</span> <span class="n">protect</span><span class="p">,</span> <span class="n">PolicyViolation</span><span class="p">,</span> <span class="n">ConfigError</span><span class="p">,</span> <span class="n">RateLimitExceeded</span>
+</code></pre></div>
+
+<h2 id="avakillguard">avakill.Guard</h2>
+<p>The central AvaKill controller. Wraps a <code>PolicyEngine</code>, evaluates tool calls, records audit events, and manages self-protection.</p>
+<h3 id="constructor">Constructor</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="p">(</span>
+    <span class="n">policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">PolicyConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">logger</span><span class="p">:</span> <span class="n">AuditLogger</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">agent_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">self_protection</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">signing_key</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">verify_key</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">rate_limit_backend</span><span class="p">:</span> <span class="n">RateLimitBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">normalize_tools</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">approval_store</span><span class="p">:</span> <span class="n">ApprovalStore</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>policy</code></td>
+<td><code>str \| Path \| dict \| PolicyConfig \| None</code></td>
+<td><code>None</code></td>
+<td>Path to YAML file, raw dict, PolicyConfig object, or <code>None</code> to auto-detect <code>avakill.yaml</code> in cwd</td>
+</tr>
+<tr>
+<td><code>logger</code></td>
+<td><code>AuditLogger \| None</code></td>
+<td><code>None</code></td>
+<td>Audit logger for recording events. If <code>None</code>, no logging.</td>
+</tr>
+<tr>
+<td><code>agent_id</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>Default agent identifier for attribution</td>
+</tr>
+<tr>
+<td><code>self_protection</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Enable hardcoded self-protection rules. Only set <code>False</code> for testing.</td>
+</tr>
+<tr>
+<td><code>signing_key</code></td>
+<td><code>bytes \| None</code></td>
+<td><code>None</code></td>
+<td>HMAC signing key. If <code>None</code>, reads <code>AVAKILL_POLICY_KEY</code> env var.</td>
+</tr>
+<tr>
+<td><code>verify_key</code></td>
+<td><code>bytes \| None</code></td>
+<td><code>None</code></td>
+<td>Ed25519 public key. If <code>None</code>, reads <code>AVAKILL_VERIFY_KEY</code> env var.</td>
+</tr>
+<tr>
+<td><code>rate_limit_backend</code></td>
+<td><code>RateLimitBackend \| None</code></td>
+<td><code>None</code></td>
+<td>Persistent backend for rate-limit timestamps. <code>None</code> = in-memory only.</td>
+</tr>
+<tr>
+<td><code>normalize_tools</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Enable automatic tool name normalization via ToolNormalizer</td>
+</tr>
+<tr>
+<td><code>approval_store</code></td>
+<td><code>ApprovalStore \| None</code></td>
+<td><code>None</code></td>
+<td>Approval store for <code>require_approval</code> action. If <code>None</code>, approval requests are not persisted.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Raises:</strong> <code>ConfigError</code> if the policy cannot be loaded or parsed.</p>
+<h3 id="evaluate">evaluate()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+    <span class="n">tool</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">agent_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">override</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Decision</span>
+</code></pre></div>
+
+<p>Evaluate a tool call against the loaded policy. Self-protection rules run first, then user-defined policy rules.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tool</code></td>
+<td>Name of the tool being invoked</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td>Arguments passed to the tool</td>
+</tr>
+<tr>
+<td><code>agent_id</code></td>
+<td>Override agent identifier (falls back to Guard default)</td>
+</tr>
+<tr>
+<td><code>session_id</code></td>
+<td>Optional session identifier</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>Arbitrary metadata attached to the call</td>
+</tr>
+<tr>
+<td><code>override</code></td>
+<td>If <code>True</code> and the decision is <code>overridable</code>, flip deny to allow with <code>[override]</code> audit trail</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> A <code>Decision</code> object.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">decision</span> <span class="o">=</span> <span class="n">guard</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;execute_sql&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;DROP TABLE users&quot;</span><span class="p">})</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">decision</span><span class="o">.</span><span class="n">allowed</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blocked by </span><span class="si">{</span><span class="n">decision</span><span class="o">.</span><span class="n">policy_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">decision</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="evaluate_or_raise">evaluate_or_raise()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="o">.</span><span class="n">evaluate_or_raise</span><span class="p">(</span>
+    <span class="n">tool</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Decision</span>
+</code></pre></div>
+
+<p>Same as <code>evaluate()</code> but raises <code>PolicyViolation</code> when the decision is denied.</p>
+<p><strong>Returns:</strong> The <code>Decision</code> (always <code>allowed=True</code>).</p>
+<p><strong>Raises:</strong> <code>PolicyViolation</code> on denial, <code>RateLimitExceeded</code> on rate limit.</p>
+<h3 id="session">session()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="o">.</span><span class="n">session</span><span class="p">(</span>
+    <span class="n">agent_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GuardSession</span>
+</code></pre></div>
+
+<p>Create a session context manager with fixed agent and session IDs.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">with</span> <span class="n">guard</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="n">agent_id</span><span class="o">=</span><span class="s2">&quot;my-agent&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;search&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="s2">&quot;hello&quot;</span><span class="p">})</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;read_file&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/tmp/data.txt&quot;</span><span class="p">})</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">call_count</span><span class="p">)</span>  <span class="c1"># → 2</span>
+</code></pre></div>
+
+<h3 id="reload_policy">reload_policy()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="o">.</span><span class="n">reload_policy</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Hot-reload the policy file without restarting. If <code>path</code> is <code>None</code>, reloads from the original path.</p>
+<p><strong>Raises:</strong> <code>ConfigError</code> if the policy cannot be loaded.</p>
+<h3 id="watch">watch()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PolicyWatcher</span>
+</code></pre></div>
+
+<p>Create a <code>PolicyWatcher</code> that auto-reloads when the policy file changes on disk.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">watcher</span> <span class="o">=</span> <span class="n">guard</span><span class="o">.</span><span class="n">watch</span><span class="p">()</span>
+<span class="k">await</span> <span class="n">watcher</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<span class="c1"># Policy reloads automatically on file change</span>
+<span class="k">await</span> <span class="n">watcher</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</code></pre></div>
+
+<p><strong>Raises:</strong> <code>RuntimeError</code> if a watcher is already active. <code>ValueError</code> if no file-based policy.</p>
+<h3 id="unwatch">unwatch()</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">await</span> <span class="n">Guard</span><span class="o">.</span><span class="n">unwatch</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Stop and remove the active <code>PolicyWatcher</code>.</p>
+<h3 id="policy_status">policy_status</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Guard</span><span class="o">.</span><span class="n">policy_status</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+<p>Current integrity status:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"hardened"</code></td>
+<td>Signature verified + C-level audit hooks active</td>
+</tr>
+<tr>
+<td><code>"verified"</code></td>
+<td>Signature verified</td>
+</tr>
+<tr>
+<td><code>"last-known-good"</code></td>
+<td>Current signature invalid, using cached policy</td>
+</tr>
+<tr>
+<td><code>"deny-all"</code></td>
+<td>No valid policy available, all calls blocked</td>
+</tr>
+<tr>
+<td><code>"unsigned"</code></td>
+<td>No signing key configured</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="avakillguardsession">avakill.GuardSession</h2>
+<p>Wraps a Guard with fixed <code>agent_id</code> and <code>session_id</code>. Created via <code>guard.session()</code>.</p>
+<h3 id="properties">Properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td><code>str \| None</code></td>
+<td>Agent identifier for this session</td>
+</tr>
+<tr>
+<td><code>session_id</code></td>
+<td><code>str</code></td>
+<td>Session identifier (auto-generated UUID if not provided)</td>
+</tr>
+<tr>
+<td><code>call_count</code></td>
+<td><code>int</code></td>
+<td>Number of calls made in this session</td>
+</tr>
+</tbody>
+</table>
+<h3 id="methods">Methods</h3>
+<ul>
+<li><code>evaluate(tool, args, **kwargs) -&gt; Decision</code> — same as <code>Guard.evaluate()</code> with session context</li>
+<li><code>evaluate_or_raise(tool, args, **kwargs) -&gt; Decision</code> — same as <code>Guard.evaluate_or_raise()</code> with session context</li>
+</ul>
+<p>Supports context manager protocol (<code>with guard.session() as s:</code>).</p>
+<hr />
+<h2 id="avakillprotect">avakill.protect</h2>
+<p>Decorator that wraps a function with AvaKill policy checks. Supports sync and async functions.</p>
+<div class="codehilite"><pre><span></span><code><span class="nd">@protect</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">my_tool</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
+
+<span class="nd">@protect</span><span class="p">(</span><span class="n">guard</span><span class="o">=</span><span class="n">guard</span><span class="p">,</span> <span class="n">tool_name</span><span class="o">=</span><span class="s2">&quot;custom_name&quot;</span><span class="p">,</span> <span class="n">on_deny</span><span class="o">=</span><span class="s2">&quot;return_none&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">my_tool</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
+
+<span class="nd">@protect</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;strict.yaml&quot;</span><span class="p">,</span> <span class="n">on_deny</span><span class="o">=</span><span class="s2">&quot;callback&quot;</span><span class="p">,</span> <span class="n">deny_callback</span><span class="o">=</span><span class="n">my_handler</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">risky_tool</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>guard</code></td>
+<td><code>Guard \| None</code></td>
+<td><code>None</code></td>
+<td>Guard instance. If <code>None</code> and <code>policy</code> given, creates one. If both <code>None</code>, auto-detects.</td>
+</tr>
+<tr>
+<td><code>policy</code></td>
+<td><code>str \| Path \| None</code></td>
+<td><code>None</code></td>
+<td>Path to YAML policy file (creates Guard internally)</td>
+</tr>
+<tr>
+<td><code>tool_name</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>Override tool name (defaults to <code>fn.__name__</code>)</td>
+</tr>
+<tr>
+<td><code>on_deny</code></td>
+<td><code>"raise" \| "return_none" \| "callback"</code></td>
+<td><code>"raise"</code></td>
+<td>Behavior when denied</td>
+</tr>
+<tr>
+<td><code>deny_callback</code></td>
+<td><code>Callable \| None</code></td>
+<td><code>None</code></td>
+<td>Called when <code>on_deny="callback"</code>. Receives <code>(tool_name, decision, args, kwargs)</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="exceptions">Exceptions</h2>
+<h3 id="avakillpolicyviolation">avakill.PolicyViolation</h3>
+<p>Raised when a tool call is denied by policy.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">try</span><span class="p">:</span>
+    <span class="n">guard</span><span class="o">.</span><span class="n">evaluate_or_raise</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;delete_user&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;123&quot;</span><span class="p">})</span>
+<span class="k">except</span> <span class="n">PolicyViolation</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">tool_name</span><span class="p">)</span>     <span class="c1"># &quot;delete_user&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">decision</span><span class="p">)</span>      <span class="c1"># Decision object</span>
+</code></pre></div>
+
+<h3 id="avakillconfigerror">avakill.ConfigError</h3>
+<p>Raised when a policy file cannot be loaded or parsed.</p>
+<h3 id="avakillratelimitexceeded">avakill.RateLimitExceeded</h3>
+<p>Raised when a rate limit is exceeded. Subclass of <code>PolicyViolation</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">try</span><span class="p">:</span>
+    <span class="n">guard</span><span class="o">.</span><span class="n">evaluate_or_raise</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;web_search&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="s2">&quot;test&quot;</span><span class="p">})</span>
+<span class="k">except</span> <span class="n">RateLimitExceeded</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">decision</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>  <span class="c1"># Rate limit details</span>
+</code></pre></div>
+
+<hr />
+<h2 id="data-models">Data Models</h2>
+<h3 id="decision">Decision</h3>
+<p>The result of evaluating a tool call. Immutable (Pydantic frozen model).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allowed</code></td>
+<td><code>bool</code></td>
+<td>Whether the tool call is permitted</td>
+</tr>
+<tr>
+<td><code>action</code></td>
+<td><code>"allow" \| "deny" \| "require_approval"</code></td>
+<td>The action taken</td>
+</tr>
+<tr>
+<td><code>policy_name</code></td>
+<td><code>str \| None</code></td>
+<td>Name of the matching policy rule</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td><code>str \| None</code></td>
+<td>Human-readable explanation</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>datetime</code></td>
+<td>When the decision was made</td>
+</tr>
+<tr>
+<td><code>latency_ms</code></td>
+<td><code>float</code></td>
+<td>Evaluation time in milliseconds</td>
+</tr>
+<tr>
+<td><code>overridable</code></td>
+<td><code>bool</code></td>
+<td>Whether this denial can be overridden (based on rule enforcement level)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="toolcall">ToolCall</h3>
+<p>Represents an intercepted tool call. Available from <code>avakill.core.models</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tool_name</code></td>
+<td><code>str</code></td>
+<td>Name of the tool</td>
+</tr>
+<tr>
+<td><code>arguments</code></td>
+<td><code>dict[str, Any]</code></td>
+<td>Arguments passed to the tool</td>
+</tr>
+<tr>
+<td><code>agent_id</code></td>
+<td><code>str \| None</code></td>
+<td>Agent identifier</td>
+</tr>
+<tr>
+<td><code>session_id</code></td>
+<td><code>str \| None</code></td>
+<td>Session identifier</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>datetime</code></td>
+<td>When intercepted (UTC)</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td><code>dict[str, Any]</code></td>
+<td>Arbitrary metadata</td>
+</tr>
+</tbody>
+</table>
+<h3 id="auditevent">AuditEvent</h3>
+<p>Links a tool call to its decision. Available from <code>avakill.core.models</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td><code>str</code></td>
+<td>UUID4 identifier</td>
+</tr>
+<tr>
+<td><code>tool_call</code></td>
+<td><code>ToolCall</code></td>
+<td>The intercepted call</td>
+</tr>
+<tr>
+<td><code>decision</code></td>
+<td><code>Decision</code></td>
+<td>The policy decision</td>
+</tr>
+<tr>
+<td><code>execution_result</code></td>
+<td><code>Any \| None</code></td>
+<td>Tool result if allowed</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td><code>str \| None</code></td>
+<td>Error if execution failed</td>
+</tr>
+<tr>
+<td><code>recovery_hint</code></td>
+<td><code>Any \| None</code></td>
+<td>Recovery guidance attached by <code>avakill fix</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="framework-integrations">Framework Integrations</h2>
+<h3 id="avakillguardedopenaiclient">avakill.GuardedOpenAIClient</h3>
+<p>Wraps an OpenAI client to automatically filter denied tool calls from responses.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">GuardedOpenAIClient</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">GuardedOpenAIClient</span><span class="p">(</span><span class="n">OpenAI</span><span class="p">(),</span> <span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span> <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span> <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
+<span class="c1"># Denied tool_calls are removed from the response</span>
+<span class="c1"># response.avakill_decisions contains all decisions</span>
+</code></pre></div>
+
+<h3 id="avakillguardedanthropicclient">avakill.GuardedAnthropicClient</h3>
+<p>Wraps an Anthropic client to filter denied <code>tool_use</code> blocks from responses.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Anthropic</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">GuardedAnthropicClient</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">GuardedAnthropicClient</span><span class="p">(</span><span class="n">Anthropic</span><span class="p">(),</span> <span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-5-20250514&quot;</span><span class="p">,</span> <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span> <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
+<span class="c1"># Denied tool_use blocks are removed from response.content</span>
+</code></pre></div>
+
+<h3 id="avakillavakillcallbackhandler">avakill.AvaKillCallbackHandler</h3>
+<p>LangChain/LangGraph callback handler that intercepts tool calls.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">AvaKillCallbackHandler</span>
+
+<span class="n">handler</span> <span class="o">=</span> <span class="n">AvaKillCallbackHandler</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+<span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="s2">&quot;...&quot;</span><span class="p">},</span> <span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;callbacks&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">handler</span><span class="p">]})</span>
+<span class="c1"># Raises PolicyViolation before the tool executes</span>
+</code></pre></div>
+
+<h3 id="avakillmcpproxyserver">avakill.MCPProxyServer</h3>
+<p>MCP transparent proxy that intercepts <code>tools/call</code> requests.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">MCPProxyServer</span>
+
+<span class="n">proxy</span> <span class="o">=</span> <span class="n">MCPProxyServer</span><span class="p">(</span>
+    <span class="n">upstream_cmd</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">,</span>
+    <span class="n">upstream_args</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;server.py&quot;</span><span class="p">],</span>
+    <span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">,</span>
+    <span class="n">log_db</span><span class="o">=</span><span class="s2">&quot;audit.db&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">await</span> <span class="n">proxy</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+
+<p>See the <a href="internal/mcp-proxy.md">MCP Proxy Guide</a> for detailed usage.</p>
+<hr />
+<h2 id="security--integrity">Security &amp; Integrity</h2>
+<h3 id="avakillpolicyintegrity">avakill.PolicyIntegrity</h3>
+<p>Manages policy file signing, verification, and fail-closed loading.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">PolicyIntegrity</span>
+
+<span class="c1"># Sign a file with HMAC</span>
+<span class="n">sig_path</span> <span class="o">=</span> <span class="n">PolicyIntegrity</span><span class="o">.</span><span class="n">sign_file</span><span class="p">(</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">,</span> <span class="n">key_bytes</span><span class="p">)</span>
+
+<span class="c1"># Sign with Ed25519</span>
+<span class="n">sig_path</span> <span class="o">=</span> <span class="n">PolicyIntegrity</span><span class="o">.</span><span class="n">sign_file_ed25519</span><span class="p">(</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">,</span> <span class="n">private_key_bytes</span><span class="p">)</span>
+
+<span class="c1"># Verify (auto-detects HMAC or Ed25519)</span>
+<span class="n">valid</span> <span class="o">=</span> <span class="n">PolicyIntegrity</span><span class="o">.</span><span class="n">verify_file</span><span class="p">(</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">,</span> <span class="n">key_bytes</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="avakillfilesnapshot">avakill.FileSnapshot</h3>
+<p>Immutable snapshot of a file's state for integrity verification.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileSnapshot</span>
+
+<span class="n">snap</span> <span class="o">=</span> <span class="n">FileSnapshot</span><span class="o">.</span><span class="n">from_path</span><span class="p">(</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">snap</span><span class="o">.</span><span class="n">sha256</span><span class="p">)</span>  <span class="c1"># SHA-256 hash</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">snap</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>    <span class="c1"># File size in bytes</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">snap</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span>    <span class="c1"># File permissions</span>
+
+<span class="n">ok</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="n">snap</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path</code></td>
+<td><code>str</code></td>
+<td>Resolved absolute path</td>
+</tr>
+<tr>
+<td><code>sha256</code></td>
+<td><code>str</code></td>
+<td>SHA-256 content hash</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>int</code></td>
+<td>File size in bytes</td>
+</tr>
+<tr>
+<td><code>mtime_ns</code></td>
+<td><code>int</code></td>
+<td>Modification time (nanoseconds)</td>
+</tr>
+<tr>
+<td><code>inode</code></td>
+<td><code>int</code></td>
+<td>Inode number</td>
+</tr>
+<tr>
+<td><code>device</code></td>
+<td><code>int</code></td>
+<td>Device ID</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>int</code></td>
+<td>File permissions</td>
+</tr>
+<tr>
+<td><code>uid</code></td>
+<td><code>int</code></td>
+<td>Owner UID</td>
+</tr>
+<tr>
+<td><code>gid</code></td>
+<td><code>int</code></td>
+<td>Owner GID</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="schema--prompts">Schema &amp; Prompts</h2>
+<h3 id="avakillget_json_schema">avakill.get_json_schema</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_json_schema</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">get_json_schema</span><span class="p">()</span>  <span class="c1"># Returns dict — JSON Schema for PolicyConfig</span>
+</code></pre></div>
+
+<h3 id="avakillgenerate_prompt">avakill.generate_prompt</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_prompt</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">generate_prompt</span><span class="p">(</span>
+    <span class="n">tools_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;file_read&quot;</span><span class="p">,</span> <span class="s2">&quot;shell_exec&quot;</span><span class="p">,</span> <span class="s2">&quot;db_query&quot;</span><span class="p">],</span>
+    <span class="n">use_case</span><span class="o">=</span><span class="s2">&quot;code assistant&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Returns a self-contained LLM prompt for generating policies</span>
+</code></pre></div>
+
+<hr />
+<h2 id="observability">Observability</h2>
+<h3 id="avakillget_metrics_registry">avakill.get_metrics_registry</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_metrics_registry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">prometheus_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">start_http_server</span>
+
+<span class="n">registry</span> <span class="o">=</span> <span class="n">get_metrics_registry</span><span class="p">()</span>
+<span class="n">start_http_server</span><span class="p">(</span><span class="mi">9090</span><span class="p">,</span> <span class="n">registry</span><span class="o">=</span><span class="n">registry</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Returns the Prometheus <code>CollectorRegistry</code> with all AvaKill metrics. Uses its own registry (not the global default) to avoid name collisions.</p>
+<h3 id="avakillpolicywatcher">avakill.PolicyWatcher</h3>
+<p>Watches a policy file for changes and auto-reloads the Guard.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">PolicyWatcher</span>
+
+<span class="n">watcher</span> <span class="o">=</span> <span class="n">guard</span><span class="o">.</span><span class="n">watch</span><span class="p">()</span>
+<span class="k">await</span> <span class="n">watcher</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<span class="c1"># ... policy file changes are detected and reloaded ...</span>
+<span class="k">await</span> <span class="n">watcher</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Or as an async context manager:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">guard</span><span class="o">.</span><span class="n">watch</span><span class="p">()</span> <span class="k">as</span> <span class="n">watcher</span><span class="p">:</span>
+    <span class="c1"># Policy auto-reloads on file changes</span>
+    <span class="k">pass</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakilldaemonserver">avakill.DaemonServer</h2>
+<p>Persistent Unix domain socket server for evaluating tool calls. Used by agent hooks and the <code>avakill evaluate</code> CLI command.</p>
+<h3 id="constructor_1">Constructor</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">DaemonServer</span><span class="p">(</span>
+    <span class="n">guard</span><span class="p">:</span> <span class="n">Guard</span><span class="p">,</span>
+    <span class="n">socket_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">pid_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">normalizer</span><span class="p">:</span> <span class="n">ToolNormalizer</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_connections</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="n">transport</span><span class="p">:</span> <span class="n">ServerTransport</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tcp_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">os_enforce</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>guard</code></td>
+<td><code>Guard</code></td>
+<td><em>(required)</em></td>
+<td>Guard instance for policy evaluation</td>
+</tr>
+<tr>
+<td><code>socket_path</code></td>
+<td><code>str \| Path \| None</code></td>
+<td><code>None</code></td>
+<td>Unix socket path. Defaults to <code>AVAKILL_SOCKET</code> env var or <code>~/.avakill/avakill.sock</code>.</td>
+</tr>
+<tr>
+<td><code>pid_file</code></td>
+<td><code>str \| Path \| None</code></td>
+<td><code>None</code></td>
+<td>PID file path. Defaults to <code>~/.avakill/avakill.pid</code>.</td>
+</tr>
+<tr>
+<td><code>normalizer</code></td>
+<td><code>ToolNormalizer \| None</code></td>
+<td><code>None</code></td>
+<td>Tool name normalizer for agent-specific tool names</td>
+</tr>
+<tr>
+<td><code>max_connections</code></td>
+<td><code>int</code></td>
+<td><code>100</code></td>
+<td>Maximum concurrent connections</td>
+</tr>
+<tr>
+<td><code>transport</code></td>
+<td><code>ServerTransport \| None</code></td>
+<td><code>None</code></td>
+<td>Custom transport layer</td>
+</tr>
+<tr>
+<td><code>tcp_port</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>Optional TCP port (in addition to Unix socket)</td>
+</tr>
+<tr>
+<td><code>os_enforce</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Enable OS-level enforcement backends</td>
+</tr>
+</tbody>
+</table>
+<h3 id="start">start()</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">await</span> <span class="n">DaemonServer</span><span class="o">.</span><span class="n">start</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Create the Unix socket, install signal handlers (SIGHUP for reload, SIGTERM/SIGINT for shutdown), and begin accepting connections.</p>
+<h3 id="stop">stop()</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">await</span> <span class="n">DaemonServer</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Close the server, clean up socket and PID files.</p>
+<h3 id="serve_forever">serve_forever()</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">await</span> <span class="n">DaemonServer</span><span class="o">.</span><span class="n">serve_forever</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Start and block until a stop signal is received.</p>
+<h3 id="is_running">is_running()</h3>
+<div class="codehilite"><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="n">DaemonServer</span><span class="o">.</span><span class="n">is_running</span><span class="p">(</span><span class="n">pid_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+<p>Check if a daemon is running. Returns <code>(True, pid)</code> or <code>(False, None)</code>.</p>
+<hr />
+<h2 id="avakilldaemonclient">avakill.DaemonClient</h2>
+<p>Synchronous client for communicating with the AvaKill daemon. Designed for short-lived hook scripts.</p>
+<h3 id="constructor_2">Constructor</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">DaemonClient</span><span class="p">(</span>
+    <span class="n">socket_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">transport</span><span class="p">:</span> <span class="n">ClientTransport</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tcp_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>socket_path</code></td>
+<td><code>str \| Path \| None</code></td>
+<td><code>None</code></td>
+<td>Unix socket path. Defaults to <code>AVAKILL_SOCKET</code> env var or <code>~/.avakill/avakill.sock</code>.</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td><code>float</code></td>
+<td><code>5.0</code></td>
+<td>Connection and read timeout in seconds</td>
+</tr>
+<tr>
+<td><code>transport</code></td>
+<td><code>ClientTransport \| None</code></td>
+<td><code>None</code></td>
+<td>Custom transport layer</td>
+</tr>
+<tr>
+<td><code>tcp_port</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>Connect via TCP instead of Unix socket</td>
+</tr>
+</tbody>
+</table>
+<h3 id="evaluate_1">evaluate()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">DaemonClient</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">EvaluateRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluateResponse</span>
+</code></pre></div>
+
+<p>Send an evaluation request to the daemon. <strong>Fail-closed:</strong> returns a deny response on any error (connection refused, timeout, parse failure).</p>
+<h3 id="ping">ping()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">DaemonClient</span><span class="o">.</span><span class="n">ping</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+</code></pre></div>
+
+<p>Check daemon connectivity. Returns <code>True</code> if the daemon responds.</p>
+<h3 id="try_evaluate">try_evaluate()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">DaemonClient</span><span class="o">.</span><span class="n">try_evaluate</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">EvaluateRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluateResponse</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Like <code>evaluate()</code> but returns <code>None</code> on connection failure instead of a deny response.</p>
+<hr />
+<h2 id="wire-protocol-models">Wire Protocol Models</h2>
+<p>Available from <code>avakill.daemon.protocol</code>.</p>
+<h3 id="evaluaterequest">EvaluateRequest</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.daemon.protocol</span><span class="w"> </span><span class="kn">import</span> <span class="n">EvaluateRequest</span>
+
+<span class="n">request</span> <span class="o">=</span> <span class="n">EvaluateRequest</span><span class="p">(</span>
+    <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;claude-code&quot;</span><span class="p">,</span>
+    <span class="n">tool</span><span class="o">=</span><span class="s2">&quot;Bash&quot;</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;rm -rf /&quot;</span><span class="p">},</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>version</code></td>
+<td><code>int</code></td>
+<td><code>1</code></td>
+<td>Protocol version</td>
+</tr>
+<tr>
+<td><code>agent</code></td>
+<td><code>str</code></td>
+<td><em>(required)</em></td>
+<td>Agent identifier (e.g., <code>"claude-code"</code>, <code>"gemini-cli"</code>, <code>"cli"</code>)</td>
+</tr>
+<tr>
+<td><code>event</code></td>
+<td><code>str</code></td>
+<td><code>"pre_tool_use"</code></td>
+<td>Hook event name</td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td><code>str</code></td>
+<td><em>(required)</em></td>
+<td>Agent-native tool name</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td><code>dict[str, Any]</code></td>
+<td><code>{}</code></td>
+<td>Tool arguments</td>
+</tr>
+<tr>
+<td><code>context</code></td>
+<td><code>dict[str, Any]</code></td>
+<td><code>{}</code></td>
+<td>Additional context</td>
+</tr>
+</tbody>
+</table>
+<h3 id="evaluateresponse">EvaluateResponse</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.daemon.protocol</span><span class="w"> </span><span class="kn">import</span> <span class="n">EvaluateResponse</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>decision</code></td>
+<td><code>Literal["allow", "deny", "require_approval"]</code></td>
+<td><em>(required)</em></td>
+<td>The policy decision</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>Human-readable explanation</td>
+</tr>
+<tr>
+<td><code>policy</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>Name of the matching policy rule</td>
+</tr>
+<tr>
+<td><code>latency_ms</code></td>
+<td><code>float</code></td>
+<td><code>0.0</code></td>
+<td>Evaluation time in milliseconds</td>
+</tr>
+<tr>
+<td><code>modified_args</code></td>
+<td><code>dict[str, Any] \| None</code></td>
+<td><code>None</code></td>
+<td>Modified arguments (reserved)</td>
+</tr>
+<tr>
+<td><code>approval_request_id</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>UUID of the pending approval request (when decision is <code>require_approval</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="serialization">Serialization</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.daemon.protocol</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">serialize_request</span><span class="p">,</span> <span class="n">deserialize_request</span><span class="p">,</span>
+    <span class="n">serialize_response</span><span class="p">,</span> <span class="n">deserialize_response</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Newline-delimited JSON over Unix socket</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">serialize_request</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>    <span class="c1"># -&gt; bytes</span>
+<span class="n">req</span> <span class="o">=</span> <span class="n">deserialize_request</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>      <span class="c1"># -&gt; EvaluateRequest</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">serialize_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>  <span class="c1"># -&gt; bytes</span>
+<span class="n">resp</span> <span class="o">=</span> <span class="n">deserialize_response</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>    <span class="c1"># -&gt; EvaluateResponse</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakilltoolnormalizer">avakill.ToolNormalizer</h2>
+<p>Translates agent-specific tool names to canonical names for universal policy evaluation.</p>
+<p>Available from <code>avakill.core.normalization</code>.</p>
+<h3 id="constructor_3">Constructor</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">ToolNormalizer</span><span class="p">(</span><span class="n">custom_mappings</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>custom_mappings</code></td>
+<td><code>dict[str, dict[str, str]] \| None</code></td>
+<td><code>None</code></td>
+<td>Additional agent-to-canonical mappings merged with built-in ones</td>
+</tr>
+</tbody>
+</table>
+<h3 id="normalize">normalize()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">ToolNormalizer</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">tool</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">agent</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+<p>Translate an agent-native tool name to its canonical name. Returns the original name if no mapping exists.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">normalizer</span> <span class="o">=</span> <span class="n">ToolNormalizer</span><span class="p">()</span>
+<span class="n">normalizer</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="s2">&quot;Bash&quot;</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;claude-code&quot;</span><span class="p">)</span>       <span class="c1"># → &quot;shell_execute&quot;</span>
+<span class="n">normalizer</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="s2">&quot;run_shell_command&quot;</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;gemini-cli&quot;</span><span class="p">)</span>  <span class="c1"># → &quot;shell_execute&quot;</span>
+<span class="n">normalizer</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="s2">&quot;unknown_tool&quot;</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;claude-code&quot;</span><span class="p">)</span>      <span class="c1"># → &quot;unknown_tool&quot;</span>
+</code></pre></div>
+
+<h3 id="denormalize">denormalize()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">ToolNormalizer</span><span class="o">.</span><span class="n">denormalize</span><span class="p">(</span><span class="n">canonical</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">agent</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+<p>Reverse lookup: canonical name to agent-native name. Returns <code>None</code> if no mapping exists.</p>
+<h3 id="agent_tool_map">AGENT_TOOL_MAP</h3>
+<p>Built-in mapping of agent-native tool names to canonical names:</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Native Name</th>
+<th>Canonical Name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Bash</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Read</code></td>
+<td><code>file_read</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Write</code></td>
+<td><code>file_write</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Edit</code> / <code>MultiEdit</code></td>
+<td><code>file_edit</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Glob</code></td>
+<td><code>file_search</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Grep</code></td>
+<td><code>content_search</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>WebFetch</code></td>
+<td><code>web_fetch</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>WebSearch</code></td>
+<td><code>web_search</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>Task</code></td>
+<td><code>agent_spawn</code></td>
+</tr>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>LS</code></td>
+<td><code>file_list</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>run_shell_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>read_file</code></td>
+<td><code>file_read</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>write_file</code></td>
+<td><code>file_write</code></td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td><code>edit_file</code></td>
+<td><code>file_edit</code></td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td><code>shell_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td><code>read_file</code></td>
+<td><code>file_read</code></td>
+</tr>
+<tr>
+<td><code>windsurf</code></td>
+<td><code>run_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td><code>windsurf</code></td>
+<td><code>write_code</code></td>
+<td><code>file_write</code></td>
+</tr>
+<tr>
+<td><code>windsurf</code></td>
+<td><code>read_code</code></td>
+<td><code>file_read</code></td>
+</tr>
+<tr>
+<td><code>openai-codex</code></td>
+<td><code>shell</code> / <code>shell_command</code> / <code>local_shell</code> / <code>exec_command</code></td>
+<td><code>shell_execute</code></td>
+</tr>
+<tr>
+<td><code>openai-codex</code></td>
+<td><code>apply_patch</code></td>
+<td><code>file_write</code></td>
+</tr>
+<tr>
+<td><code>openai-codex</code></td>
+<td><code>read_file</code></td>
+<td><code>file_read</code></td>
+</tr>
+<tr>
+<td><code>openai-codex</code></td>
+<td><code>list_dir</code></td>
+<td><code>file_list</code></td>
+</tr>
+<tr>
+<td><code>openai-codex</code></td>
+<td><code>grep_files</code></td>
+<td><code>content_search</code></td>
+</tr>
+</tbody>
+</table>
+<p>MCP tool names (prefixed with <code>mcp__</code> or <code>mcp:</code>) pass through without normalization.</p>
+<hr />
+<h2 id="avakillpolicycascade">avakill.PolicyCascade</h2>
+<p>Discovers and merges policy files from multiple levels. Available from <code>avakill.core.cascade</code>.</p>
+<h3 id="discover">discover()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">PolicyCascade</span><span class="o">.</span><span class="n">discover</span><span class="p">(</span><span class="n">cwd</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">PolicyLevel</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span>
+</code></pre></div>
+
+<p>Find all policy files in discovery order. <code>PolicyLevel</code> is <code>Literal["system", "global", "project", "local"]</code>.</p>
+<p><strong>Discovery paths (in priority order):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>System</td>
+<td><code>/etc/avakill/policy.yaml</code></td>
+<td>Organization-wide defaults (admin-managed)</td>
+</tr>
+<tr>
+<td>Global</td>
+<td><code>~/.config/avakill/policy.yaml</code></td>
+<td>User-wide defaults</td>
+</tr>
+<tr>
+<td>Project</td>
+<td><code>.avakill/policy.yaml</code> or <code>avakill.yaml</code></td>
+<td>Project-specific (walks up directory tree)</td>
+</tr>
+<tr>
+<td>Local</td>
+<td><code>.avakill/policy.local.yaml</code></td>
+<td>Local overrides (gitignored)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="load">load()</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">PolicyCascade</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">cwd</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PolicyConfig</span>
+</code></pre></div>
+
+<p>Discover, load, and merge all policy files into a single <code>PolicyConfig</code>.</p>
+<h3 id="merge">merge()</h3>
+<div class="codehilite"><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="n">PolicyCascade</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">configs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PolicyConfig</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PolicyConfig</span>
+</code></pre></div>
+
+<p>Merge multiple configs with <strong>deny-wins semantics</strong>:
+- Default action: <code>"deny"</code> if any level says deny
+- Deny rules: union across all levels
+- Allow rules: kept only if no higher-level hard-deny overrides them
+- Rate limits: most restrictive (lowest <code>max_calls</code>) wins
+- Hard enforcement at a higher level cannot be relaxed by lower levels</p>
+<hr />
+<h2 id="hook-adapters">Hook Adapters</h2>
+<p>Available from <code>avakill.hooks</code>. Each adapter translates agent-specific hook payloads into <code>EvaluateRequest</code> objects.</p>
+<h3 id="hookadapter-base-class">HookAdapter (base class)</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.hooks.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">HookAdapter</span>
+</code></pre></div>
+
+<p>Abstract base class for all hook adapters.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_name: str</code></td>
+<td>Class attribute identifying the agent</td>
+</tr>
+<tr>
+<td><code>parse_stdin(raw: str) -&gt; EvaluateRequest</code></td>
+<td>Parse agent's stdin payload into a request</td>
+</tr>
+<tr>
+<td><code>format_response(response: EvaluateResponse) -&gt; tuple[str \| None, int]</code></td>
+<td>Format response as <code>(stdout_content, exit_code)</code></td>
+</tr>
+<tr>
+<td><code>run(stdin_data: str \| None = None)</code></td>
+<td>Main entry point: read stdin, evaluate, write response</td>
+</tr>
+</tbody>
+</table>
+<h3 id="built-in-adapters">Built-in Adapters</h3>
+<table>
+<thead>
+<tr>
+<th>Adapter</th>
+<th>Agent</th>
+<th>Hook Event</th>
+<th>Deny Signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ClaudeCodeAdapter</code></td>
+<td><code>claude-code</code></td>
+<td>PreToolUse</td>
+<td><code>permissionDecision: "deny"</code> in JSON</td>
+</tr>
+<tr>
+<td><code>GeminiCliAdapter</code></td>
+<td><code>gemini-cli</code></td>
+<td>BeforeTool</td>
+<td><code>permissionDecision: "deny"</code> in JSON</td>
+</tr>
+<tr>
+<td><code>CursorAdapter</code></td>
+<td><code>cursor</code></td>
+<td>beforeShellExecution</td>
+<td><code>continue: false</code> in JSON (always exit 0)</td>
+</tr>
+<tr>
+<td><code>WindsurfAdapter</code></td>
+<td><code>windsurf</code></td>
+<td>pre_run_command</td>
+<td>Exit code 2 + reason on stderr</td>
+</tr>
+<tr>
+<td><code>OpenAICodexAdapter</code></td>
+<td><code>openai-codex</code></td>
+<td>before_tool_use</td>
+<td>Exit code 1 + JSON <code>{"decision": "block"}</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each adapter has a corresponding console script entry point: <code>avakill-hook-claude-code</code>, <code>avakill-hook-gemini-cli</code>, <code>avakill-hook-cursor</code>, <code>avakill-hook-windsurf</code>, <code>avakill-hook-openai-codex</code>.</p>
+<p><strong>Standalone mode:</strong> If the daemon is unreachable, adapters fall back to standalone evaluation using the policy file at <code>AVAKILL_POLICY</code> environment variable.</p>
+<hr />
+<h2 id="enforcement-backends">Enforcement Backends</h2>
+<p>Available from <code>avakill.enforcement</code>.</p>
+<h3 id="landlockenforcer">LandlockEnforcer</h3>
+<p>Linux 5.13+ unprivileged filesystem access restrictions.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.enforcement.landlock</span><span class="w"> </span><span class="kn">import</span> <span class="n">LandlockEnforcer</span>
+
+<span class="c1"># Check availability</span>
+<span class="n">LandlockEnforcer</span><span class="o">.</span><span class="n">available</span><span class="p">()</span>  <span class="c1"># → True on Linux 5.13+</span>
+
+<span class="c1"># Dry run — see what would be restricted</span>
+<span class="n">ruleset</span> <span class="o">=</span> <span class="n">LandlockEnforcer</span><span class="o">.</span><span class="n">generate_ruleset</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+
+<span class="c1"># Apply — IRREVERSIBLE for the current process</span>
+<span class="n">LandlockEnforcer</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="sandboxexecenforcer">SandboxExecEnforcer</h3>
+<p>macOS Seatbelt Profile Language (SBPL) generation.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.enforcement.sandbox_exec</span><span class="w"> </span><span class="kn">import</span> <span class="n">SandboxExecEnforcer</span>
+
+<span class="c1"># Check availability</span>
+<span class="n">SandboxExecEnforcer</span><span class="o">.</span><span class="n">available</span><span class="p">()</span>  <span class="c1"># → True on macOS</span>
+
+<span class="c1"># Generate SBPL profile string</span>
+<span class="n">profile</span> <span class="o">=</span> <span class="n">SandboxExecEnforcer</span><span class="o">.</span><span class="n">generate_profile</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+
+<span class="c1"># Write to file</span>
+<span class="n">SandboxExecEnforcer</span><span class="o">.</span><span class="n">write_profile</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;avakill.sb&quot;</span><span class="p">))</span>
+</code></pre></div>
+
+<h3 id="tetragonpolicygenerator">TetragonPolicyGenerator</h3>
+<p>Cilium Tetragon Kubernetes TracingPolicy generation.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.enforcement.tetragon</span><span class="w"> </span><span class="kn">import</span> <span class="n">TetragonPolicyGenerator</span>
+
+<span class="c1"># Generate TracingPolicy YAML</span>
+<span class="n">yaml_str</span> <span class="o">=</span> <span class="n">TetragonPolicyGenerator</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">policy_config</span><span class="p">)</span>
+
+<span class="c1"># Write to file</span>
+<span class="n">TetragonPolicyGenerator</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">policy_config</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;tetragon-policy.yaml&quot;</span><span class="p">))</span>
+</code></pre></div>
+
+<hr />
+<h2 id="compliance--approvals">Compliance &amp; Approvals</h2>
+<h3 id="complianceassessor">ComplianceAssessor</h3>
+<p>Automated compliance assessment. Available from <code>avakill.compliance.assessor</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.compliance.assessor</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComplianceAssessor</span>
+
+<span class="n">assessor</span> <span class="o">=</span> <span class="n">ComplianceAssessor</span><span class="p">(</span><span class="n">guard</span><span class="o">=</span><span class="n">guard</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+<span class="c1"># Assess single framework</span>
+<span class="n">report</span> <span class="o">=</span> <span class="n">assessor</span><span class="o">.</span><span class="n">assess</span><span class="p">(</span><span class="s2">&quot;soc2&quot;</span><span class="p">)</span>
+
+<span class="c1"># Assess all frameworks</span>
+<span class="n">reports</span> <span class="o">=</span> <span class="n">assessor</span><span class="o">.</span><span class="n">assess_all</span><span class="p">()</span>  <span class="c1"># → dict[str, ComplianceReport]</span>
+</code></pre></div>
+
+<p><strong>Supported frameworks:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Framework</th>
+<th>ID</th>
+<th>Controls</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SOC 2 Type II</td>
+<td><code>soc2</code></td>
+<td>CC6.1, CC6.3, CC7.1, CC7.2, CC8.1</td>
+</tr>
+<tr>
+<td>NIST AI RMF</td>
+<td><code>nist-ai-rmf</code></td>
+<td>GOVERN, MAP, MEASURE, MANAGE</td>
+</tr>
+<tr>
+<td>EU AI Act</td>
+<td><code>eu-ai-act</code></td>
+<td>Art.9, Art.12, Art.14</td>
+</tr>
+<tr>
+<td>ISO 42001</td>
+<td><code>iso-42001</code></td>
+<td>A.2.3, A.5, A.6, A.7, A.8</td>
+</tr>
+</tbody>
+</table>
+<h3 id="compliancereporter">ComplianceReporter</h3>
+<p>Format compliance reports. Available from <code>avakill.compliance.reporter</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.compliance.reporter</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComplianceReporter</span>
+
+<span class="n">table</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="o">.</span><span class="n">to_rich_table</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>  <span class="c1"># Rich Table for terminal</span>
+<span class="n">json_str</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>       <span class="c1"># JSON string</span>
+<span class="n">md_str</span> <span class="o">=</span> <span class="n">ComplianceReporter</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>     <span class="c1"># Markdown string</span>
+</code></pre></div>
+
+<h3 id="approvalstore">ApprovalStore</h3>
+<p>SQLite-backed approval workflow. Available from <code>avakill.core.approval</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.core.approval</span><span class="w"> </span><span class="kn">import</span> <span class="n">ApprovalStore</span>
+
+<span class="k">async</span> <span class="k">with</span> <span class="n">ApprovalStore</span><span class="p">(</span><span class="s2">&quot;approvals.db&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">store</span><span class="p">:</span>
+    <span class="c1"># Create approval request (default TTL: 1 hour)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">tool_call</span><span class="p">,</span> <span class="n">decision</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;claude-code&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+
+    <span class="c1"># List pending</span>
+    <span class="n">pending</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">get_pending</span><span class="p">()</span>
+
+    <span class="c1"># Approve or deny</span>
+    <span class="n">approved</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">approve</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">approver</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">)</span>
+    <span class="n">denied</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">deny</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">approver</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Clean up expired</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">cleanup_expired</span><span class="p">()</span>
+
+    <span class="c1"># Find approved request for tool+agent</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">get_approved_for_tool</span><span class="p">(</span><span class="s2">&quot;shell_execute&quot;</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="s2">&quot;claude-code&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Resolve a prefix ID (12-char) to full UUID</span>
+    <span class="n">full_id</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">resolve_id</span><span class="p">(</span><span class="s2">&quot;abc123def456&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Get a single request by ID</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="c1"># Close the database connection</span>
+    <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div>
+
+<h3 id="auditanalytics">AuditAnalytics</h3>
+<p>Audit log analysis engine. Available from <code>avakill.analytics.engine</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.analytics.engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuditAnalytics</span>
+
+<span class="n">analytics</span> <span class="o">=</span> <span class="n">AuditAnalytics</span><span class="p">(</span><span class="n">logger</span><span class="o">=</span><span class="n">sqlite_logger</span><span class="p">)</span>
+
+<span class="c1"># Denial trends (time-bucketed)</span>
+<span class="n">trends</span> <span class="o">=</span> <span class="k">await</span> <span class="n">analytics</span><span class="o">.</span><span class="n">denial_trend</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">bucket_minutes</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+
+<span class="c1"># Per-tool usage summary</span>
+<span class="n">usage</span> <span class="o">=</span> <span class="k">await</span> <span class="n">analytics</span><span class="o">.</span><span class="n">tool_usage_summary</span><span class="p">()</span>  <span class="c1"># → {&quot;tool&quot;: {&quot;allowed&quot;: N, &quot;denied&quot;: N}}</span>
+
+<span class="c1"># Per-agent risk scores (0.0 = safe, 1.0 = all denied)</span>
+<span class="n">scores</span> <span class="o">=</span> <span class="k">await</span> <span class="n">analytics</span><span class="o">.</span><span class="n">agent_risk_scores</span><span class="p">()</span>
+
+<span class="c1"># Per-rule effectiveness</span>
+<span class="n">effectiveness</span> <span class="o">=</span> <span class="k">await</span> <span class="n">analytics</span><span class="o">.</span><span class="n">policy_effectiveness</span><span class="p">()</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakillprocesslauncher">avakill.ProcessLauncher</h2>
+<p>Launches and manages sandboxed child processes. Available from <code>avakill.launcher.core</code>. Exported in <code>__all__</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill.launcher.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessLauncher</span>
+</code></pre></div>
+
+<blockquote>
+<p><strong>Note:</strong> ProcessLauncher is shipped but currently untested per audit status.</p>
+</blockquote>
+<hr />
+<h2 id="internal-for-contributors">Internal (for contributors)</h2>
+<p>These are not part of the public API and may change between versions.</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Module</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PolicyEngine</code></td>
+<td><code>avakill.core.policy</code></td>
+<td>Parses YAML and evaluates tool calls with first-match-wins</td>
+</tr>
+<tr>
+<td><code>PolicyConfig</code></td>
+<td><code>avakill.core.models</code></td>
+<td>Pydantic model for the top-level YAML structure</td>
+</tr>
+<tr>
+<td><code>PolicyRule</code></td>
+<td><code>avakill.core.models</code></td>
+<td>Pydantic model for a single rule</td>
+</tr>
+<tr>
+<td><code>SQLiteLogger</code></td>
+<td><code>avakill.logging.sqlite_logger</code></td>
+<td>Async SQLite audit logger with batched writes</td>
+</tr>
+<tr>
+<td><code>SyncSQLiteLogger</code></td>
+<td><code>avakill.logging.sqlite_logger</code></td>
+<td>Synchronous wrapper for non-async contexts</td>
+</tr>
+<tr>
+<td><code>EventBus</code></td>
+<td><code>avakill.logging.event_bus</code></td>
+<td>In-process event pub/sub (singleton)</td>
+</tr>
+<tr>
+<td><code>SelfProtection</code></td>
+<td><code>avakill.core.self_protection</code></td>
+<td>Hardcoded self-protection rules</td>
+</tr>
+<tr>
+<td><code>AuditHookManager</code></td>
+<td><code>avakill.core.audit_hooks</code></td>
+<td>Python <code>sys.addaudithook()</code> manager</td>
+</tr>
+<tr>
+<td><code>RateLimitBackend</code></td>
+<td><code>avakill.core.rate_limit_store</code></td>
+<td>Protocol for persistent rate-limit storage</td>
+</tr>
+<tr>
+<td><code>DaemonServer</code></td>
+<td><code>avakill.daemon.server</code></td>
+<td>Unix domain socket server for persistent evaluation</td>
+</tr>
+<tr>
+<td><code>DaemonClient</code></td>
+<td><code>avakill.daemon.client</code></td>
+<td>Synchronous client for hook scripts</td>
+</tr>
+<tr>
+<td><code>ToolNormalizer</code></td>
+<td><code>avakill.core.normalization</code></td>
+<td>Agent-native to canonical tool name translation</td>
+</tr>
+<tr>
+<td><code>PolicyCascade</code></td>
+<td><code>avakill.core.cascade</code></td>
+<td>Multi-level policy discovery and merge</td>
+</tr>
+<tr>
+<td><code>HookAdapter</code></td>
+<td><code>avakill.hooks.base</code></td>
+<td>Abstract base class for agent hook adapters</td>
+</tr>
+<tr>
+<td><code>LandlockEnforcer</code></td>
+<td><code>avakill.enforcement.landlock</code></td>
+<td>Linux Landlock filesystem restrictions</td>
+</tr>
+<tr>
+<td><code>SandboxExecEnforcer</code></td>
+<td><code>avakill.enforcement.sandbox_exec</code></td>
+<td>macOS SBPL profile generation</td>
+</tr>
+<tr>
+<td><code>TetragonPolicyGenerator</code></td>
+<td><code>avakill.enforcement.tetragon</code></td>
+<td>Cilium Kubernetes TracingPolicy generation</td>
+</tr>
+<tr>
+<td><code>ComplianceAssessor</code></td>
+<td><code>avakill.compliance.assessor</code></td>
+<td>Automated compliance framework assessment</td>
+</tr>
+<tr>
+<td><code>ComplianceReporter</code></td>
+<td><code>avakill.compliance.reporter</code></td>
+<td>Compliance report formatting (table/JSON/Markdown)</td>
+</tr>
+<tr>
+<td><code>ApprovalStore</code></td>
+<td><code>avakill.core.approval</code></td>
+<td>SQLite-backed approval workflow</td>
+</tr>
+<tr>
+<td><code>AuditAnalytics</code></td>
+<td><code>avakill.analytics.engine</code></td>
+<td>Audit log analysis and risk scoring</td>
+</tr>
+<tr>
+<td><code>ProcessLauncher</code></td>
+<td><code>avakill.launcher.core</code></td>
+<td>Sandboxed child process launcher (shipped-untested)</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> for the full architecture overview.</p>
+
+<div class="docs-nav-bottom">
+  <a href="/docs/cli-reference/" class="docs-nav-card">
+    <div class="docs-nav-label">&larr; Previous</div>
+    <div class="docs-nav-title">CLI Reference</div>
+  </a>
+  <a href="/docs/architecture/" class="docs-nav-card docs-nav-card--next">
+    <div class="docs-nav-label">Next &rarr;</div>
+    <div class="docs-nav-title">Architecture</div>
+  </a>
+</div>
+    </main>
+
+    <!-- ===== Right TOC ("On this page") ===== -->
+    <aside class="docs-toc">
+      <div class="toc-heading">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg>
+        On this page
+      </div>
+      <ul class="toc-list">
+        <li><a href="#avakillguard" class="toc-link">avakill.Guard</a></li>
+        <li><a href="#avakillguardsession" class="toc-link">avakill.GuardSession</a></li>
+        <li><a href="#avakillprotect" class="toc-link">avakill.protect</a></li>
+        <li><a href="#exceptions" class="toc-link">Exceptions</a></li>
+        <li><a href="#data-models" class="toc-link">Data Models</a></li>
+        <li><a href="#framework-integrations" class="toc-link">Framework Integrations</a></li>
+        <li><a href="#security--integrity" class="toc-link">Security &amp; Integrity</a></li>
+        <li><a href="#schema--prompts" class="toc-link">Schema &amp; Prompts</a></li>
+        <li><a href="#observability" class="toc-link">Observability</a></li>
+        <li><a href="#avakilldaemonserver" class="toc-link">avakill.DaemonServer</a></li>
+        <li><a href="#avakilldaemonclient" class="toc-link">avakill.DaemonClient</a></li>
+        <li><a href="#wire-protocol-models" class="toc-link">Wire Protocol Models</a></li>
+        <li><a href="#avakilltoolnormalizer" class="toc-link">avakill.ToolNormalizer</a></li>
+        <li><a href="#avakillpolicycascade" class="toc-link">avakill.PolicyCascade</a></li>
+        <li><a href="#hook-adapters" class="toc-link">Hook Adapters</a></li>
+        <li><a href="#enforcement-backends" class="toc-link">Enforcement Backends</a></li>
+        <li><a href="#compliance--approvals" class="toc-link">Compliance &amp; Approvals</a></li>
+        <li><a href="#avakillprocesslauncher" class="toc-link">avakill.ProcessLauncher</a></li>
+        <li><a href="#internal-for-contributors" class="toc-link">Internal (for contributors)</a></li>
+      </ul>
+    </aside>
+
+  </div>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <nav class="footer-links">
+      <a href="/docs">Docs</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill/blob/main/CHANGELOG.md">Changelog</a>
+      <span class="sep">&middot;</span>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
+    </nav>
+    <div class="footer-attribution">
+      Built with &#128737;&#65039; by AvaKill contributors.<br>
+      Open-source under AGPL-3.0 license.
+    </div>
+  </footer>
+
+  <!-- ========== JavaScript ========== -->
+  <script>
+    // --- Hamburger menu ---
+    const navEl = document.getElementById('site-nav');
+    const hamburger = document.getElementById('nav-hamburger');
+    hamburger.addEventListener('click', () => navEl.classList.toggle('nav-open'));
+
+    // --- Mobile sidebar ---
+    const mobileSidebarBtn = document.getElementById('mobile-sidebar-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    mobileSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('open');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('open');
+    });
+
+    // --- Copy code buttons ---
+    document.querySelectorAll('.docs-codeblock-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code || btn.closest('.docs-codeblock').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          btn.style.color = 'var(--color-allowed)';
+          setTimeout(() => btn.style.color = '', 1500);
+        });
+      });
+    });
+
+    // --- Scroll spy for right TOC ---
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const headings = [];
+    tocLinks.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) headings.push({ el, link });
+    });
+
+    const tocObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(l => l.classList.remove('active'));
+          const match = headings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -60% 0px',
+      threshold: 0
+    });
+
+    headings.forEach(h => tocObserver.observe(h.el));
+
+    // --- Scroll spy for left sidebar ---
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const sidebarHeadings = [];
+    sidebarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const el = document.getElementById(href.slice(1));
+      if (el) sidebarHeadings.push({ el, link });
+    });
+
+    const sidebarObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          sidebarLinks.forEach(l => l.classList.remove('active'));
+          const match = sidebarHeadings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -70% 0px',
+      threshold: 0
+    });
+
+    sidebarHeadings.forEach(h => sidebarObserver.observe(h.el));
+  </script>
+
+</body>
+</html>

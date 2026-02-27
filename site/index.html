@@ -1203,6 +1203,104 @@
       transform: scale(0.97);
     }
 
+    /* =========================================================
+       Sponsor Section
+       ========================================================= */
+    .sponsor-section {
+      position: relative;
+      z-index: 1;
+      padding: 80px 24px 100px;
+    }
+
+    .sponsor-card {
+      max-width: 864px;
+      margin: 0 auto;
+      padding: 60px 40px;
+      background: var(--surface);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle radial glow behind the card, matching hero style */
+    .sponsor-card::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .sponsor-heart {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+
+    .sponsor-heart svg {
+      filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.35));
+      animation: heartPulseGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes heartPulseGlow {
+      0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.3));
+        transform: scale(1);
+      }
+      50% {
+        filter: drop-shadow(0 0 18px rgba(0, 212, 255, 0.5));
+        transform: scale(1.06);
+      }
+    }
+
+    .sponsor-title {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .sponsor-title .chevron {
+      color: var(--neon-blue);
+      margin-right: 8px;
+    }
+
+    .sponsor-desc {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      max-width: 560px;
+      margin: 0 auto 32px;
+      position: relative;
+    }
+
+    .sponsor-embed {
+      position: relative;
+      display: flex;
+      justify-content: center;
+    }
+
+    @media (max-width: 768px) {
+      .sponsor-section {
+        padding: 60px 16px 72px;
+      }
+
+      .sponsor-card {
+        padding: 40px 24px;
+      }
+
+      .sponsor-embed iframe {
+        width: 100%;
+      }
+    }
+
     .newsletter-success {
       color: var(--color-allowed);
       font-size: 1rem;
@@ -1418,6 +1516,44 @@
     .nav-links a:hover,
     .nav-links a.active {
       color: var(--neon-blue);
+    }
+
+    /* Vertically align the GitHub star button iframe */
+    .nav-links > span {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .nav-sponsor-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      background: rgba(0, 212, 255, 0.05);
+      color: var(--neon-blue) !important;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none !important;
+      transition: background 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .nav-sponsor-btn svg {
+      color: var(--neon-blue);
+      opacity: 0.8;
+      transition: opacity 0.3s ease;
+    }
+
+    .nav-sponsor-btn:hover {
+      background: rgba(0, 212, 255, 0.08);
+      border-color: rgba(0, 212, 255, 0.5);
+      box-shadow: 0 0 14px rgba(0, 212, 255, 0.12);
+      color: var(--neon-blue-bright) !important;
+    }
+
+    .nav-sponsor-btn:hover svg {
+      opacity: 1;
     }
 
     .nav-hamburger {
@@ -1685,6 +1821,11 @@
       <a href="#demo-section">Demo</a>
       <a href="/docs">Docs</a>
       <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <a class="github-button" href="https://github.com/log-bell/avakill" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star log-bell/avakill on GitHub">Star</a>
+      <a href="https://github.com/sponsors/log-bell" class="nav-sponsor-btn">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="var(--neon-blue)"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        Sponsor
+      </a>
     </nav>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
       <span></span><span></span><span></span>
@@ -1959,6 +2100,20 @@
     </div>
   </section>
 
+  <!-- Sponsor Section -->
+  <section class="sponsor-section">
+    <div class="sponsor-card">
+      <div class="sponsor-heart">
+        <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--neon-blue)"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </div>
+      <h2 class="sponsor-title"><span class="chevron">&rsaquo;</span>Support AvaKill</h2>
+      <p class="sponsor-desc">AvaKill is free and open source. If it's protecting your agents and infrastructure, consider sponsoring the project. Your support helps us maintain, improve, and keep it independent.</p>
+      <div class="sponsor-embed">
+        <iframe src="https://github.com/sponsors/log-bell/card" title="Sponsor log-bell" height="225" width="600" style="border: 0; max-width: 100%; border-radius: 12px;"></iframe>
+      </div>
+    </div>
+  </section>
+
   </main>
 
   <!-- Footer -->
@@ -1967,6 +2122,8 @@
       <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md">Docs</a>
       <span class="sep">&middot;</span>
       <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/sponsors/log-bell">Sponsor</a>
       <span class="sep">&middot;</span>
       <a href="https://pypi.org/project/avakill/">PyPI</a>
       <span class="sep">&middot;</span>
@@ -2329,5 +2486,6 @@
     navSections.forEach(section => navObserver.observe(section));
   </script>
 
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
 </body>
 </html>

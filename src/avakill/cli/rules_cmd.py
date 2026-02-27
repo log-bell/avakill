@@ -1,0 +1,521 @@
+"""AvaKill rules — manage policy rules incrementally.
+
+Subcommands:
+  avakill rules          Open catalog toggle menu (edit existing policy)
+  avakill rules list     Show current rules with source classification
+  avakill rules create   Interactive wizard for custom rules
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+import click
+import yaml
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.table import Table
+
+
+def _find_policy_path() -> Path | None:
+    """Locate avakill.yaml from env var or cwd."""
+    env = os.environ.get("AVAKILL_POLICY")
+    if env:
+        p = Path(env)
+        if p.exists():
+            return p
+    cwd = Path("avakill.yaml")
+    if cwd.exists():
+        return cwd
+    return None
+
+
+def _load_policy(policy_path: Path) -> dict:
+    """Load and return parsed policy dict."""
+    data: dict = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    return data
+
+
+@click.group(invoke_without_command=True)
+@click.pass_context
+def rules(ctx: click.Context) -> None:
+    """Manage your AvaKill policy rules."""
+    if ctx.invoked_subcommand is None:
+        _edit_catalog()
+
+
+# ------------------------------------------------------------------
+# avakill rules (no subcommand) — catalog editor
+# ------------------------------------------------------------------
+
+
+def _edit_catalog() -> None:
+    """Open the catalog toggle menu pre-populated from existing policy."""
+    from avakill.cli.rule_catalog import (
+        build_policy_dict,
+        classify_policy_rules,
+        get_base_rules,
+        get_optional_rules,
+    )
+    from avakill.cli.setup_cmd import _configure_rate_limits, _interactive_rule_menu
+
+    console = Console()
+
+    if not sys.stdin.isatty():
+        click.echo(
+            "avakill rules requires an interactive terminal.\n"
+            "\n"
+            "For non-interactive use:\n"
+            "  avakill rules list       Show current rules\n"
+            "  Edit avakill.yaml        Modify rules by hand",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    policy_path = _find_policy_path()
+    if policy_path is None:
+        console.print()
+        console.print("  [red]No avakill.yaml found.[/red]")
+        console.print("  Run [cyan]avakill setup[/cyan] to create one first.")
+        console.print()
+        raise SystemExit(1)
+
+    data = _load_policy(policy_path)
+    default_action = data.get("default_action", "deny")
+    policies = data.get("policies", [])
+
+    catalog_ids, scan_rules, custom_rules = classify_policy_rules(policies)
+
+    # Show current state
+    console.print()
+    console.print(
+        f"  Your policy has [cyan]{len(catalog_ids)}[/cyan] catalog rules, "
+        f"[magenta]{len(custom_rules)}[/magenta] custom rules, "
+        f"[yellow]{len(scan_rules)}[/yellow] scan rules."
+    )
+    console.print()
+
+    # Open interactive rule menu with current selections
+    optional_rules = get_optional_rules()
+    new_selected = _interactive_rule_menu(console, optional_rules, selected=catalog_ids)
+
+    # Prompt for default_action change
+    console.print()
+    console.print(f"  [bold]Default action:[/bold] currently [cyan]{default_action}[/cyan]")
+    change_default = Prompt.ask(
+        "  Change?",
+        choices=["y", "n"],
+        default="n",
+        console=console,
+    )
+    if change_default == "y":
+        console.print(
+            "    [bold #00D4FF]1.[/bold #00D4FF] allow  [dim]Log and allow unmatched calls[/dim]"
+        )
+        console.print("    [bold]2.[/bold] deny   [dim]Block anything not explicitly allowed[/dim]")
+        action_choice = Prompt.ask(
+            "  Choose",
+            choices=["1", "2"],
+            default="1" if default_action == "allow" else "2",
+            console=console,
+        )
+        default_action = "allow" if action_choice == "1" else "deny"
+
+    # Configure rate limits for selected rules
+    _configure_rate_limits(console, new_selected)
+
+    # Rebuild policy: base + selected catalog + scan + custom + log-all
+    policy_dict = build_policy_dict(new_selected, default_action, scan_rules or None)
+
+    # Insert custom rules before trailing log-all (if present)
+    if custom_rules:
+        rebuilt_policies = policy_dict["policies"]
+        if rebuilt_policies and rebuilt_policies[-1].get("name") == "log-all":
+            log_all = rebuilt_policies.pop()
+            rebuilt_policies.extend(custom_rules)
+            rebuilt_policies.append(log_all)
+        else:
+            rebuilt_policies.extend(custom_rules)
+
+    # Validate
+    from avakill.core.policy import PolicyEngine
+
+    PolicyEngine.from_dict(policy_dict)
+
+    # Write back with header
+    base_ids = [r.id for r in get_base_rules()]
+    selected_sorted = sorted(new_selected) if isinstance(new_selected, set) else list(new_selected)
+
+    header_lines = [
+        "# AvaKill Policy",
+        "# Generated by avakill rules",
+        "#",
+        f"# Base rules: {', '.join(base_ids)}",
+    ]
+    if selected_sorted:
+        header_lines.append(f"# Selected rules: {', '.join(selected_sorted)}")
+    header_lines.append("")
+
+    header = "\n".join(header_lines)
+    body = yaml.dump(policy_dict, default_flow_style=False, sort_keys=False)
+    policy_path.write_text(header + body, encoding="utf-8")
+
+    total = len(policy_dict["policies"])
+    console.print()
+    console.print(f"  [green]\u2713[/green] Updated [cyan]{policy_path}[/cyan] ({total} rules).")
+    console.print()
+
+
+# ------------------------------------------------------------------
+# avakill rules list
+# ------------------------------------------------------------------
+
+
+@rules.command("list")
+@click.argument("policy_file", default="avakill.yaml", required=False)
+def list_rules(policy_file: str) -> None:
+    """Show current rules with source classification."""
+    from avakill.cli.rule_catalog import _RULES_BY_NAME, ALL_RULES
+
+    console = Console()
+
+    policy_path = Path(policy_file)
+    if not policy_path.exists():
+        env = os.environ.get("AVAKILL_POLICY")
+        if env:
+            policy_path = Path(env)
+        if not policy_path.exists():
+            console.print()
+            console.print(f"  [red]Policy file not found: {policy_file}[/red]")
+            console.print("  Run [cyan]avakill setup[/cyan] to create one.")
+            console.print()
+            raise SystemExit(1)
+
+    data = _load_policy(policy_path)
+    policies = data.get("policies", [])
+    default_action = data.get("default_action", "deny")
+
+    # Build base rule name set
+    base_names = {r.rule_data["name"] for r in ALL_RULES if r.base}
+
+    table = Table(show_header=True, header_style="bold", padding=(0, 1))
+    table.add_column("#", style="dim", width=4, justify="right")
+    table.add_column("Name", min_width=28)
+    table.add_column("Action", width=16)
+    table.add_column("Source", width=10)
+    table.add_column("Tools", max_width=20, no_wrap=True)
+
+    source_styles = {
+        "base": "green",
+        "catalog": "cyan",
+        "scan": "yellow",
+        "custom": "magenta",
+        "system": "dim",
+    }
+
+    counts: dict[str, int] = {"base": 0, "catalog": 0, "scan": 0, "custom": 0, "system": 0}
+
+    for i, rule in enumerate(policies, 1):
+        name = rule.get("name", "")
+        action = rule.get("action", "")
+        tools = rule.get("tools", [])
+
+        # Classify source
+        if name in base_names:
+            source = "base"
+        elif name in _RULES_BY_NAME:
+            source = "catalog"
+        elif name == "log-all":
+            source = "system"
+        elif _is_system_rule_name(name):
+            source = "scan"
+        else:
+            source = "custom"
+
+        counts[source] += 1
+        style = source_styles.get(source, "")
+
+        # Truncate tools display
+        tools_str = ", ".join(tools)
+        if len(tools_str) > 20:
+            tools_str = tools_str[:17] + "..."
+
+        table.add_row(
+            str(i),
+            name,
+            action,
+            f"[{style}]{source}[/{style}]",
+            tools_str,
+        )
+
+    console.print()
+    console.print(
+        f"  Policy: [cyan]{policy_path}[/cyan] ({len(policies)} rules, default: {default_action})"
+    )
+    console.print()
+    console.print(table)
+
+    # Summary line
+    parts = []
+    for source in ("base", "catalog", "scan", "custom", "system"):
+        if counts[source]:
+            style = source_styles[source]
+            parts.append(f"[{style}]{counts[source]} {source}[/{style}]")
+    summary = " \u00b7 ".join(parts)
+    console.print(f"  {summary}")
+    console.print()
+
+
+def _is_system_rule_name(name: str) -> bool:
+    """Detect scan-generated and system rules by name pattern."""
+    return (name.startswith("protect-") and name.endswith("-files")) or name == "log-all"
+
+
+# ------------------------------------------------------------------
+# avakill rules create — custom rule wizard
+# ------------------------------------------------------------------
+
+
+@rules.command("create")
+def create_rule() -> None:
+    """Interactive wizard for defining a custom rule."""
+    from avakill.cli.rule_catalog import _RULES_BY_NAME, get_tool_presets
+    from avakill.core.policy import PolicyEngine
+
+    console = Console()
+
+    if not sys.stdin.isatty():
+        click.echo(
+            "avakill rules create requires an interactive terminal.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    console.print()
+    console.print("  [bold]Create a custom rule[/bold]")
+    console.print()
+
+    # 1. Rule name
+    while True:
+        name = Prompt.ask("  Rule name (e.g. block-internal-api)", console=console)
+        name = name.strip()
+        if not name:
+            console.print("  [red]Name cannot be empty.[/red]")
+            continue
+        if name in _RULES_BY_NAME:
+            console.print(
+                f"  [yellow]Warning:[/yellow] '{name}' matches a catalog rule. "
+                "Consider a different name."
+            )
+        break
+
+    # 2. Tool patterns
+    presets = get_tool_presets()
+    preset_keys = list(presets.keys())
+
+    console.print()
+    console.print("  [bold]Which tools should this rule match?[/bold]")
+    console.print()
+    for i, key in enumerate(preset_keys, 1):
+        label, _tools = presets[key]
+        console.print(f"    {i}. {label}")
+    console.print(f"    {len(preset_keys) + 1}. Custom (enter your own patterns)")
+    console.print()
+
+    tool_choice = Prompt.ask(
+        "  Choose (comma-separated)",
+        default="1",
+        console=console,
+    )
+
+    tools: list[str] = []
+    for token in tool_choice.replace(",", " ").split():
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            idx = int(token)
+            if 1 <= idx <= len(preset_keys):
+                _label, preset_tools = presets[preset_keys[idx - 1]]
+                tools.extend(preset_tools)
+            elif idx == len(preset_keys) + 1:
+                custom_tools = Prompt.ask(
+                    "  Tool patterns (comma-separated)",
+                    console=console,
+                )
+                tools.extend(t.strip() for t in custom_tools.split(",") if t.strip())
+        except ValueError:
+            pass
+
+    if not tools:
+        tools = ["*"]
+
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for t in tools:
+        if t not in seen:
+            seen.add(t)
+            deduped.append(t)
+    tools = deduped
+
+    # 3. Action
+    console.print()
+    console.print("  [bold]What should happen when matched?[/bold]")
+    console.print()
+    console.print("    1. deny               Block the call")
+    console.print("    2. allow              Permit the call")
+    console.print("    3. require_approval   Pause for human review")
+    console.print()
+    action_choice = Prompt.ask(
+        "  Choose",
+        choices=["1", "2", "3"],
+        default="1",
+        console=console,
+    )
+    action_map = {"1": "deny", "2": "allow", "3": "require_approval"}
+    action = action_map[action_choice]
+
+    # 4. Conditions (optional)
+    rule_data: dict = {
+        "name": name,
+        "tools": tools,
+        "action": action,
+    }
+
+    console.print()
+    add_conditions = Prompt.ask(
+        "  Add argument matching? (e.g. block specific commands or paths)",
+        choices=["y", "n"],
+        default="n",
+        console=console,
+    )
+
+    if add_conditions == "y":
+        args_match: dict[str, list[str]] = {}
+        while True:
+            arg_name = Prompt.ask(
+                "  Argument name (e.g. command, file_path, query)",
+                console=console,
+            ).strip()
+            if not arg_name:
+                break
+            substrings = Prompt.ask(
+                "  Substrings to match (comma-separated)",
+                console=console,
+            )
+            patterns = [s.strip() for s in substrings.split(",") if s.strip()]
+            if patterns:
+                args_match[arg_name] = patterns
+
+            more = Prompt.ask(
+                "  Add another condition?",
+                choices=["y", "n"],
+                default="n",
+                console=console,
+            )
+            if more != "y":
+                break
+
+        if args_match:
+            rule_data["conditions"] = {"args_match": args_match}
+
+    # 5. Rate limit (optional)
+    console.print()
+    add_rate_limit = Prompt.ask(
+        "  Add rate limiting?",
+        choices=["y", "n"],
+        default="n",
+        console=console,
+    )
+
+    if add_rate_limit == "y":
+        max_calls_str = Prompt.ask("  Max calls", default="10", console=console)
+        window = Prompt.ask("  Window", default="1m", console=console)
+        try:
+            max_calls = int(max_calls_str)
+        except ValueError:
+            max_calls = 10
+        rule_data["rate_limit"] = {"max_calls": max_calls, "window": window}
+
+    # 6. Custom message (optional)
+    console.print()
+    message = Prompt.ask(
+        "  Message when rule triggers (Enter to skip)",
+        default="",
+        console=console,
+    )
+    if message:
+        rule_data["message"] = message
+
+    # 7. Preview and confirm
+    console.print()
+    console.print("  [bold]Preview:[/bold]")
+    console.print()
+    preview = yaml.dump([rule_data], default_flow_style=False, sort_keys=False)
+    for line in preview.splitlines():
+        console.print(f"    {line}")
+    console.print()
+
+    confirm = Prompt.ask(
+        "  Add this rule to avakill.yaml?",
+        choices=["y", "n"],
+        default="y",
+        console=console,
+    )
+
+    if confirm != "y":
+        console.print("  [dim]Cancelled.[/dim]")
+        return
+
+    # 8. Append and validate
+    policy_path = _find_policy_path()
+    if policy_path is None:
+        policy_path = Path("avakill.yaml")
+        console.print(f"  [yellow]Creating new {policy_path}[/yellow]")
+        data: dict = {"version": "1.0", "default_action": "deny", "policies": []}
+    else:
+        data = _load_policy(policy_path)
+
+    policies = data.get("policies", [])
+
+    # Insert before log-all if present
+    if policies and policies[-1].get("name") == "log-all":
+        policies.insert(-1, rule_data)
+    else:
+        policies.append(rule_data)
+
+    data["policies"] = policies
+
+    # Validate
+    PolicyEngine.from_dict(data)
+
+    # Write
+    body = yaml.dump(data, default_flow_style=False, sort_keys=False)
+    policy_path.write_text(body, encoding="utf-8")
+
+    # 9. Show tips
+    console.print()
+    console.print(f'  [green]\u2713[/green] Added "{name}" to {policy_path}')
+    console.print()
+    console.print("  Other ways to create rules:")
+    console.print()
+    console.print("    By hand \u2014 add YAML directly to avakill.yaml:")
+    console.print()
+    console.print("      - name: my-rule")
+    console.print('        tools: ["Bash"]')
+    console.print("        action: deny")
+    console.print("        conditions:")
+    console.print("          args_match:")
+    console.print('            command: ["pattern-to-block"]')
+    console.print()
+    console.print("    With an LLM \u2014 generate a prompt with the full schema:")
+    console.print()
+    console.print("      [cyan]avakill schema --format=prompt[/cyan]")
+    console.print()
+    console.print("      Paste into any LLM, describe what you want to block,")
+    console.print("      then copy the generated YAML into avakill.yaml.")
+    console.print("      Validate with: [cyan]avakill validate avakill.yaml[/cyan]")
+    console.print()

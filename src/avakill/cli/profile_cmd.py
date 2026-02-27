@@ -17,6 +17,7 @@ def list_cmd(verbose: bool) -> None:
     from rich.console import Console
     from rich.table import Table
 
+    from avakill.hooks.installer import AGENT_DETECTORS
     from avakill.profiles.loader import list_profiles, load_profile
 
     console = Console()
@@ -30,6 +31,7 @@ def list_cmd(verbose: bool) -> None:
     table.add_column("Name", style="cyan")
     table.add_column("Hooks", justify="center")
     table.add_column("MCP", justify="center")
+    table.add_column("Detected", justify="center")
 
     if verbose:
         table.add_column("Description")
@@ -38,7 +40,9 @@ def list_cmd(verbose: bool) -> None:
         p = load_profile(name)
         hooks = "yes" if p.agent.supports_hooks else "no"
         mcp = "yes" if p.agent.mcp_native else "no"
-        row: list[str] = [p.agent.display_name or name, hooks, mcp]
+        detector = AGENT_DETECTORS.get(p.agent.name)
+        detected = "\u2714" if detector and detector() else "\u00b7"
+        row: list[str] = [p.agent.display_name or name, hooks, mcp, detected]
         if verbose:
             row.append(p.agent.description or "")
         table.add_row(*row)
@@ -111,6 +115,17 @@ def show_cmd(name: str) -> None:
             lines.append(f"  Processes: {rl.max_processes}")
         if rl.timeout_seconds:
             lines.append(f"  Timeout: {rl.timeout_seconds}s")
+
+    # Recommended protection command
+    lines.append("")
+    lines.append("[bold cyan]Recommended protection:[/bold cyan]")
+    agent_name = p.agent.name
+    if p.agent.mcp_native:
+        lines.append(f"  avakill mcp-wrap --agent {agent_name}")
+    elif p.agent.supports_hooks:
+        lines.append(f"  avakill hook install --agent {agent_name}")
+    else:
+        lines.append(f"  avakill launch --agent {agent_name}")
 
     body = Text.from_markup("\n".join(lines))
     console.print(Panel(body, title=f"Profile: {name}", border_style="cyan"))

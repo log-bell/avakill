@@ -229,6 +229,7 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "aiohttp" },
     { name = "anthropic" },
     { name = "langchain-core" },
     { name = "mcp" },
@@ -239,6 +240,10 @@ all = [
 ]
 anthropic = [
     { name = "anthropic" },
+]
+dashboard = [
+    { name = "aiohttp" },
+    { name = "watchfiles" },
 ]
 dev = [
     { name = "mypy" },
@@ -277,10 +282,12 @@ watch = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", marker = "extra == 'dashboard'", specifier = ">=3.9" },
     { name = "aiohttp", marker = "extra == 'mcp-http'", specifier = ">=3.9" },
     { name = "aiosqlite", specifier = ">=0.20.0" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.40" },
     { name = "avakill", extras = ["anthropic"], marker = "extra == 'all'" },
+    { name = "avakill", extras = ["dashboard"], marker = "extra == 'all'" },
     { name = "avakill", extras = ["hardened"], marker = "extra == 'all'" },
     { name = "avakill", extras = ["langchain"], marker = "extra == 'all'" },
     { name = "avakill", extras = ["mcp"], marker = "extra == 'all'" },
@@ -310,10 +317,11 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
+    { name = "watchfiles", marker = "extra == 'dashboard'", specifier = ">=1.0.0" },
     { name = "watchfiles", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "watchfiles", marker = "extra == 'watch'", specifier = ">=1.0.0" },
 ]
-provides-extras = ["openai", "anthropic", "langchain", "mcp", "mcp-http", "signed-policies", "hardened", "otel", "metrics", "watch", "all", "dev"]
+provides-extras = ["openai", "anthropic", "langchain", "mcp", "mcp-http", "signed-policies", "hardened", "otel", "metrics", "watch", "dashboard", "all", "dev"]
 
 [[package]]
 name = "backports-asyncio-runner"

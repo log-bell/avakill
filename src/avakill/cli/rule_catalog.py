@@ -2007,10 +2007,63 @@ ALL_RULES: list[RuleDef] = _BASE_RULES + _ALL_OPTIONAL
 
 _RULES_BY_ID: dict[str, RuleDef] = {r.id: r for r in ALL_RULES}
 
+# Reverse map: YAML rule name → catalog rule ID
+_RULES_BY_NAME: dict[str, str] = {r.rule_data["name"]: r.id for r in ALL_RULES}
+
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def _is_system_rule_name(name: str) -> bool:
+    """Detect scan-generated and system rules by name pattern."""
+    return (name.startswith("protect-") and name.endswith("-files")) or name == "log-all"
+
+
+def classify_policy_rules(
+    policies: list[dict],
+) -> tuple[set[str], list[dict], list[dict]]:
+    """Classify rules from a loaded YAML into (catalog_ids, scan_rules, custom_rules).
+
+    Args:
+        policies: The ``policies`` list from a parsed avakill.yaml.
+
+    Returns:
+        A 3-tuple of:
+        - catalog_ids: set of catalog rule IDs matched by name
+        - scan_rules: list of rule dicts identified as scan-generated or system
+        - custom_rules: list of rule dicts that are neither catalog nor scan
+    """
+    catalog_ids: set[str] = set()
+    scan_rules: list[dict] = []
+    custom_rules: list[dict] = []
+
+    for rule in policies:
+        name = rule.get("name", "")
+        if name in _RULES_BY_NAME:
+            catalog_ids.add(_RULES_BY_NAME[name])
+        elif _is_system_rule_name(name):
+            scan_rules.append(rule)
+        else:
+            custom_rules.append(rule)
+
+    return catalog_ids, scan_rules, custom_rules
+
+
+def get_tool_presets() -> dict[str, tuple[str, list[str]]]:
+    """Return named tool presets for the wizard.
+
+    Returns:
+        Dict mapping preset key to (label, tool_list).
+    """
+    return {
+        "shell": ("Shell tools", list(_SHELL_TOOLS)),
+        "write": ("File write tools", list(_WRITE_TOOLS)),
+        "read": ("File read tools", list(_READ_TOOLS)),
+        "sql": ("Database tools", list(_SQL_TOOLS)),
+        "all": ("All tools", ["*"]),
+    }
 
 
 def get_rule_by_id(rule_id: str) -> RuleDef | None:

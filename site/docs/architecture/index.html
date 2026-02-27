@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture — AvaKill</title>
+  <meta name="description" content="How hooks, MCP proxy, OS sandbox, and daemon fit together.">
+  <meta name="theme-color" content="#0A0F1E">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       CSS Custom Properties (matched to landing page)
+       ========================================================= */
+    :root {
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --neon-blue-dim: #0088CC;
+
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --subtle-blue-tint: #0D1B3D;
+
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --color-info: #00D4FF;
+
+      --code-bg: #0D1117;
+      --code-text: #E6EDF3;
+
+      --sidebar-width: 260px;
+      --toc-width: 200px;
+      --nav-height: 56px;
+      --subnav-height: 44px;
+      --content-max: 720px;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-height) + var(--subnav-height) + 24px);
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding-top: calc(var(--nav-height) + var(--subnav-height));
+    }
+
+    a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================================================
+       Noise Texture Overlay (matched to landing page)
+       ========================================================= */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* =========================================================
+       Top Navigation (matched to landing page)
+       ========================================================= */
+    .site-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: var(--nav-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--neon-blue);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .nav-brand:hover {
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(2) {
+      opacity: 0;
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    /* =========================================================
+       Sub Navigation (doc categories)
+       ========================================================= */
+    .doc-subnav {
+      position: fixed;
+      top: var(--nav-height);
+      left: 0;
+      right: 0;
+      z-index: 999;
+      height: var(--subnav-height);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .doc-subnav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .doc-subnav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-radius: 6px;
+      transition: color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .doc-subnav a:hover {
+      color: var(--text-secondary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .doc-subnav a.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .doc-subnav a svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       Three-Column Layout
+       ========================================================= */
+    .docs-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+      min-height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    /* =========================================================
+       Left Sidebar
+       ========================================================= */
+    .docs-sidebar {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 20px 40px 24px;
+      border-right: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.12) transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+    }
+
+    .sidebar-group {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 0 10px 12px;
+    }
+
+    .sidebar-list {
+      list-style: none;
+    }
+
+    .sidebar-list li {
+      position: relative;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      transition: color 0.15s ease, background 0.15s ease;
+      text-decoration: none;
+      line-height: 1.4;
+    }
+
+    .sidebar-link:hover {
+      color: var(--text-primary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .sidebar-link.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    /* Active indicator bar */
+    .sidebar-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    .sidebar-link--sub {
+      padding-left: 28px;
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .sidebar-link--sub:hover {
+      color: var(--text-secondary);
+    }
+
+    .sidebar-link--sub.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    /* =========================================================
+       Main Content — Rendered Markdown
+       ========================================================= */
+    .docs-content {
+      padding: 36px 48px 80px;
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .docs-content h1 {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .docs-content h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content h2:first-of-type {
+      border-top: none;
+      margin-top: 32px;
+      padding-top: 0;
+    }
+
+    .docs-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .docs-content h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .docs-content > p:first-of-type {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .docs-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .docs-content p strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .docs-content p a {
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: rgba(0, 212, 255, 0.3);
+      text-underline-offset: 2px;
+    }
+
+    .docs-content p a:hover {
+      text-decoration-color: var(--neon-blue);
+    }
+
+    .docs-content p code,
+    .docs-content li code,
+    .docs-content td code {
+      background: var(--code-bg);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* Code blocks */
+    .docs-content .codehilite,
+    .docs-content pre {
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .docs-content .codehilite pre,
+    .docs-content pre code {
+      display: block;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: var(--code-text);
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    /* Pygments syntax highlighting — dark theme */
+    .codehilite .hll { background-color: rgba(0, 212, 255, 0.08); }
+    .codehilite .c, .codehilite .c1, .codehilite .cm, .codehilite .cs, .codehilite .cp { color: var(--text-muted); font-style: italic; } /* comments */
+    .codehilite .k, .codehilite .kn, .codehilite .kp, .codehilite .kr, .codehilite .kd, .codehilite .kt { color: #FF7B72; } /* keywords */
+    .codehilite .s, .codehilite .s1, .codehilite .s2, .codehilite .sa, .codehilite .sb, .codehilite .sc, .codehilite .sd, .codehilite .se, .codehilite .sh, .codehilite .si, .codehilite .sr, .codehilite .ss, .codehilite .sx { color: #A5D6FF; } /* strings */
+    .codehilite .nf, .codehilite .fm, .codehilite .nb { color: #D2A8FF; } /* functions/builtins */
+    .codehilite .mi, .codehilite .mf, .codehilite .mh, .codehilite .mo { color: #79C0FF; } /* numbers */
+    .codehilite .na { color: #79C0FF; } /* attribute names */
+    .codehilite .nc, .codehilite .nn { color: #FFA657; } /* class/module names */
+    .codehilite .no { color: #79C0FF; } /* constants */
+    .codehilite .o, .codehilite .ow { color: #FF7B72; } /* operators */
+    .codehilite .p { color: var(--code-text); } /* punctuation */
+    .codehilite .nl { color: #FFA657; } /* YAML keys */
+    .codehilite .nt { color: #7EE787; } /* HTML/XML tags */
+    .codehilite .err { color: #f85149; } /* errors */
+
+    /* Lists */
+    .docs-content ul, .docs-content ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .docs-content li {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 4px;
+    }
+
+    .docs-content li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Tables */
+    .docs-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .docs-content th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid rgba(0, 212, 255, 0.12);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .docs-content td {
+      padding: 8px 14px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content tr:hover td {
+      background: rgba(0, 212, 255, 0.02);
+    }
+
+    /* Blockquotes (used for callouts) */
+    .docs-content blockquote {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      border-left: 3px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .docs-content blockquote p {
+      margin-bottom: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Horizontal rules */
+    .docs-content hr {
+      border: none;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.06);
+      margin: 40px 0;
+    }
+
+    /* Bottom nav (prev/next) */
+    .docs-nav-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 56px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-nav-card {
+      padding: 20px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .docs-nav-card:hover {
+      border-color: rgba(0, 212, 255, 0.25);
+      background: rgba(0, 212, 255, 0.02);
+      text-decoration: none;
+    }
+
+    .docs-nav-card--next {
+      text-align: right;
+    }
+
+    .docs-nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .docs-nav-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--neon-blue);
+    }
+
+    /* =========================================================
+       Right TOC Sidebar ("On this page")
+       ========================================================= */
+    .docs-toc {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 24px 40px 20px;
+      border-left: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.08) transparent;
+    }
+
+    .docs-toc::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .docs-toc::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 2px;
+    }
+
+    .toc-heading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .toc-heading svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .toc-list {
+      list-style: none;
+      border-left: 1px solid rgba(0, 212, 255, 0.08);
+      padding-left: 0;
+    }
+
+    .toc-list li {
+      position: relative;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0 4px 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      line-height: 1.5;
+    }
+
+    .toc-link:hover {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .toc-link.active {
+      color: var(--neon-blue);
+    }
+
+    .toc-link.active::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    /* =========================================================
+       Footer (matched to landing page)
+       ========================================================= */
+    .footer {
+      position: relative;
+      z-index: 1;
+      padding: 48px 24px 32px;
+      text-align: center;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      font-size: 0.85rem;
+    }
+
+    .footer-links a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links .sep {
+      color: var(--text-muted);
+      margin: 0 12px;
+    }
+
+    .footer-attribution {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       Mobile Sidebar Overlay
+       ========================================================= */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 998;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+
+    .mobile-sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 997;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-sidebar-toggle svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 1100px) {
+      :root {
+        --toc-width: 0px;
+      }
+
+      .docs-layout {
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      }
+
+      .docs-toc {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 0px;
+      }
+
+      body {
+        padding-top: calc(var(--nav-height) + var(--subnav-height));
+      }
+
+      .docs-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 1001;
+        background: var(--base-dark);
+        border-right: 1px solid rgba(0, 212, 255, 0.1);
+        padding-top: 20px;
+      }
+
+      .docs-sidebar.mobile-open {
+        display: block;
+      }
+
+      .sidebar-overlay.open ~ .docs-layout .docs-sidebar {
+        display: block;
+      }
+
+      .mobile-sidebar-toggle {
+        display: flex;
+      }
+
+      .docs-content {
+        padding: 24px 20px 60px;
+      }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: var(--nav-height);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        padding: 8px 0;
+      }
+
+      .site-nav.nav-open .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
+      .docs-nav-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-nav-card--next {
+        text-align: left;
+      }
+    }
+
+    /* =========================================================
+       Entrance Animations
+       ========================================================= */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .docs-content {
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .docs-content {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== Top Navigation ========== -->
+  <header class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">AvaKill</a>
+    <nav class="nav-links">
+      <a href="/">Home</a>
+      <a href="/rules">Rules</a>
+      <a href="/docs" class="active">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+    </nav>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ========== Sub Navigation (Doc Categories) ========== -->
+  <nav class="doc-subnav">
+  <a href="/docs/getting-started/">
+    <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Getting Started
+  </a>
+  <a href="/docs/policy-reference/">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Policy Reference
+  </a>
+  <a href="/docs/cli-reference/">
+    <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    CLI Reference
+  </a>
+  <a href="/docs/api-reference/">
+    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    API Reference
+  </a>
+  <a href="/docs/architecture/" class="active">
+    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    Architecture
+  </a>
+</nav>
+
+  <!-- ========== Mobile Sidebar Toggle ========== -->
+  <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- ========== Three-Column Layout ========== -->
+  <div class="docs-layout">
+
+    <!-- ===== Left Sidebar ===== -->
+    <aside class="docs-sidebar" id="docs-sidebar">
+      <div class="sidebar-group">
+  <div class="sidebar-label">On this page</div>
+  <ul class="sidebar-list">
+    <li><a href="#hooks" class="sidebar-link">Hooks</a></li>
+    <li><a href="#how-hooks-work" class="sidebar-link sidebar-link--sub">How hooks work</a></li>
+    <li><a href="#hook-evaluation-fallback-chain" class="sidebar-link sidebar-link--sub">Hook evaluation fallback chain</a></li>
+    <li><a href="#supported-agents" class="sidebar-link sidebar-link--sub">Supported agents</a></li>
+    <li><a href="#mcp-proxy" class="sidebar-link">MCP Proxy</a></li>
+    <li><a href="#mcp-proxy_1" class="sidebar-link sidebar-link--sub">mcp-proxy</a></li>
+    <li><a href="#mcp-wrap" class="sidebar-link sidebar-link--sub">mcp-wrap</a></li>
+    <li><a href="#avakill-shim" class="sidebar-link sidebar-link--sub">avakill-shim</a></li>
+    <li><a href="#os-sandbox" class="sidebar-link">OS Sandbox</a></li>
+    <li><a href="#how-it-works" class="sidebar-link sidebar-link--sub">How it works</a></li>
+    <li><a href="#platform-backends" class="sidebar-link sidebar-link--sub">Platform backends</a></li>
+    <li><a href="#agent-profiles" class="sidebar-link sidebar-link--sub">Agent profiles</a></li>
+    <li><a href="#daemon" class="sidebar-link">Daemon</a></li>
+    <li><a href="#what-the-daemon-adds" class="sidebar-link sidebar-link--sub">What the daemon adds</a></li>
+    <li><a href="#protocol" class="sidebar-link sidebar-link--sub">Protocol</a></li>
+    <li><a href="#architecture_1" class="sidebar-link sidebar-link--sub">Architecture</a></li>
+    <li><a href="#core-engine" class="sidebar-link">Core engine</a></li>
+    <li><a href="#policyengine" class="sidebar-link sidebar-link--sub">PolicyEngine</a></li>
+    <li><a href="#guard" class="sidebar-link sidebar-link--sub">Guard</a></li>
+    <li><a href="#shell-analysis" class="sidebar-link sidebar-link--sub">Shell analysis</a></li>
+    <li><a href="#content-scanning" class="sidebar-link sidebar-link--sub">Content scanning</a></li>
+  </ul>
+</div>
+<div class="sidebar-group">
+  <div class="sidebar-label">Documentation</div>
+  <ul class="sidebar-list">
+    <li><a href="/docs/getting-started/" class="sidebar-link">Getting Started</a></li>
+    <li><a href="/docs/policy-reference/" class="sidebar-link">Policy Reference</a></li>
+    <li><a href="/docs/cli-reference/" class="sidebar-link">CLI Reference</a></li>
+    <li><a href="/docs/api-reference/" class="sidebar-link">API Reference</a></li>
+    <li><a href="/docs/architecture/" class="sidebar-link active">Architecture</a></li>
+  </ul>
+</div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <main class="docs-content">
+      <h1 id="architecture">Architecture</h1>
+<p>AvaKill enforces a single YAML policy across three independent enforcement paths. Each path works standalone — no daemon required. The daemon adds shared evaluation, audit logging, and visibility tooling.</p>
+<div class="codehilite"><pre><span></span><code>avakill.yaml (one policy file)
+    |
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex)
+    |     → work standalone, evaluate in-process
+    |
+    ├── MCP Proxy (wraps MCP servers)
+    |     → works standalone, evaluate in-process
+    |
+    ├── OS Sandbox (launch + profiles)
+    |     → works standalone, OS-level enforcement
+    |
+    └── Daemon (optional)
+          → shared evaluation, audit logging
+          → hooks/proxy CAN talk to it if running
+          → enables: logs, fix, tracking, approvals, metrics
+</code></pre></div>
+
+<h2 id="hooks">Hooks</h2>
+<p>Hooks intercept tool calls inside AI coding agents before execution. Each agent has a native hook adapter that translates between the agent's JSON format and AvaKill's evaluation protocol.</p>
+<h3 id="how-hooks-work">How hooks work</h3>
+<ol>
+<li>Agent is about to execute a tool (e.g., <code>Bash</code> in Claude Code)</li>
+<li>Agent calls the hook binary with tool call JSON on stdin</li>
+<li>Hook adapter parses the agent's native format into an <code>EvaluateRequest</code></li>
+<li>Hook evaluates against policy (standalone or via daemon)</li>
+<li>Hook returns allow/deny/approval in the agent's expected format</li>
+</ol>
+<h3 id="hook-evaluation-fallback-chain">Hook evaluation fallback chain</h3>
+<p>Each hook follows the same fallback chain:</p>
+<ol>
+<li><strong>Self-protection</strong> — always runs, blocks attempts to modify AvaKill's own config</li>
+<li><strong><code>AVAKILL_POLICY</code> env var</strong> — standalone evaluation against the specified policy</li>
+<li><strong>Running daemon</strong> — delegate to daemon via Unix socket</li>
+<li><strong>Auto-discover</strong> — look for <code>avakill.yaml</code> in the current working directory</li>
+<li><strong><code>AVAKILL_FAIL_CLOSED</code></strong> — if set, deny all calls when no policy is found</li>
+<li><strong>Fail-open</strong> — allow with a warning if no policy is found</li>
+</ol>
+<h3 id="supported-agents">Supported agents</h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Hook binary</th>
+<th>Tool format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td><code>avakill-hook-claude-code</code></td>
+<td><code>PreToolUse</code> JSON with <code>tool_name</code>, <code>tool_input</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>avakill-hook-gemini-cli</code></td>
+<td><code>run_shell_command</code>, <code>read_file</code>, etc.</td>
+</tr>
+<tr>
+<td>Cursor</td>
+<td><code>avakill-hook-cursor</code></td>
+<td><code>shell_command</code>, <code>read_file</code></td>
+</tr>
+<tr>
+<td>Windsurf</td>
+<td><code>avakill-hook-windsurf</code></td>
+<td><code>run_command</code>, <code>write_code</code>, <code>read_code</code></td>
+</tr>
+<tr>
+<td>OpenAI Codex</td>
+<td><code>avakill-hook-openai-codex</code></td>
+<td><code>shell</code>, <code>apply_patch</code>, <code>read_file</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="mcp-proxy">MCP Proxy</h2>
+<p>The MCP proxy sits between an MCP client and an MCP server, intercepting <code>tools/call</code> JSON-RPC requests. Three components:</p>
+<h3 id="mcp-proxy_1">mcp-proxy</h3>
+<p>A Python-based transparent proxy. Supports two modes:</p>
+<ul>
+<li><strong>Stdio mode</strong> — spawns the upstream MCP server as a subprocess, relays stdio</li>
+<li><strong>HTTP mode</strong> — connects to a remote MCP server over HTTP, exposes a local port</li>
+</ul>
+<p>The proxy intercepts <code>tools/call</code> requests, evaluates them against policy, and either forwards or blocks the call.</p>
+<h3 id="mcp-wrap">mcp-wrap</h3>
+<p>A config rewriter. Reads agent MCP configuration files (Claude Desktop, Cursor, etc.), replaces each server entry with <code>avakill-shim -- &lt;original command&gt;</code>, and writes back. This routes all MCP tool calls through AvaKill without changing the MCP server itself.</p>
+<h3 id="avakill-shim">avakill-shim</h3>
+<p>A compiled Go binary that acts as a lightweight MCP proxy. Designed for use in MCP config files where you need a single binary with no Python dependency. Supports <code>--policy</code> for standalone evaluation and <code>--socket</code> for daemon delegation.</p>
+<h2 id="os-sandbox">OS Sandbox</h2>
+<p>The OS sandbox restricts what a launched process can do at the operating system level. This is the strongest enforcement — it cannot be bypassed by the sandboxed process.</p>
+<h3 id="how-it-works">How it works</h3>
+<ol>
+<li><code>avakill launch</code> reads the <code>sandbox</code> section from your policy (or an agent profile)</li>
+<li>Generates a platform-specific sandbox profile</li>
+<li>Launches the target process inside the sandbox</li>
+<li>The OS kernel enforces filesystem, network, and resource restrictions</li>
+</ol>
+<h3 id="platform-backends">Platform backends</h3>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Backend</th>
+<th>Privileges</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux 5.13+</td>
+<td>Landlock</td>
+<td>Unprivileged — no root required</td>
+</tr>
+<tr>
+<td>macOS</td>
+<td>sandbox-exec with SBPL profiles</td>
+<td>Standard user</td>
+</tr>
+<tr>
+<td>Linux (advanced)</td>
+<td>Tetragon eBPF</td>
+<td>Requires root/CAP_BPF</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>AppContainer</td>
+<td>Standard user</td>
+</tr>
+</tbody>
+</table>
+<h3 id="agent-profiles">Agent profiles</h3>
+<p>Pre-built sandbox profiles ship for common agents:</p>
+<ul>
+<li><code>openclaw</code> — high-risk agent with MCP support</li>
+<li><code>cline</code> — VS Code extension agent</li>
+<li><code>continue</code> — VS Code extension agent</li>
+<li><code>swe-agent</code> — Princeton SWE-Agent</li>
+<li><code>aider</code> — AI pair programming</li>
+</ul>
+<p>Each profile defines allowed paths, network connections, and resource limits tuned for that agent.</p>
+<h2 id="daemon">Daemon</h2>
+<p>The daemon is an optional persistent process that provides shared evaluation and centralized services.</p>
+<h3 id="what-the-daemon-adds">What the daemon adds</h3>
+<ul>
+<li><strong>Shared evaluation</strong> — hooks and proxy delegate to a single daemon instance instead of each loading the policy independently</li>
+<li><strong>Audit logging</strong> — all decisions logged to a SQLite database</li>
+<li><strong>Rate limiting</strong> — shared rate limit state across all hooks/proxy instances</li>
+<li><strong>Approval queue</strong> — <code>require_approval</code> decisions queued for human review</li>
+<li><strong>Metrics</strong> — Prometheus-compatible metrics endpoint</li>
+<li><strong>Cross-call correlation</strong> — track related tool calls across sessions</li>
+</ul>
+<h3 id="protocol">Protocol</h3>
+<p>The daemon communicates over Unix domain sockets (or TCP) using newline-delimited JSON:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Request (from hook/CLI)</span>
+<span class="p">{</span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;agent&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;claude-code&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;event&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pre_tool_use&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;tool&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;shell_execute&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ls&quot;</span><span class="p">}}</span>
+
+<span class="c1">// Response (from daemon)</span>
+<span class="p">{</span><span class="nt">&quot;decision&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;allow&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;reason&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;policy&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;safe-commands&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;latency_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.3</span><span class="p">}</span>
+</code></pre></div>
+
+<h3 id="architecture_1">Architecture</h3>
+<div class="codehilite"><pre><span></span><code>Hook/CLI  →  Unix Socket  →  DaemonServer
+                                  ↓
+                             PolicyEngine
+                                  ↓
+                             AuditLogger (SQLite)
+                                  ↓
+                             EventBus → Metrics, Notifications
+</code></pre></div>
+
+<h2 id="core-engine">Core engine</h2>
+<h3 id="policyengine">PolicyEngine</h3>
+<p>The <code>PolicyEngine</code> is the pure evaluation core. It takes a <code>PolicyConfig</code> and a <code>ToolCall</code>, iterates through rules in order, and returns the first matching <code>Decision</code>.</p>
+<p>Key properties:
+- <strong>First-match-wins</strong> — rules are evaluated top to bottom, first match returns
+- <strong>Sub-millisecond</strong> — pure rule evaluation, no ML models, no network calls
+- <strong>Deterministic</strong> — same input always produces the same output (modulo rate limits)</p>
+<h3 id="guard">Guard</h3>
+<p><code>Guard</code> wraps <code>PolicyEngine</code> with additional features:
+- Policy loading from file/string/dict
+- Self-protection against config tampering
+- Policy signature verification
+- Audit event emission via <code>EventBus</code>
+- Session tracking and correlation</p>
+<h3 id="shell-analysis">Shell analysis</h3>
+<p>The <code>is_shell_safe()</code> function performs AST-level analysis of shell commands to detect metacharacters, pipes, redirects, and subshells. This is more reliable than regex — it handles quoting, escaping, and nested structures.</p>
+<h3 id="content-scanning">Content scanning</h3>
+<p>The content scanner detects secrets (AWS keys, GitHub PATs, Stripe keys, PEM keys, bearer tokens) and prompt injection patterns in tool call arguments. Used by the <code>content_scan</code> policy condition and by the MCP proxy for response scanning.</p>
+
+<div class="docs-nav-bottom">
+  <a href="/docs/api-reference/" class="docs-nav-card">
+    <div class="docs-nav-label">&larr; Previous</div>
+    <div class="docs-nav-title">API Reference</div>
+  </a>
+</div>
+    </main>
+
+    <!-- ===== Right TOC ("On this page") ===== -->
+    <aside class="docs-toc">
+      <div class="toc-heading">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg>
+        On this page
+      </div>
+      <ul class="toc-list">
+        <li><a href="#hooks" class="toc-link">Hooks</a></li>
+        <li><a href="#mcp-proxy" class="toc-link">MCP Proxy</a></li>
+        <li><a href="#os-sandbox" class="toc-link">OS Sandbox</a></li>
+        <li><a href="#daemon" class="toc-link">Daemon</a></li>
+        <li><a href="#core-engine" class="toc-link">Core engine</a></li>
+      </ul>
+    </aside>
+
+  </div>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <nav class="footer-links">
+      <a href="/docs">Docs</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill/blob/main/CHANGELOG.md">Changelog</a>
+      <span class="sep">&middot;</span>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
+    </nav>
+    <div class="footer-attribution">
+      Built with &#128737;&#65039; by AvaKill contributors.<br>
+      Open-source under AGPL-3.0 license.
+    </div>
+  </footer>
+
+  <!-- ========== JavaScript ========== -->
+  <script>
+    // --- Hamburger menu ---
+    const navEl = document.getElementById('site-nav');
+    const hamburger = document.getElementById('nav-hamburger');
+    hamburger.addEventListener('click', () => navEl.classList.toggle('nav-open'));
+
+    // --- Mobile sidebar ---
+    const mobileSidebarBtn = document.getElementById('mobile-sidebar-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    mobileSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('open');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('open');
+    });
+
+    // --- Copy code buttons ---
+    document.querySelectorAll('.docs-codeblock-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code || btn.closest('.docs-codeblock').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          btn.style.color = 'var(--color-allowed)';
+          setTimeout(() => btn.style.color = '', 1500);
+        });
+      });
+    });
+
+    // --- Scroll spy for right TOC ---
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const headings = [];
+    tocLinks.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) headings.push({ el, link });
+    });
+
+    const tocObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(l => l.classList.remove('active'));
+          const match = headings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -60% 0px',
+      threshold: 0
+    });
+
+    headings.forEach(h => tocObserver.observe(h.el));
+
+    // --- Scroll spy for left sidebar ---
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const sidebarHeadings = [];
+    sidebarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const el = document.getElementById(href.slice(1));
+      if (el) sidebarHeadings.push({ el, link });
+    });
+
+    const sidebarObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          sidebarLinks.forEach(l => l.classList.remove('active'));
+          const match = sidebarHeadings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -70% 0px',
+      threshold: 0
+    });
+
+    sidebarHeadings.forEach(h => sidebarObserver.observe(h.el));
+  </script>
+
+</body>
+</html>

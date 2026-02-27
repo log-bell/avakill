@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} — AvaKill</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta name="theme-color" content="#0A0F1E">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       CSS Custom Properties (matched to landing page)
+       ========================================================= */
+    :root {
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --neon-blue-dim: #0088CC;
+
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --subtle-blue-tint: #0D1B3D;
+
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --color-info: #00D4FF;
+
+      --code-bg: #0D1117;
+      --code-text: #E6EDF3;
+
+      --sidebar-width: 260px;
+      --toc-width: 200px;
+      --nav-height: 56px;
+      --subnav-height: 44px;
+      --content-max: 720px;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-height) + var(--subnav-height) + 24px);
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding-top: calc(var(--nav-height) + var(--subnav-height));
+    }
+
+    a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================================================
+       Noise Texture Overlay (matched to landing page)
+       ========================================================= */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* =========================================================
+       Top Navigation (matched to landing page)
+       ========================================================= */
+    .site-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: var(--nav-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--neon-blue);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .nav-brand:hover {
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(2) {
+      opacity: 0;
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    /* =========================================================
+       Sub Navigation (doc categories)
+       ========================================================= */
+    .doc-subnav {
+      position: fixed;
+      top: var(--nav-height);
+      left: 0;
+      right: 0;
+      z-index: 999;
+      height: var(--subnav-height);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .doc-subnav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .doc-subnav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-radius: 6px;
+      transition: color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .doc-subnav a:hover {
+      color: var(--text-secondary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .doc-subnav a.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .doc-subnav a svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       Three-Column Layout
+       ========================================================= */
+    .docs-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+      min-height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    /* =========================================================
+       Left Sidebar
+       ========================================================= */
+    .docs-sidebar {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 20px 40px 24px;
+      border-right: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.12) transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+    }
+
+    .sidebar-group {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 0 10px 12px;
+    }
+
+    .sidebar-list {
+      list-style: none;
+    }
+
+    .sidebar-list li {
+      position: relative;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      transition: color 0.15s ease, background 0.15s ease;
+      text-decoration: none;
+      line-height: 1.4;
+    }
+
+    .sidebar-link:hover {
+      color: var(--text-primary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .sidebar-link.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    /* Active indicator bar */
+    .sidebar-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    .sidebar-link--sub {
+      padding-left: 28px;
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .sidebar-link--sub:hover {
+      color: var(--text-secondary);
+    }
+
+    .sidebar-link--sub.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    /* =========================================================
+       Main Content — Rendered Markdown
+       ========================================================= */
+    .docs-content {
+      padding: 36px 48px 80px;
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .docs-content h1 {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .docs-content h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content h2:first-of-type {
+      border-top: none;
+      margin-top: 32px;
+      padding-top: 0;
+    }
+
+    .docs-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .docs-content h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .docs-content > p:first-of-type {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .docs-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .docs-content p strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .docs-content p a {
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: rgba(0, 212, 255, 0.3);
+      text-underline-offset: 2px;
+    }
+
+    .docs-content p a:hover {
+      text-decoration-color: var(--neon-blue);
+    }
+
+    .docs-content p code,
+    .docs-content li code,
+    .docs-content td code {
+      background: var(--code-bg);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* Code blocks */
+    .docs-content .codehilite,
+    .docs-content pre {
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .docs-content .codehilite pre,
+    .docs-content pre code {
+      display: block;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: var(--code-text);
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    /* Pygments syntax highlighting — dark theme */
+    .codehilite .hll { background-color: rgba(0, 212, 255, 0.08); }
+    .codehilite .c, .codehilite .c1, .codehilite .cm, .codehilite .cs, .codehilite .cp { color: var(--text-muted); font-style: italic; } /* comments */
+    .codehilite .k, .codehilite .kn, .codehilite .kp, .codehilite .kr, .codehilite .kd, .codehilite .kt { color: #FF7B72; } /* keywords */
+    .codehilite .s, .codehilite .s1, .codehilite .s2, .codehilite .sa, .codehilite .sb, .codehilite .sc, .codehilite .sd, .codehilite .se, .codehilite .sh, .codehilite .si, .codehilite .sr, .codehilite .ss, .codehilite .sx { color: #A5D6FF; } /* strings */
+    .codehilite .nf, .codehilite .fm, .codehilite .nb { color: #D2A8FF; } /* functions/builtins */
+    .codehilite .mi, .codehilite .mf, .codehilite .mh, .codehilite .mo { color: #79C0FF; } /* numbers */
+    .codehilite .na { color: #79C0FF; } /* attribute names */
+    .codehilite .nc, .codehilite .nn { color: #FFA657; } /* class/module names */
+    .codehilite .no { color: #79C0FF; } /* constants */
+    .codehilite .o, .codehilite .ow { color: #FF7B72; } /* operators */
+    .codehilite .p { color: var(--code-text); } /* punctuation */
+    .codehilite .nl { color: #FFA657; } /* YAML keys */
+    .codehilite .nt { color: #7EE787; } /* HTML/XML tags */
+    .codehilite .err { color: #f85149; } /* errors */
+
+    /* Lists */
+    .docs-content ul, .docs-content ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .docs-content li {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 4px;
+    }
+
+    .docs-content li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Tables */
+    .docs-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .docs-content th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid rgba(0, 212, 255, 0.12);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .docs-content td {
+      padding: 8px 14px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content tr:hover td {
+      background: rgba(0, 212, 255, 0.02);
+    }
+
+    /* Blockquotes (used for callouts) */
+    .docs-content blockquote {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      border-left: 3px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .docs-content blockquote p {
+      margin-bottom: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Horizontal rules */
+    .docs-content hr {
+      border: none;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.06);
+      margin: 40px 0;
+    }
+
+    /* Bottom nav (prev/next) */
+    .docs-nav-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 56px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-nav-card {
+      padding: 20px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .docs-nav-card:hover {
+      border-color: rgba(0, 212, 255, 0.25);
+      background: rgba(0, 212, 255, 0.02);
+      text-decoration: none;
+    }
+
+    .docs-nav-card--next {
+      text-align: right;
+    }
+
+    .docs-nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .docs-nav-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--neon-blue);
+    }
+
+    /* =========================================================
+       Right TOC Sidebar ("On this page")
+       ========================================================= */
+    .docs-toc {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 24px 40px 20px;
+      border-left: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.08) transparent;
+    }
+
+    .docs-toc::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .docs-toc::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 2px;
+    }
+
+    .toc-heading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .toc-heading svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .toc-list {
+      list-style: none;
+      border-left: 1px solid rgba(0, 212, 255, 0.08);
+      padding-left: 0;
+    }
+
+    .toc-list li {
+      position: relative;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0 4px 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      line-height: 1.5;
+    }
+
+    .toc-link:hover {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .toc-link.active {
+      color: var(--neon-blue);
+    }
+
+    .toc-link.active::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    /* =========================================================
+       Footer (matched to landing page)
+       ========================================================= */
+    .footer {
+      position: relative;
+      z-index: 1;
+      padding: 48px 24px 32px;
+      text-align: center;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      font-size: 0.85rem;
+    }
+
+    .footer-links a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links .sep {
+      color: var(--text-muted);
+      margin: 0 12px;
+    }
+
+    .footer-attribution {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       Mobile Sidebar Overlay
+       ========================================================= */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 998;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+
+    .mobile-sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 997;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-sidebar-toggle svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 1100px) {
+      :root {
+        --toc-width: 0px;
+      }
+
+      .docs-layout {
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      }
+
+      .docs-toc {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 0px;
+      }
+
+      body {
+        padding-top: calc(var(--nav-height) + var(--subnav-height));
+      }
+
+      .docs-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 1001;
+        background: var(--base-dark);
+        border-right: 1px solid rgba(0, 212, 255, 0.1);
+        padding-top: 20px;
+      }
+
+      .docs-sidebar.mobile-open {
+        display: block;
+      }
+
+      .sidebar-overlay.open ~ .docs-layout .docs-sidebar {
+        display: block;
+      }
+
+      .mobile-sidebar-toggle {
+        display: flex;
+      }
+
+      .docs-content {
+        padding: 24px 20px 60px;
+      }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: var(--nav-height);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        padding: 8px 0;
+      }
+
+      .site-nav.nav-open .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
+      .docs-nav-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-nav-card--next {
+        text-align: left;
+      }
+    }
+
+    /* =========================================================
+       Entrance Animations
+       ========================================================= */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .docs-content {
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .docs-content {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== Top Navigation ========== -->
+  <header class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">AvaKill</a>
+    <nav class="nav-links">
+      <a href="/">Home</a>
+      <a href="/rules">Rules</a>
+      <a href="/docs" class="active">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+    </nav>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ========== Sub Navigation (Doc Categories) ========== -->
+  {{SUBNAV}}
+
+  <!-- ========== Mobile Sidebar Toggle ========== -->
+  <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- ========== Three-Column Layout ========== -->
+  <div class="docs-layout">
+
+    <!-- ===== Left Sidebar ===== -->
+    <aside class="docs-sidebar" id="docs-sidebar">
+      {{SIDEBAR}}
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <main class="docs-content">
+      {{CONTENT}}
+    </main>
+
+    <!-- ===== Right TOC ("On this page") ===== -->
+    <aside class="docs-toc">
+      <div class="toc-heading">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg>
+        On this page
+      </div>
+      <ul class="toc-list">
+        {{TOC}}
+      </ul>
+    </aside>
+
+  </div>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <nav class="footer-links">
+      <a href="/docs">Docs</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill/blob/main/CHANGELOG.md">Changelog</a>
+      <span class="sep">&middot;</span>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
+    </nav>
+    <div class="footer-attribution">
+      Built with &#128737;&#65039; by AvaKill contributors.<br>
+      Open-source under AGPL-3.0 license.
+    </div>
+  </footer>
+
+  <!-- ========== JavaScript ========== -->
+  <script>
+    // --- Hamburger menu ---
+    const navEl = document.getElementById('site-nav');
+    const hamburger = document.getElementById('nav-hamburger');
+    hamburger.addEventListener('click', () => navEl.classList.toggle('nav-open'));
+
+    // --- Mobile sidebar ---
+    const mobileSidebarBtn = document.getElementById('mobile-sidebar-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    mobileSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('open');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('open');
+    });
+
+    // --- Copy code buttons ---
+    document.querySelectorAll('.docs-codeblock-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code || btn.closest('.docs-codeblock').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          btn.style.color = 'var(--color-allowed)';
+          setTimeout(() => btn.style.color = '', 1500);
+        });
+      });
+    });
+
+    // --- Scroll spy for right TOC ---
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const headings = [];
+    tocLinks.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) headings.push({ el, link });
+    });
+
+    const tocObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(l => l.classList.remove('active'));
+          const match = headings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -60% 0px',
+      threshold: 0
+    });
+
+    headings.forEach(h => tocObserver.observe(h.el));
+
+    // --- Scroll spy for left sidebar ---
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const sidebarHeadings = [];
+    sidebarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const el = document.getElementById(href.slice(1));
+      if (el) sidebarHeadings.push({ el, link });
+    });
+
+    const sidebarObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          sidebarLinks.forEach(l => l.classList.remove('active'));
+          const match = sidebarHeadings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -70% 0px',
+      threshold: 0
+    });
+
+    sidebarHeadings.forEach(h => sidebarObserver.observe(h.el));
+  </script>
+
+</body>
+</html>

@@ -539,8 +539,9 @@ def _print_summary(
     # Action items
     console.print()
     console.print("  If something gets blocked:")
-    console.print("    Run  [cyan]avakill fix[/cyan]       to see why and how to fix it")
-    console.print("    Edit [cyan]avakill.yaml[/cyan]   to change your rules")
+    console.print("    Run  [cyan]avakill fix[/cyan]            to see why and how to fix it")
+    console.print("    Run  [cyan]avakill rules[/cyan]          to add, remove, or create rules")
+    console.print("    Edit [cyan]avakill.yaml[/cyan]        to change your rules by hand")
 
     if tracking_enabled:
         console.print()

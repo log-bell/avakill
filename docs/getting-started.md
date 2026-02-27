@@ -396,9 +396,30 @@ The review/approve step is intentional — LLM-generated policies always go thro
 
 ## 2. Add AvaKill to Your Code
 
+Section 1 protects third-party agents you run from the command line. This section is for developers building their own agents or tool-calling applications in Python — chatbots, automation pipelines, custom LangChain agents, internal tools. You embed AvaKill as a library directly in your code so every tool call passes through policy evaluation before it executes. The `Guard` class loads and evaluates policies in-process — no daemon or background service required. You'll need an `avakill.yaml` policy file (created in Section 1 via `avakill init`, or written by hand).
+
+Here's a minimal policy the examples below depend on:
+
+```yaml
+# avakill.yaml
+version: "1"
+default_action: deny
+
+rules:
+  - name: allow-search
+    pattern: "*_search"
+    action: allow
+
+  - name: allow-get
+    pattern: "get_*"
+    action: allow
+```
+
+With `default_action: deny`, only tools matching an explicit allow rule can run. The `*_search` pattern allows `search_users`, while `delete_user` matches nothing and is denied.
+
 ### The `@protect` decorator
 
-The fastest integration path. It wraps any function with a policy check -- if the policy denies the call, the function body never runs.
+The fastest integration path. It wraps any function with a policy check — if the policy denies the call, the function body never runs. The decorator uses the function name as the tool name by default.
 
 ```python
 from avakill import Guard, protect, PolicyViolation
@@ -428,6 +449,8 @@ except PolicyViolation as e:
 # -> AvaKill blocked 'delete_user': No matching rule; default action is 'deny'
 ```
 
+Works with both sync and async functions.
+
 Decorator options:
 
 | Option | Example | Effect |
@@ -438,11 +461,11 @@ Decorator options:
 | Return None | `@protect(guard=guard, on_deny="return_none")` | Returns `None` instead of raising |
 | Custom callback | `@protect(guard=guard, on_deny="callback", deny_callback=fn)` | Calls `fn(tool_name, decision, args, kwargs)` |
 
-Works with both sync and async functions.
-
 ### Using `Guard.evaluate()` directly
 
-For more control, use `Guard.evaluate()` in your agent loop:
+`@protect` is best when your tools are Python functions you own. When you dispatch calls dynamically — tool names arrive as strings at runtime, like in an agent loop — use `Guard.evaluate()` for more control.
+
+`Guard.evaluate()` returns a `Decision` object with fields including `.allowed`, `.action`, `.policy_name`, `.reason`, and others.
 
 ```python
 from avakill import Guard, PolicyViolation
@@ -450,18 +473,19 @@ from avakill import Guard, PolicyViolation
 guard = Guard(policy="avakill.yaml")
 
 def agent_loop(tool_name: str, args: dict):
+    """Your main loop that receives tool names and dispatches them."""
     decision = guard.evaluate(tool=tool_name, args=args)
 
     if not decision.allowed:
         print(f"Blocked by policy '{decision.policy_name}': {decision.reason}")
         return None
 
-    return execute_tool(tool_name, args)
+    return execute_tool(tool_name, args)  # your application's tool dispatcher
 ```
 
 ### Sessions
 
-Use sessions to group related calls under an agent and session ID:
+Sessions group related calls under one agent/session ID. This enables per-session rate limiting (so limits reset between conversations) and groups audit log entries together for debugging.
 
 ```python
 with guard.session(agent_id="my-agent") as session:
@@ -485,19 +509,16 @@ guard = Guard(policy="avakill.yaml", logger=logger)
 guard.evaluate(tool="search_users", args={"query": "test"})
 ```
 
+See the [API Reference](api-reference.md) for the full `Guard` constructor options, `Decision` fields, and framework integrations.
+
 ## 3. Protect AI Coding Agents
 
-AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.
+This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an `avakill.yaml` policy file from Section 1 (or written by hand) and one install command.
 
-The fastest path is `avakill setup`, which handles detection and installation. Or use the CLI directly:
+Two paths to get started:
 
-### Start the daemon
-
-```bash
-avakill daemon start --policy avakill.yaml
-```
-
-The daemon listens on a Unix socket (`~/.avakill/avakill.sock`) and evaluates tool calls in <5ms.
+- **`avakill setup`** (recommended) — interactive wizard that creates a policy and installs hooks in one pass (covered in Section 1)
+- **`avakill hook install`** — targeted, scriptable; installs hooks for agents you specify
 
 ### Install hooks
 
@@ -509,59 +530,49 @@ avakill hook install --agent claude-code
 avakill hook install --agent all
 ```
 
+If you already ran `avakill setup`, hooks are installed. Use `avakill hook install` when you want to add a single agent later or script the setup in CI.
+
 ### Check status
+
+After installing, verify the hooks are active:
 
 ```bash
 avakill hook list
 ```
 
-### How it works
+### How hooks evaluate
 
-```
-Agent  ->  Hook Script  ->  AvaKill Daemon  ->  Policy Engine
-                 |                                    |
-          Translates tool name              Evaluates rules
-          (Bash -> shell_execute)           Returns: allow/deny
-```
+When an agent makes a tool call, the installed hook intercepts it. The hook translates the agent's native tool name to a canonical name (e.g. Claude Code's `Bash` becomes `shell_execute`), evaluates it against your policy, and returns allow or deny to the agent.
 
-### Standalone mode (no daemon)
+Hooks work standalone — no daemon required. Each hook follows this fallback chain to find a policy source:
 
-Hooks work without a running daemon. When the daemon is unreachable, each hook evaluates policies in-process using this fallback chain:
+1. **Self-protection** — hardcoded checks run first (blocks attempts to disable AvaKill itself)
+2. **`AVAKILL_POLICY` env var** — if set, loads that file and evaluates in-process
+3. **Running daemon** — connects to `~/.avakill/avakill.sock` if a daemon is running
+4. **Auto-discover** — looks for `avakill.yaml` or `avakill.yml` in the current directory
+5. **Fail-closed** — if `AVAKILL_FAIL_CLOSED=1` is set and no policy was found, denies the call
+6. **Fail-open** — otherwise, allows the call and prints a warning to stderr
 
-1. Connect to daemon socket (`~/.avakill/avakill.sock`)
-2. If unreachable, load policy from `avakill.yaml` in cwd and evaluate locally
-3. If no policy file found, **allow** the call (fail-open, the default)
-
-To change the default to **fail-closed** (deny when no policy is available):
+Fail-open is the default so AvaKill never blocks your workflow before you've configured it. Once your policy is in place, set `AVAKILL_FAIL_CLOSED=1` for production:
 
 ```bash
 export AVAKILL_FAIL_CLOSED=1
 ```
 
-With `AVAKILL_FAIL_CLOSED=1`, tool calls are denied when both the daemon and local policy file are unavailable. This is recommended for production environments.
+The daemon is an optional enhancement — it adds audit logging and shared evaluation across agents, and powers `avakill logs`. Start it with `avakill daemon start --policy avakill.yaml` when you want those features.
 
 ### Canonical tool names
 
-One policy works across all agents thanks to canonical names:
+AvaKill normalizes agent-specific tool names so one policy works across all agents. For example, Claude Code's `Bash`, Gemini CLI's `run_shell_command`, and Codex's `shell` all become `shell_execute`. The same applies to file operations (`file_read`, `file_write`, `file_edit`) and other tool categories.
 
-| Agent | Native Name | Canonical Name |
-|-------|------------|----------------|
-| Claude Code | `Bash` | `shell_execute` |
-| Claude Code | `Write` / `Read` | `file_write` / `file_read` |
-| Gemini CLI | `run_shell_command` | `shell_execute` |
-| Gemini CLI | `read_file` / `write_file` / `edit_file` | `file_read` / `file_write` / `file_edit` |
-| Gemini CLI | `search_files` / `list_files` | `file_search` / `file_list` |
-| Gemini CLI | `web_search` / `web_fetch` | `web_search` / `web_fetch` |
-| Windsurf | `run_command` | `shell_execute` |
-| Windsurf | `write_code` / `read_code` | `file_write` / `file_read` |
-| Windsurf | `mcp_tool` | *(pass-through)* |
-| OpenAI Codex | `shell` | `shell_execute` |
-| OpenAI Codex | `apply_patch` / `read_file` | `file_write` / `file_read` |
-| OpenAI Codex | `list_dir` / `grep_files` | `file_list` / `content_search` |
+See the [CLI Reference](cli-reference.md) for the full canonical name mapping table.
 
 ### Recommended hook policy
 
 Use `shell_safe` and `command_allowlist` to control shell access:
+
+- **`shell_safe`** — blocks common destructive patterns (`rm -rf /`, `chmod 777`, pipe to `sh`, etc.)
+- **`command_allowlist`** — restricts which commands can run at all
 
 ```yaml
 - name: allow-safe-shell
@@ -574,26 +585,31 @@ Use `shell_safe` and `command_allowlist` to control shell access:
                         make, which, whoami, date, uname, head, tail, wc, file, stat]
 ```
 
-Use `avakill evaluate` to test tool calls against your policy.
+See the [Policy Reference](policy-reference.md) for the full list of conditions.
+
+Your coding agents are now protected by AvaKill hooks. Section 4 covers monitoring — viewing audit logs and testing tool calls from the CLI.
 
 ## 4. Monitor and Debug
+
+This section covers two tools for visibility into what AvaKill is doing: audit logs (`avakill logs`) and CLI-based tool call testing (`avakill evaluate`).
+
+Audit logging requires a running daemon (`avakill daemon start`) or, if you're using the Python API from Section 2, a `SQLiteLogger` attached to your Guard. Both write to a SQLite database (default: `avakill_audit.db`) that `avakill logs` reads from.
 
 ### View audit logs
 
 ```bash
-# Show recent events
 $ avakill logs
 
-┌──────────────────────── AvaKill Audit Log ────────────────────────┐
-│ Time                │ Tool          │ Action │ Policy               │
-│ 2026-01-15 14:32:01 │ search_users  │ ALLOW  │ allow-read-operations│
-│ 2026-01-15 14:32:03 │ delete_user   │ DENY   │                     │
-│ 2026-01-15 14:32:05 │ execute_sql   │ DENY   │ block-destructive-sql│
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────── AvaKill Audit Log ─────────────────────────────────────┐
+│ Time                │ Tool          │ Action │ Policy                │ Agent    │ Reason     │
+│ 2026-01-15 14:32:01 │ search_users  │ ALLOW  │ allow-read-operations │ cli      │            │
+│ 2026-01-15 14:32:03 │ delete_user   │ DENY   │                       │ cli      │ no match…  │
+│ 2026-01-15 14:32:05 │ execute_sql   │ DENY   │ block-destructive-sql │ cli      │ SQL cont…  │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
 3 event(s) shown
 ```
 
-Filter and format options:
+Common filters for narrowing results:
 
 ```bash
 avakill logs --denied-only              # Only denied events
@@ -604,52 +620,59 @@ avakill logs --json                     # JSON output for piping to jq
 avakill logs tail                       # Follow new events in real-time
 ```
 
-### Run the dashboard
-
-Launch the real-time terminal dashboard with `avakill dashboard`. It shows live safety overview, streaming tool calls, and top denied tools.
-
-```bash
-avakill dashboard --db avakill_audit.db     # Custom database path
-avakill dashboard --refresh 1.0             # Refresh interval in seconds
-avakill dashboard --policy avakill.yaml     # Policy file to monitor
-avakill dashboard --watch                   # Auto-reload on policy change
-```
-
-Keyboard shortcuts: `q` quit, `r` reload policy, `c` clear events.
-
 ### Test tool calls from the CLI
 
+When developing or debugging your policy, test specific tool calls without running an agent:
+
 ```bash
-# Via the daemon
+# Test a dangerous command (should be denied)
 echo '{"tool": "shell_execute", "args": {"command": "rm -rf /"}}' | avakill evaluate --agent cli
 # Exit code 2 (denied)
 
-# Standalone (no daemon needed)
+# Test a safe read (should be allowed)
 echo '{"tool": "file_read", "args": {"path": "README.md"}}' | avakill evaluate --agent cli --policy avakill.yaml
 # Exit code 0 (allowed)
 ```
 
+The `--agent cli` flag identifies the source of the call for logging purposes — it appears in the Agent column of `avakill logs`.
+
 Exit codes: `0` = allowed, `2` = denied, `1` = error.
+
+For the full set of options, see the [CLI Reference](cli-reference.md) (`avakill logs`, `avakill evaluate`). For writing and tuning rules, see the [Policy Reference](policy-reference.md).
 
 ## Going Further
 
+You now have a working policy, hooks that enforce it, and visibility into what's happening. This section covers two ways to go deeper: OS-level sandboxing for defense in depth, and the interactive guide for advanced topics like signing, compliance, and MCP wrapping.
+
 ### OS sandboxing
 
-Add OS-level containment on top of policy enforcement:
+Hooks enforce your policy at the tool-call level — they intercept and block before the tool runs. OS sandboxing adds a second layer underneath: it restricts what the agent process itself can do at the operating-system level (filesystem access, network, process creation). Even if a tool call slips past policy, the sandbox catches it.
+
+AvaKill ships sandbox profiles for Linux (Landlock), macOS (sandbox-exec), and Windows (AppContainer). Each profile defines what an agent is allowed to touch:
 
 ```bash
 avakill profile list                                          # See available agent profiles
+avakill profile show aider                                    # See what a profile restricts
 avakill launch --agent aider --dry-run                        # Test sandbox restrictions
 avakill launch --agent aider --policy avakill.yaml -- aider   # Launch with OS sandbox
 ```
 
-The `avakill guide` TUI has additional sections for signing, compliance, MCP wrapping, and approvals.
+### Interactive guide
+
+The `avakill guide` command launches a menu-driven TUI that walks you through advanced setup topics:
+
+- **Signing & verification** — sign policies with Ed25519 or HMAC so tampering is detected
+- **Compliance frameworks** — generate SOC 2, NIST AI RMF, EU AI Act, and ISO 42001 reports
+- **MCP proxy wrapping** — route MCP servers through AvaKill so every tool call is evaluated
+- **Approval workflows** — require human sign-off before sensitive operations execute
+- **Daemon configuration** — persistent evaluation, audit logging, and shared state
+
+```bash
+avakill guide
+```
 
 ### Reference
 
 - **[Policy Reference](policy-reference.md)** -- YAML format, conditions, rate limiting, examples
 - **[CLI Reference](cli-reference.md)** -- all commands and flags
 - **[API Reference](api-reference.md)** -- Python SDK documentation
-- **[Framework Integrations](internal/framework-integrations.md)** -- OpenAI, Anthropic, LangChain, MCP
-- **[Security Hardening](internal/security-hardening.md)** -- signing, self-protection, OS-level enforcement
-- **[Troubleshooting](internal/troubleshooting.md)** -- common issues and solutions

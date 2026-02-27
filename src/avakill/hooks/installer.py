@@ -51,6 +51,14 @@ AGENT_DETECTORS: dict[str, Callable[[], bool]] = {
         Path.cwd().joinpath(".continue", "config.json").is_file()
         or Path.home().joinpath(".continue").is_dir()
     ),
+    "claude-desktop": lambda: any(
+        p.is_dir()
+        for p in [
+            Path.home() / "Library" / "Application Support" / "Claude",
+            Path.home() / ".config" / "claude",
+            Path.home() / "AppData" / "Roaming" / "Claude",
+        ]
+    ),
     "swe-agent": lambda: shutil.which("sweagent") is not None,
     "openai-codex": lambda: (
         Path.home().joinpath(".codex").is_dir() or shutil.which("codex") is not None

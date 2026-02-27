@@ -1,0 +1,4 @@
+{
+  "buildCommand": "pip install markdown pygments && python scripts/build-docs.py",
+  "outputDirectory": "site"
+}

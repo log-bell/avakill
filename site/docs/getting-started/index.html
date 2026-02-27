@@ -952,19 +952,17 @@
     <li><a href="#sessions" class="sidebar-link sidebar-link--sub">Sessions</a></li>
     <li><a href="#audit-logging" class="sidebar-link sidebar-link--sub">Audit logging</a></li>
     <li><a href="#3-protect-ai-coding-agents" class="sidebar-link">3. Protect AI Coding Agents</a></li>
-    <li><a href="#start-the-daemon" class="sidebar-link sidebar-link--sub">Start the daemon</a></li>
     <li><a href="#install-hooks" class="sidebar-link sidebar-link--sub">Install hooks</a></li>
     <li><a href="#check-status" class="sidebar-link sidebar-link--sub">Check status</a></li>
-    <li><a href="#how-it-works" class="sidebar-link sidebar-link--sub">How it works</a></li>
-    <li><a href="#standalone-mode-no-daemon" class="sidebar-link sidebar-link--sub">Standalone mode (no daemon)</a></li>
+    <li><a href="#how-hooks-evaluate" class="sidebar-link sidebar-link--sub">How hooks evaluate</a></li>
     <li><a href="#canonical-tool-names" class="sidebar-link sidebar-link--sub">Canonical tool names</a></li>
     <li><a href="#recommended-hook-policy" class="sidebar-link sidebar-link--sub">Recommended hook policy</a></li>
     <li><a href="#4-monitor-and-debug" class="sidebar-link">4. Monitor and Debug</a></li>
     <li><a href="#view-audit-logs" class="sidebar-link sidebar-link--sub">View audit logs</a></li>
-    <li><a href="#run-the-dashboard" class="sidebar-link sidebar-link--sub">Run the dashboard</a></li>
     <li><a href="#test-tool-calls-from-the-cli" class="sidebar-link sidebar-link--sub">Test tool calls from the CLI</a></li>
     <li><a href="#going-further" class="sidebar-link">Going Further</a></li>
     <li><a href="#os-sandboxing" class="sidebar-link sidebar-link--sub">OS sandboxing</a></li>
+    <li><a href="#interactive-guide" class="sidebar-link sidebar-link--sub">Interactive guide</a></li>
     <li><a href="#reference" class="sidebar-link sidebar-link--sub">Reference</a></li>
   </ul>
 </div>
@@ -1352,8 +1350,25 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 
 <p>The review/approve step is intentional — LLM-generated policies always go through human review before activation. See <a href="internal/llm-policy-prompt.md"><code>llm-policy-prompt.md</code></a> for a paste-ready version of the prompt.</p>
 <h2 id="2-add-avakill-to-your-code">2. Add AvaKill to Your Code</h2>
+<p>Section 1 protects third-party agents you run from the command line. This section is for developers building their own agents or tool-calling applications in Python — chatbots, automation pipelines, custom LangChain agents, internal tools. You embed AvaKill as a library directly in your code so every tool call passes through policy evaluation before it executes. The <code>Guard</code> class loads and evaluates policies in-process — no daemon or background service required. You'll need an <code>avakill.yaml</code> policy file (created in Section 1 via <code>avakill init</code>, or written by hand).</p>
+<p>Here's a minimal policy the examples below depend on:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># avakill.yaml</span>
+<span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
+<span class="nt">default_action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+
+<span class="nt">rules</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-search</span>
+<span class="w">    </span><span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*_search&quot;</span>
+<span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-get</span>
+<span class="w">    </span><span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;get_*&quot;</span>
+<span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow</span>
+</code></pre></div>
+
+<p>With <code>default_action: deny</code>, only tools matching an explicit allow rule can run. The <code>*_search</code> pattern allows <code>search_users</code>, while <code>delete_user</code> matches nothing and is denied.</p>
 <h3 id="the-protect-decorator">The <code>@protect</code> decorator</h3>
-<p>The fastest integration path. It wraps any function with a policy check -- if the policy denies the call, the function body never runs.</p>
+<p>The fastest integration path. It wraps any function with a policy check — if the policy denies the call, the function body never runs. The decorator uses the function name as the tool name by default.</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span><span class="p">,</span> <span class="n">protect</span><span class="p">,</span> <span class="n">PolicyViolation</span>
 
 <span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
@@ -1381,6 +1396,7 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 <span class="c1"># -&gt; AvaKill blocked &#39;delete_user&#39;: No matching rule; default action is &#39;deny&#39;</span>
 </code></pre></div>
 
+<p>Works with both sync and async functions.</p>
 <p>Decorator options:</p>
 <table>
 <thead>
@@ -1418,25 +1434,26 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 </tr>
 </tbody>
 </table>
-<p>Works with both sync and async functions.</p>
 <h3 id="using-guardevaluate-directly">Using <code>Guard.evaluate()</code> directly</h3>
-<p>For more control, use <code>Guard.evaluate()</code> in your agent loop:</p>
+<p><code>@protect</code> is best when your tools are Python functions you own. When you dispatch calls dynamically — tool names arrive as strings at runtime, like in an agent loop — use <code>Guard.evaluate()</code> for more control.</p>
+<p><code>Guard.evaluate()</code> returns a <code>Decision</code> object with fields including <code>.allowed</code>, <code>.action</code>, <code>.policy_name</code>, <code>.reason</code>, and others.</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">avakill</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span><span class="p">,</span> <span class="n">PolicyViolation</span>
 
 <span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="p">(</span><span class="n">policy</span><span class="o">=</span><span class="s2">&quot;avakill.yaml&quot;</span><span class="p">)</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">agent_loop</span><span class="p">(</span><span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Your main loop that receives tool names and dispatches them.&quot;&quot;&quot;</span>
     <span class="n">decision</span> <span class="o">=</span> <span class="n">guard</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">decision</span><span class="o">.</span><span class="n">allowed</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blocked by policy &#39;</span><span class="si">{</span><span class="n">decision</span><span class="o">.</span><span class="n">policy_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">decision</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
 
-    <span class="k">return</span> <span class="n">execute_tool</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">execute_tool</span><span class="p">(</span><span class="n">tool_name</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>  <span class="c1"># your application&#39;s tool dispatcher</span>
 </code></pre></div>
 
 <h3 id="sessions">Sessions</h3>
-<p>Use sessions to group related calls under an agent and session ID:</p>
+<p>Sessions group related calls under one agent/session ID. This enables per-session rate limiting (so limits reset between conversations) and groups audit log entries together for debugging.</p>
 <div class="codehilite"><pre><span></span><code><span class="k">with</span> <span class="n">guard</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="n">agent_id</span><span class="o">=</span><span class="s2">&quot;my-agent&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
     <span class="n">session</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;search_users&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;active&quot;</span><span class="p">})</span>
     <span class="n">session</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;get_user&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;456&quot;</span><span class="p">})</span>
@@ -1455,14 +1472,14 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 <span class="n">guard</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">tool</span><span class="o">=</span><span class="s2">&quot;search_users&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;test&quot;</span><span class="p">})</span>
 </code></pre></div>
 
+<p>See the <a href="/docs/api-reference/">API Reference</a> for the full <code>Guard</code> constructor options, <code>Decision</code> fields, and framework integrations.</p>
 <h2 id="3-protect-ai-coding-agents">3. Protect AI Coding Agents</h2>
-<p>AvaKill can protect AI coding agents like Claude Code, Gemini CLI, Windsurf, and OpenAI Codex without any code changes. Hook scripts intercept tool calls at the agent level and route them through AvaKill's policy engine.</p>
-<p>The fastest path is <code>avakill setup</code>, which handles detection and installation. Or use the CLI directly:</p>
-<h3 id="start-the-daemon">Start the daemon</h3>
-<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>daemon<span class="w"> </span>start<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
-</code></pre></div>
-
-<p>The daemon listens on a Unix socket (<code>~/.avakill/avakill.sock</code>) and evaluates tool calls in &lt;5ms.</p>
+<p>This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an <code>avakill.yaml</code> policy file from Section 1 (or written by hand) and one install command.</p>
+<p>Two paths to get started:</p>
+<ul>
+<li><strong><code>avakill setup</code></strong> (recommended) — interactive wizard that creates a policy and installs hooks in one pass (covered in Section 1)</li>
+<li><strong><code>avakill hook install</code></strong> — targeted, scriptable; installs hooks for agents you specify</li>
+</ul>
 <h3 id="install-hooks">Install hooks</h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Install for a specific agent</span>
 avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>claude-code
@@ -1471,104 +1488,37 @@ avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w
 avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>all
 </code></pre></div>
 
+<p>If you already ran <code>avakill setup</code>, hooks are installed. Use <code>avakill hook install</code> when you want to add a single agent later or script the setup in CI.</p>
 <h3 id="check-status">Check status</h3>
+<p>After installing, verify the hooks are active:</p>
 <div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>hook<span class="w"> </span>list
 </code></pre></div>
 
-<h3 id="how-it-works">How it works</h3>
-<div class="codehilite"><pre><span></span><code>Agent  -&gt;  Hook Script  -&gt;  AvaKill Daemon  -&gt;  Policy Engine
-                 |                                    |
-          Translates tool name              Evaluates rules
-          (Bash -&gt; shell_execute)           Returns: allow/deny
-</code></pre></div>
-
-<h3 id="standalone-mode-no-daemon">Standalone mode (no daemon)</h3>
-<p>Hooks work without a running daemon. When the daemon is unreachable, each hook evaluates policies in-process using this fallback chain:</p>
+<h3 id="how-hooks-evaluate">How hooks evaluate</h3>
+<p>When an agent makes a tool call, the installed hook intercepts it. The hook translates the agent's native tool name to a canonical name (e.g. Claude Code's <code>Bash</code> becomes <code>shell_execute</code>), evaluates it against your policy, and returns allow or deny to the agent.</p>
+<p>Hooks work standalone — no daemon required. Each hook follows this fallback chain to find a policy source:</p>
 <ol>
-<li>Connect to daemon socket (<code>~/.avakill/avakill.sock</code>)</li>
-<li>If unreachable, load policy from <code>avakill.yaml</code> in cwd and evaluate locally</li>
-<li>If no policy file found, <strong>allow</strong> the call (fail-open, the default)</li>
+<li><strong>Self-protection</strong> — hardcoded checks run first (blocks attempts to disable AvaKill itself)</li>
+<li><strong><code>AVAKILL_POLICY</code> env var</strong> — if set, loads that file and evaluates in-process</li>
+<li><strong>Running daemon</strong> — connects to <code>~/.avakill/avakill.sock</code> if a daemon is running</li>
+<li><strong>Auto-discover</strong> — looks for <code>avakill.yaml</code> or <code>avakill.yml</code> in the current directory</li>
+<li><strong>Fail-closed</strong> — if <code>AVAKILL_FAIL_CLOSED=1</code> is set and no policy was found, denies the call</li>
+<li><strong>Fail-open</strong> — otherwise, allows the call and prints a warning to stderr</li>
 </ol>
-<p>To change the default to <strong>fail-closed</strong> (deny when no policy is available):</p>
+<p>Fail-open is the default so AvaKill never blocks your workflow before you've configured it. Once your policy is in place, set <code>AVAKILL_FAIL_CLOSED=1</code> for production:</p>
 <div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">AVAKILL_FAIL_CLOSED</span><span class="o">=</span><span class="m">1</span>
 </code></pre></div>
 
-<p>With <code>AVAKILL_FAIL_CLOSED=1</code>, tool calls are denied when both the daemon and local policy file are unavailable. This is recommended for production environments.</p>
+<p>The daemon is an optional enhancement — it adds audit logging and shared evaluation across agents, and powers <code>avakill logs</code>. Start it with <code>avakill daemon start --policy avakill.yaml</code> when you want those features.</p>
 <h3 id="canonical-tool-names">Canonical tool names</h3>
-<p>One policy works across all agents thanks to canonical names:</p>
-<table>
-<thead>
-<tr>
-<th>Agent</th>
-<th>Native Name</th>
-<th>Canonical Name</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Claude Code</td>
-<td><code>Bash</code></td>
-<td><code>shell_execute</code></td>
-</tr>
-<tr>
-<td>Claude Code</td>
-<td><code>Write</code> / <code>Read</code></td>
-<td><code>file_write</code> / <code>file_read</code></td>
-</tr>
-<tr>
-<td>Gemini CLI</td>
-<td><code>run_shell_command</code></td>
-<td><code>shell_execute</code></td>
-</tr>
-<tr>
-<td>Gemini CLI</td>
-<td><code>read_file</code> / <code>write_file</code> / <code>edit_file</code></td>
-<td><code>file_read</code> / <code>file_write</code> / <code>file_edit</code></td>
-</tr>
-<tr>
-<td>Gemini CLI</td>
-<td><code>search_files</code> / <code>list_files</code></td>
-<td><code>file_search</code> / <code>file_list</code></td>
-</tr>
-<tr>
-<td>Gemini CLI</td>
-<td><code>web_search</code> / <code>web_fetch</code></td>
-<td><code>web_search</code> / <code>web_fetch</code></td>
-</tr>
-<tr>
-<td>Windsurf</td>
-<td><code>run_command</code></td>
-<td><code>shell_execute</code></td>
-</tr>
-<tr>
-<td>Windsurf</td>
-<td><code>write_code</code> / <code>read_code</code></td>
-<td><code>file_write</code> / <code>file_read</code></td>
-</tr>
-<tr>
-<td>Windsurf</td>
-<td><code>mcp_tool</code></td>
-<td><em>(pass-through)</em></td>
-</tr>
-<tr>
-<td>OpenAI Codex</td>
-<td><code>shell</code></td>
-<td><code>shell_execute</code></td>
-</tr>
-<tr>
-<td>OpenAI Codex</td>
-<td><code>apply_patch</code> / <code>read_file</code></td>
-<td><code>file_write</code> / <code>file_read</code></td>
-</tr>
-<tr>
-<td>OpenAI Codex</td>
-<td><code>list_dir</code> / <code>grep_files</code></td>
-<td><code>file_list</code> / <code>content_search</code></td>
-</tr>
-</tbody>
-</table>
+<p>AvaKill normalizes agent-specific tool names so one policy works across all agents. For example, Claude Code's <code>Bash</code>, Gemini CLI's <code>run_shell_command</code>, and Codex's <code>shell</code> all become <code>shell_execute</code>. The same applies to file operations (<code>file_read</code>, <code>file_write</code>, <code>file_edit</code>) and other tool categories.</p>
+<p>See the <a href="/docs/cli-reference/">CLI Reference</a> for the full canonical name mapping table.</p>
 <h3 id="recommended-hook-policy">Recommended hook policy</h3>
 <p>Use <code>shell_safe</code> and <code>command_allowlist</code> to control shell access:</p>
+<ul>
+<li><strong><code>shell_safe</code></strong> — blocks common destructive patterns (<code>rm -rf /</code>, <code>chmod 777</code>, pipe to <code>sh</code>, etc.)</li>
+<li><strong><code>command_allowlist</code></strong> — restricts which commands can run at all</li>
+</ul>
 <div class="codehilite"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-safe-shell</span>
 <span class="w">  </span><span class="nt">tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;shell_execute&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Bash&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;run_shell_command&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;run_command&quot;</span><span class="p p-Indicator">,</span>
 <span class="w">          </span><span class="s">&quot;shell&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;local_shell&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;exec_command&quot;</span><span class="p p-Indicator">]</span>
@@ -1579,22 +1529,24 @@ avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w
 <span class="w">                        </span><span class="nv">make</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">which</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">whoami</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">date</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">uname</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">head</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">tail</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">wc</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">file</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">stat</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 
-<p>Use <code>avakill evaluate</code> to test tool calls against your policy.</p>
+<p>See the <a href="/docs/policy-reference/">Policy Reference</a> for the full list of conditions.</p>
+<p>Your coding agents are now protected by AvaKill hooks. Section 4 covers monitoring — viewing audit logs and testing tool calls from the CLI.</p>
 <h2 id="4-monitor-and-debug">4. Monitor and Debug</h2>
+<p>This section covers two tools for visibility into what AvaKill is doing: audit logs (<code>avakill logs</code>) and CLI-based tool call testing (<code>avakill evaluate</code>).</p>
+<p>Audit logging requires a running daemon (<code>avakill daemon start</code>) or, if you're using the Python API from Section 2, a <code>SQLiteLogger</code> attached to your Guard. Both write to a SQLite database (default: <code>avakill_audit.db</code>) that <code>avakill logs</code> reads from.</p>
 <h3 id="view-audit-logs">View audit logs</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Show recent events</span>
-$<span class="w"> </span>avakill<span class="w"> </span>logs
+<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>avakill<span class="w"> </span>logs
 
-┌────────────────────────<span class="w"> </span>AvaKill<span class="w"> </span>Audit<span class="w"> </span>Log<span class="w"> </span>────────────────────────┐
-│<span class="w"> </span>Time<span class="w">                </span>│<span class="w"> </span>Tool<span class="w">          </span>│<span class="w"> </span>Action<span class="w"> </span>│<span class="w"> </span>Policy<span class="w">               </span>│
-│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:01<span class="w"> </span>│<span class="w"> </span>search_users<span class="w">  </span>│<span class="w"> </span>ALLOW<span class="w">  </span>│<span class="w"> </span>allow-read-operations│
-│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:03<span class="w"> </span>│<span class="w"> </span>delete_user<span class="w">   </span>│<span class="w"> </span>DENY<span class="w">   </span>│<span class="w">                     </span>│
-│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:05<span class="w"> </span>│<span class="w"> </span>execute_sql<span class="w">   </span>│<span class="w"> </span>DENY<span class="w">   </span>│<span class="w"> </span>block-destructive-sql│
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────<span class="w"> </span>AvaKill<span class="w"> </span>Audit<span class="w"> </span>Log<span class="w"> </span>─────────────────────────────────────┐
+│<span class="w"> </span>Time<span class="w">                </span>│<span class="w"> </span>Tool<span class="w">          </span>│<span class="w"> </span>Action<span class="w"> </span>│<span class="w"> </span>Policy<span class="w">                </span>│<span class="w"> </span>Agent<span class="w">    </span>│<span class="w"> </span>Reason<span class="w">     </span>│
+│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:01<span class="w"> </span>│<span class="w"> </span>search_users<span class="w">  </span>│<span class="w"> </span>ALLOW<span class="w">  </span>│<span class="w"> </span>allow-read-operations<span class="w"> </span>│<span class="w"> </span>cli<span class="w">      </span>│<span class="w">            </span>│
+│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:03<span class="w"> </span>│<span class="w"> </span>delete_user<span class="w">   </span>│<span class="w"> </span>DENY<span class="w">   </span>│<span class="w">                       </span>│<span class="w"> </span>cli<span class="w">      </span>│<span class="w"> </span>no<span class="w"> </span>match…<span class="w">  </span>│
+│<span class="w"> </span><span class="m">2026</span>-01-15<span class="w"> </span><span class="m">14</span>:32:05<span class="w"> </span>│<span class="w"> </span>execute_sql<span class="w">   </span>│<span class="w"> </span>DENY<span class="w">   </span>│<span class="w"> </span>block-destructive-sql<span class="w"> </span>│<span class="w"> </span>cli<span class="w">      </span>│<span class="w"> </span>SQL<span class="w"> </span>cont…<span class="w">  </span>│
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
 <span class="m">3</span><span class="w"> </span>event<span class="o">(</span>s<span class="o">)</span><span class="w"> </span>shown
 </code></pre></div>
 
-<p>Filter and format options:</p>
+<p>Common filters for narrowing results:</p>
 <div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>logs<span class="w"> </span>--denied-only<span class="w">              </span><span class="c1"># Only denied events</span>
 avakill<span class="w"> </span>logs<span class="w"> </span>--tool<span class="w"> </span><span class="s2">&quot;database_*&quot;</span><span class="w">        </span><span class="c1"># Filter by tool name (supports globs)</span>
 avakill<span class="w"> </span>logs<span class="w"> </span>--since<span class="w"> </span>1h<span class="w">                 </span><span class="c1"># Events from the last hour</span>
@@ -1603,43 +1555,48 @@ avakill<span class="w"> </span>logs<span class="w"> </span>--json<span class="w"
 avakill<span class="w"> </span>logs<span class="w"> </span>tail<span class="w">                       </span><span class="c1"># Follow new events in real-time</span>
 </code></pre></div>
 
-<h3 id="run-the-dashboard">Run the dashboard</h3>
-<p>Launch the real-time terminal dashboard with <code>avakill dashboard</code>. It shows live safety overview, streaming tool calls, and top denied tools.</p>
-<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>dashboard<span class="w"> </span>--db<span class="w"> </span>avakill_audit.db<span class="w">     </span><span class="c1"># Custom database path</span>
-avakill<span class="w"> </span>dashboard<span class="w"> </span>--refresh<span class="w"> </span><span class="m">1</span>.0<span class="w">             </span><span class="c1"># Refresh interval in seconds</span>
-avakill<span class="w"> </span>dashboard<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w">     </span><span class="c1"># Policy file to monitor</span>
-avakill<span class="w"> </span>dashboard<span class="w"> </span>--watch<span class="w">                   </span><span class="c1"># Auto-reload on policy change</span>
-</code></pre></div>
-
-<p>Keyboard shortcuts: <code>q</code> quit, <code>r</code> reload policy, <code>c</code> clear events.</p>
 <h3 id="test-tool-calls-from-the-cli">Test tool calls from the CLI</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Via the daemon</span>
+<p>When developing or debugging your policy, test specific tool calls without running an agent:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Test a dangerous command (should be denied)</span>
 <span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;shell_execute&quot;, &quot;args&quot;: {&quot;command&quot;: &quot;rm -rf /&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli
 <span class="c1"># Exit code 2 (denied)</span>
 
-<span class="c1"># Standalone (no daemon needed)</span>
+<span class="c1"># Test a safe read (should be allowed)</span>
 <span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;file_read&quot;, &quot;args&quot;: {&quot;path&quot;: &quot;README.md&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
 <span class="c1"># Exit code 0 (allowed)</span>
 </code></pre></div>
 
+<p>The <code>--agent cli</code> flag identifies the source of the call for logging purposes — it appears in the Agent column of <code>avakill logs</code>.</p>
 <p>Exit codes: <code>0</code> = allowed, <code>2</code> = denied, <code>1</code> = error.</p>
+<p>For the full set of options, see the <a href="/docs/cli-reference/">CLI Reference</a> (<code>avakill logs</code>, <code>avakill evaluate</code>). For writing and tuning rules, see the <a href="/docs/policy-reference/">Policy Reference</a>.</p>
 <h2 id="going-further">Going Further</h2>
+<p>You now have a working policy, hooks that enforce it, and visibility into what's happening. This section covers two ways to go deeper: OS-level sandboxing for defense in depth, and the interactive guide for advanced topics like signing, compliance, and MCP wrapping.</p>
 <h3 id="os-sandboxing">OS sandboxing</h3>
-<p>Add OS-level containment on top of policy enforcement:</p>
+<p>Hooks enforce your policy at the tool-call level — they intercept and block before the tool runs. OS sandboxing adds a second layer underneath: it restricts what the agent process itself can do at the operating-system level (filesystem access, network, process creation). Even if a tool call slips past policy, the sandbox catches it.</p>
+<p>AvaKill ships sandbox profiles for Linux (Landlock), macOS (sandbox-exec), and Windows (AppContainer). Each profile defines what an agent is allowed to touch:</p>
 <div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>profile<span class="w"> </span>list<span class="w">                                          </span><span class="c1"># See available agent profiles</span>
+avakill<span class="w"> </span>profile<span class="w"> </span>show<span class="w"> </span>aider<span class="w">                                    </span><span class="c1"># See what a profile restricts</span>
 avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--dry-run<span class="w">                        </span><span class="c1"># Test sandbox restrictions</span>
 avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>aider<span class="w">   </span><span class="c1"># Launch with OS sandbox</span>
 </code></pre></div>
 
-<p>The <code>avakill guide</code> TUI has additional sections for signing, compliance, MCP wrapping, and approvals.</p>
+<h3 id="interactive-guide">Interactive guide</h3>
+<p>The <code>avakill guide</code> command launches a menu-driven TUI that walks you through advanced setup topics:</p>
+<ul>
+<li><strong>Signing &amp; verification</strong> — sign policies with Ed25519 or HMAC so tampering is detected</li>
+<li><strong>Compliance frameworks</strong> — generate SOC 2, NIST AI RMF, EU AI Act, and ISO 42001 reports</li>
+<li><strong>MCP proxy wrapping</strong> — route MCP servers through AvaKill so every tool call is evaluated</li>
+<li><strong>Approval workflows</strong> — require human sign-off before sensitive operations execute</li>
+<li><strong>Daemon configuration</strong> — persistent evaluation, audit logging, and shared state</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>guide
+</code></pre></div>
+
 <h3 id="reference">Reference</h3>
 <ul>
 <li><strong><a href="/docs/policy-reference/">Policy Reference</a></strong> -- YAML format, conditions, rate limiting, examples</li>
 <li><strong><a href="/docs/cli-reference/">CLI Reference</a></strong> -- all commands and flags</li>
 <li><strong><a href="/docs/api-reference/">API Reference</a></strong> -- Python SDK documentation</li>
-<li><strong><a href="internal/framework-integrations.md">Framework Integrations</a></strong> -- OpenAI, Anthropic, LangChain, MCP</li>
-<li><strong><a href="internal/security-hardening.md">Security Hardening</a></strong> -- signing, self-protection, OS-level enforcement</li>
-<li><strong><a href="internal/troubleshooting.md">Troubleshooting</a></strong> -- common issues and solutions</li>
 </ul>
 
 <div class="docs-nav-bottom">

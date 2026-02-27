@@ -30,6 +30,7 @@ _COMMANDS: dict[str, tuple[str, str]] = {
     "metrics": ("avakill.cli.metrics_cmd", "metrics"),
     "reset": ("avakill.cli.reset_cmd", "reset"),
     "review": ("avakill.cli.review_cmd", "review"),
+    "rules": ("avakill.cli.rules_cmd", "rules"),
     "schema": ("avakill.cli.schema_cmd", "schema"),
     "setup": ("avakill.cli.setup_cmd", "setup"),
     "sign": ("avakill.cli.sign_cmd", "sign"),
@@ -39,7 +40,7 @@ _COMMANDS: dict[str, tuple[str, str]] = {
 }
 
 _COMMAND_GROUPS: list[tuple[str, list[str]]] = [
-    ("Getting Started", ["setup", "validate", "dashboard", "reset"]),
+    ("Getting Started", ["setup", "rules", "validate", "dashboard", "reset"]),
     (
         "Integrations",
         ["mcp-proxy", "mcp-wrap", "mcp-unwrap", "hook", "evaluate", "launch", "profile"],

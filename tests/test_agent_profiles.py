@@ -105,7 +105,7 @@ class TestProfileLoader:
 class TestBuiltinProfiles:
     @pytest.mark.parametrize(
         "name",
-        ["openclaw", "aider", "cline", "continue", "swe-agent"],
+        ["openclaw", "aider", "cline", "continue", "swe-agent", "claude-desktop"],
     )
     def test_builtin_profile_loads(self, name):
         profile = load_profile(name)
@@ -114,7 +114,7 @@ class TestBuiltinProfiles:
 
     @pytest.mark.parametrize(
         "name",
-        ["openclaw", "aider", "cline", "continue", "swe-agent"],
+        ["openclaw", "aider", "cline", "continue", "swe-agent", "claude-desktop"],
     )
     def test_builtin_profile_has_detection(self, name):
         profile = load_profile(name)
@@ -125,7 +125,7 @@ class TestBuiltinProfiles:
 
     def test_list_profiles_includes_all_builtins(self):
         profiles = list_profiles()
-        expected = {"openclaw", "aider", "cline", "continue", "swe-agent"}
+        expected = {"openclaw", "aider", "cline", "continue", "swe-agent", "claude-desktop"}
         assert expected.issubset(set(profiles))
 
     def test_openclaw_has_node_in_execute(self):
@@ -149,6 +149,14 @@ class TestBuiltinProfiles:
     def test_cline_is_mcp_native(self):
         profile = load_profile("cline")
         assert profile.agent.mcp_native is True
+
+    def test_claude_desktop_is_mcp_native(self):
+        profile = load_profile("claude-desktop")
+        assert profile.agent.mcp_native is True
+
+    def test_claude_desktop_no_hooks(self):
+        profile = load_profile("claude-desktop")
+        assert profile.agent.supports_hooks is False
 
     def test_swe_agent_needs_docker(self):
         profile = load_profile("swe-agent")

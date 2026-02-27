@@ -16,6 +16,18 @@ class TestProfileList:
         assert "openclaw" in output_lower
         assert "aider" in output_lower
 
+    def test_list_shows_detected_column(self):
+        runner = CliRunner()
+        result = runner.invoke(profile, ["list"])
+        assert result.exit_code == 0
+        assert "Detected" in result.output
+
+    def test_list_shows_claude_desktop(self):
+        runner = CliRunner()
+        result = runner.invoke(profile, ["list"])
+        assert result.exit_code == 0
+        assert "Claude Desktop" in result.output
+
     def test_list_shows_descriptions(self):
         runner = CliRunner()
         result = runner.invoke(profile, ["list", "--verbose"])
@@ -41,3 +53,16 @@ class TestProfileShow:
         result = runner.invoke(profile, ["show", "openclaw"])
         assert result.exit_code == 0
         assert "mcp" in result.output.lower()
+
+    def test_show_displays_recommended_protection(self):
+        runner = CliRunner()
+        result = runner.invoke(profile, ["show", "openclaw"])
+        assert result.exit_code == 0
+        assert "Recommended protection" in result.output
+
+    def test_show_claude_desktop(self):
+        runner = CliRunner()
+        result = runner.invoke(profile, ["show", "claude-desktop"])
+        assert result.exit_code == 0
+        assert "Claude Desktop" in result.output
+        assert "mcp-wrap" in result.output

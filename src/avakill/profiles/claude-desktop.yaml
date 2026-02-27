@@ -1,0 +1,37 @@
+agent:
+  name: claude-desktop
+  display_name: Claude Desktop
+  command: []
+  detect_paths:
+    - "~/Library/Application Support/Claude"
+    - "~/.config/claude"
+    - "~/AppData/Roaming/Claude"
+  detect_commands: []
+  supports_hooks: false
+  mcp_native: true
+  description: >-
+    Anthropic's desktop app with native MCP server support.
+    Best protected via MCP proxy wrapping of configured servers.
+
+sandbox:
+  allow_paths:
+    read:
+      - "/usr"
+      - "/bin"
+      - "/lib"
+      - "/etc/ssl"
+      - "/etc/resolv.conf"
+      - "~/Library/Application Support/Claude"
+      - "~/.config/claude"
+    write:
+      - "/tmp"
+      - "~/Library/Application Support/Claude"
+      - "~/.config/claude"
+    execute: []
+  allow_network:
+    connect:
+      - "api.anthropic.com:443"
+      - "claude.ai:443"
+  resource_limits:
+    max_memory_mb: 2048
+    max_processes: 30
