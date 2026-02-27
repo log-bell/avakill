@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — AvaKill</title>
+  <meta name="description" content="AvaKill privacy policy. What we collect, why, and how to opt out.">
+  <meta name="theme-color" content="#0A0F1E">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="/favicon/site.webmanifest">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --neon-blue: #00D4FF;
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --neon-blue-dim: #0088CC;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Back link ---- */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--neon-blue);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      margin-bottom: 48px;
+      transition: opacity 0.2s ease;
+    }
+
+    .back-link:hover { opacity: 0.7; }
+
+    .back-link svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--neon-blue);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ---- Page layout ---- */
+    .page {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 80px 24px 120px;
+    }
+
+    /* ---- Title ---- */
+    .page-title {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .page-title .chevron {
+      color: var(--neon-blue);
+    }
+
+    .page-updated {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      margin-bottom: 48px;
+    }
+
+    /* ---- Content ---- */
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .section-title .dot {
+      color: var(--neon-blue);
+      margin-right: 6px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.75;
+    }
+
+    p + p {
+      margin-top: 12px;
+    }
+
+    a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* ---- Divider ---- */
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(0, 212, 255, 0.08);
+      margin: 48px 0;
+    }
+
+    /* ---- Summary box ---- */
+    .summary {
+      background: var(--surface);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 48px;
+    }
+
+    .summary-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--neon-blue);
+      margin-bottom: 14px;
+    }
+
+    .summary-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .summary-list li {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .summary-list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--neon-blue);
+      opacity: 0.5;
+    }
+
+    /* ---- Footer ---- */
+    .footer {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .footer a {
+      color: var(--text-muted);
+      transition: color 0.2s ease;
+    }
+
+    .footer a:hover {
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+
+    .footer .sep {
+      margin: 0 8px;
+      opacity: 0.3;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="page">
+    <a href="/" class="back-link">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      avakill.com
+    </a>
+
+    <h1 class="page-title"><span class="chevron">&rsaquo;</span> Privacy Policy</h1>
+    <p class="page-updated">Last updated: February 27, 2026</p>
+
+    <div class="summary">
+      <div class="summary-title">The short version</div>
+      <ul class="summary-list">
+        <li>We collect your email only if you subscribe to updates</li>
+        <li>No analytics, no tracking scripts, no cookies</li>
+        <li>The AvaKill software itself collects nothing</li>
+        <li>Unsubscribe anytime with one click</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title"><span class="dot">&bull;</span>What we collect</h2>
+      <p>If you subscribe to our newsletter, we collect your <strong style="color: var(--text-primary);">email address</strong>. That's it. We don't collect names, IP addresses, browser fingerprints, or any other personal data.</p>
+      <p>The AvaKill open-source software does not collect, transmit, or phone home any data. Everything runs locally on your machine.</p>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title"><span class="dot">&bull;</span>Why we collect it</h2>
+      <p>We use your email to send product updates: new releases, new integrations, and security advisories. We don't sell, share, or rent your email to anyone.</p>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title"><span class="dot">&bull;</span>Who processes it</h2>
+      <p>Email subscriptions are processed by <a href="https://loops.so" target="_blank" rel="noopener">Loops</a>, our email platform. Loops stores your email address on their servers to deliver messages on our behalf. See the <a href="https://loops.so/privacy" target="_blank" rel="noopener">Loops privacy policy</a> for details on their data handling.</p>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title"><span class="dot">&bull;</span>Cookies and tracking</h2>
+      <p>This website does not use cookies, analytics scripts, or tracking pixels. We don't know how many people visit this site, and that's fine.</p>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title"><span class="dot">&bull;</span>How to opt out</h2>
+      <p>Every email we send includes an unsubscribe link. Click it and you're removed immediately. You can also email us and we'll remove you manually.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="section">
+      <p>Questions? Open an issue on <a href="https://github.com/log-bell/avakill" target="_blank" rel="noopener">GitHub</a> or reach out on <a href="https://discord.gg/gTBvbkSV2" target="_blank" rel="noopener">Discord</a>.</p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <a href="/">Home</a>
+    <span class="sep">&middot;</span>
+    <a href="https://github.com/log-bell/avakill">GitHub</a>
+    <span class="sep">&middot;</span>
+    <a href="https://pypi.org/project/avakill/">PyPI</a>
+  </footer>
+
+</body>
+</html>
