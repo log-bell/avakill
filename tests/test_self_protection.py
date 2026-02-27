@@ -249,6 +249,52 @@ class TestApproveCommand:
 
 
 # -------------------------------------------------------------------
+# Reset command
+# -------------------------------------------------------------------
+
+
+class TestResetCommand:
+    """Self-protection blocks agents from running avakill reset."""
+
+    def test_blocks_avakill_reset(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill reset"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+        assert "Tell the user" in d.reason
+        assert "self-protection (reset)" in d.reason
+
+    def test_blocks_avakill_reset_confirm(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill reset --confirm"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_blocks_avakill_reset_include_policy(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill reset --include-policy"},
+        )
+        d = sp.check(tc)
+        assert d is not None
+        assert d.allowed is False
+
+    def test_allows_avakill_setup(self, sp: SelfProtection) -> None:
+        tc = ToolCall(
+            tool_name="shell_exec",
+            arguments={"cmd": "avakill setup"},
+        )
+        d = sp.check(tc)
+        assert d is None
+
+
+# -------------------------------------------------------------------
 # Source modification
 # -------------------------------------------------------------------
 

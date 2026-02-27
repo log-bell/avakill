@@ -8,7 +8,7 @@ avakill [--version] <command> [options]
 
 ## Commands by Category
 
-**Tier 1 — Core:** [setup](#avakill-setup) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim) | [guide](#avakill-guide)
+**Tier 1 — Core:** [setup](#avakill-setup) | [reset](#avakill-reset) | [tracking](#avakill-tracking) | [validate](#avakill-validate) | [evaluate](#avakill-evaluate) | [fix](#avakill-fix) | [hook install](#avakill-hook-install) | [hook uninstall](#avakill-hook-uninstall) | [hook list](#avakill-hook-list) | [Hook Binaries](#hook-binaries) | [avakill-shim](#avakill-shim) | [guide](#avakill-guide)
 
 **Tier 2 — Operations:** [logs](#avakill-logs) | [logs tail](#avakill-logs-tail) | [dashboard](#avakill-dashboard) | [daemon start](#avakill-daemon-start) | [daemon stop](#avakill-daemon-stop) | [daemon status](#avakill-daemon-status) | [review](#avakill-review) | [approve](#avakill-approve) | [approvals list](#avakill-approvals-list) | [approvals grant](#avakill-approvals-grant) | [approvals reject](#avakill-approvals-reject)
 
@@ -39,6 +39,50 @@ No arguments or options. Launches a 5-step interactive flow:
 | 5. Summary | Shows what was configured |
 
 Non-interactive use: `avakill init --template hooks`
+
+---
+
+## avakill reset
+
+Factory-reset AvaKill — reverses everything `avakill setup` does.
+
+```
+avakill reset [--confirm] [--include-policy] [--keep-hooks]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--confirm` | `false` | Skip interactive prompt (for scripted use) |
+| `--include-policy` | `false` | Also delete `avakill.yaml`/`avakill.yml` in the current directory |
+| `--keep-hooks` | `false` | Skip hook uninstallation |
+
+Performs a complete cleanup in order:
+
+| Step | What it does |
+|------|-------------|
+| 1. Stop daemon | Sends SIGTERM to the running daemon process |
+| 2. Uninstall hooks | Removes AvaKill entries from all agent config files |
+| 3. Unwrap MCP | Restores original MCP server configurations |
+| 4. Delete `~/.avakill/` | Removes config, audit DB, PID file, socket, and all state |
+| 5. Delete policy | Only with `--include-policy` (preserved by default) |
+
+Without `--confirm`, requires typing `reset` at the prompt — deliberate friction for a destructive operation. Self-protection blocks agents from running this command.
+
+**Examples:**
+
+```bash
+# Interactive reset — shows inventory, prompts for confirmation
+avakill reset
+
+# Non-interactive (for scripts)
+avakill reset --confirm
+
+# Full cleanup including policy file
+avakill reset --confirm --include-policy
+
+# Reset but keep hooks installed
+avakill reset --confirm --keep-hooks
+```
 
 ---
 

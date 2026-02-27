@@ -1,0 +1,3168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLI Reference — AvaKill</title>
+  <meta name="description" content="All avakill commands, avakill-shim flags, and hook binaries.">
+  <meta name="theme-color" content="#0A0F1E">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96">
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+  <link rel="shortcut icon" href="/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       CSS Custom Properties (matched to landing page)
+       ========================================================= */
+    :root {
+      --neon-blue: #00D4FF;
+      --neon-blue-bright: #00F5FF;
+      --neon-blue-dim: #0088CC;
+
+      --base-dark: #0A0F1E;
+      --surface: #111827;
+      --surface-elevated: #1A1F3A;
+      --subtle-blue-tint: #0D1B3D;
+
+      --text-primary: #F8F8F8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+
+      --color-allowed: #22C55E;
+      --color-denied: #EF4444;
+      --color-pending: #F59E0B;
+      --color-info: #00D4FF;
+
+      --code-bg: #0D1117;
+      --code-text: #E6EDF3;
+
+      --sidebar-width: 260px;
+      --toc-width: 200px;
+      --nav-height: 56px;
+      --subnav-height: 44px;
+      --content-max: 720px;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-height) + var(--subnav-height) + 24px);
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: var(--base-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding-top: calc(var(--nav-height) + var(--subnav-height));
+    }
+
+    a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================================================
+       Noise Texture Overlay (matched to landing page)
+       ========================================================= */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* =========================================================
+       Top Navigation (matched to landing page)
+       ========================================================= */
+    .site-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      height: var(--nav-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--neon-blue);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .nav-brand:hover {
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-secondary);
+      border-radius: 1px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .site-nav.nav-open .nav-hamburger span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(2) {
+      opacity: 0;
+    }
+    .site-nav.nav-open .nav-hamburger span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    /* =========================================================
+       Sub Navigation (doc categories)
+       ========================================================= */
+    .doc-subnav {
+      position: fixed;
+      top: var(--nav-height);
+      left: 0;
+      right: 0;
+      z-index: 999;
+      height: var(--subnav-height);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 24px;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .doc-subnav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .doc-subnav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-radius: 6px;
+      transition: color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .doc-subnav a:hover {
+      color: var(--text-secondary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .doc-subnav a.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .doc-subnav a svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================
+       Three-Column Layout
+       ========================================================= */
+    .docs-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+      min-height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    /* =========================================================
+       Left Sidebar
+       ========================================================= */
+    .docs-sidebar {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 20px 40px 24px;
+      border-right: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.12) transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .docs-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+    }
+
+    .sidebar-group {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 0 10px 12px;
+    }
+
+    .sidebar-list {
+      list-style: none;
+    }
+
+    .sidebar-list li {
+      position: relative;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      transition: color 0.15s ease, background 0.15s ease;
+      text-decoration: none;
+      line-height: 1.4;
+    }
+
+    .sidebar-link:hover {
+      color: var(--text-primary);
+      background: rgba(0, 212, 255, 0.04);
+      text-decoration: none;
+    }
+
+    .sidebar-link.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    /* Active indicator bar */
+    .sidebar-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    .sidebar-link--sub {
+      padding-left: 28px;
+      font-size: 0.78rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .sidebar-link--sub:hover {
+      color: var(--text-secondary);
+    }
+
+    .sidebar-link--sub.active {
+      color: var(--neon-blue);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    /* =========================================================
+       Main Content — Rendered Markdown
+       ========================================================= */
+    .docs-content {
+      padding: 36px 48px 80px;
+      max-width: var(--content-max);
+      min-width: 0;
+    }
+
+    .docs-content h1 {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .docs-content h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content h2:first-of-type {
+      border-top: none;
+      margin-top: 32px;
+      padding-top: 0;
+    }
+
+    .docs-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .docs-content h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .docs-content > p:first-of-type {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .docs-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .docs-content p strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .docs-content p a {
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: rgba(0, 212, 255, 0.3);
+      text-underline-offset: 2px;
+    }
+
+    .docs-content p a:hover {
+      text-decoration-color: var(--neon-blue);
+    }
+
+    .docs-content p code,
+    .docs-content li code,
+    .docs-content td code {
+      background: var(--code-bg);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      color: var(--neon-blue);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* Code blocks */
+    .docs-content .codehilite,
+    .docs-content pre {
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .docs-content .codehilite pre,
+    .docs-content pre code {
+      display: block;
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      color: var(--code-text);
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    /* Pygments syntax highlighting — dark theme */
+    .codehilite .hll { background-color: rgba(0, 212, 255, 0.08); }
+    .codehilite .c, .codehilite .c1, .codehilite .cm, .codehilite .cs, .codehilite .cp { color: var(--text-muted); font-style: italic; } /* comments */
+    .codehilite .k, .codehilite .kn, .codehilite .kp, .codehilite .kr, .codehilite .kd, .codehilite .kt { color: #FF7B72; } /* keywords */
+    .codehilite .s, .codehilite .s1, .codehilite .s2, .codehilite .sa, .codehilite .sb, .codehilite .sc, .codehilite .sd, .codehilite .se, .codehilite .sh, .codehilite .si, .codehilite .sr, .codehilite .ss, .codehilite .sx { color: #A5D6FF; } /* strings */
+    .codehilite .nf, .codehilite .fm, .codehilite .nb { color: #D2A8FF; } /* functions/builtins */
+    .codehilite .mi, .codehilite .mf, .codehilite .mh, .codehilite .mo { color: #79C0FF; } /* numbers */
+    .codehilite .na { color: #79C0FF; } /* attribute names */
+    .codehilite .nc, .codehilite .nn { color: #FFA657; } /* class/module names */
+    .codehilite .no { color: #79C0FF; } /* constants */
+    .codehilite .o, .codehilite .ow { color: #FF7B72; } /* operators */
+    .codehilite .p { color: var(--code-text); } /* punctuation */
+    .codehilite .nl { color: #FFA657; } /* YAML keys */
+    .codehilite .nt { color: #7EE787; } /* HTML/XML tags */
+    .codehilite .err { color: #f85149; } /* errors */
+
+    /* Lists */
+    .docs-content ul, .docs-content ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .docs-content li {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 4px;
+    }
+
+    .docs-content li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Tables */
+    .docs-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .docs-content th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid rgba(0, 212, 255, 0.12);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .docs-content td {
+      padding: 8px 14px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-content tr:hover td {
+      background: rgba(0, 212, 255, 0.02);
+    }
+
+    /* Blockquotes (used for callouts) */
+    .docs-content blockquote {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      border-left: 3px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .docs-content blockquote p {
+      margin-bottom: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Horizontal rules */
+    .docs-content hr {
+      border: none;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.06);
+      margin: 40px 0;
+    }
+
+    /* Bottom nav (prev/next) */
+    .docs-nav-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 56px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .docs-nav-card {
+      padding: 20px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      text-decoration: none;
+    }
+
+    .docs-nav-card:hover {
+      border-color: rgba(0, 212, 255, 0.25);
+      background: rgba(0, 212, 255, 0.02);
+      text-decoration: none;
+    }
+
+    .docs-nav-card--next {
+      text-align: right;
+    }
+
+    .docs-nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .docs-nav-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--neon-blue);
+    }
+
+    /* =========================================================
+       Right TOC Sidebar ("On this page")
+       ========================================================= */
+    .docs-toc {
+      position: sticky;
+      top: calc(var(--nav-height) + var(--subnav-height));
+      height: calc(100vh - var(--nav-height) - var(--subnav-height));
+      overflow-y: auto;
+      padding: 28px 24px 40px 20px;
+      border-left: 1px solid rgba(0, 212, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 212, 255, 0.08) transparent;
+    }
+
+    .docs-toc::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .docs-toc::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 2px;
+    }
+
+    .toc-heading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .toc-heading svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .toc-list {
+      list-style: none;
+      border-left: 1px solid rgba(0, 212, 255, 0.08);
+      padding-left: 0;
+    }
+
+    .toc-list li {
+      position: relative;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 4px 0 4px 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      line-height: 1.5;
+    }
+
+    .toc-link:hover {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .toc-link.active {
+      color: var(--neon-blue);
+    }
+
+    .toc-link.active::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: var(--neon-blue);
+      border-radius: 1px;
+    }
+
+    /* =========================================================
+       Footer (matched to landing page)
+       ========================================================= */
+    .footer {
+      position: relative;
+      z-index: 1;
+      padding: 48px 24px 32px;
+      text-align: center;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      font-size: 0.85rem;
+    }
+
+    .footer-links a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links .sep {
+      color: var(--text-muted);
+      margin: 0 12px;
+    }
+
+    .footer-attribution {
+      margin-top: 20px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       Mobile Sidebar Overlay
+       ========================================================= */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 998;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+
+    .mobile-sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 997;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface-elevated);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--neon-blue);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-sidebar-toggle svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 1100px) {
+      :root {
+        --toc-width: 0px;
+      }
+
+      .docs-layout {
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      }
+
+      .docs-toc {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 0px;
+      }
+
+      body {
+        padding-top: calc(var(--nav-height) + var(--subnav-height));
+      }
+
+      .docs-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 1001;
+        background: var(--base-dark);
+        border-right: 1px solid rgba(0, 212, 255, 0.1);
+        padding-top: 20px;
+      }
+
+      .docs-sidebar.mobile-open {
+        display: block;
+      }
+
+      .sidebar-overlay.open ~ .docs-layout .docs-sidebar {
+        display: block;
+      }
+
+      .mobile-sidebar-toggle {
+        display: flex;
+      }
+
+      .docs-content {
+        padding: 24px 20px 60px;
+      }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: var(--nav-height);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        padding: 8px 0;
+      }
+
+      .site-nav.nav-open .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
+      .docs-nav-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .docs-nav-card--next {
+        text-align: left;
+      }
+    }
+
+    /* =========================================================
+       Entrance Animations
+       ========================================================= */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .docs-content {
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .docs-content {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== Top Navigation ========== -->
+  <header class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">AvaKill</a>
+    <nav class="nav-links">
+      <a href="/">Home</a>
+      <a href="/rules">Rules</a>
+      <a href="/docs" class="active">Docs</a>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+    </nav>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ========== Sub Navigation (Doc Categories) ========== -->
+  <nav class="doc-subnav">
+  <a href="/docs/getting-started/">
+    <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Getting Started
+  </a>
+  <a href="/docs/policy-reference/">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Policy Reference
+  </a>
+  <a href="/docs/cli-reference/" class="active">
+    <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    CLI Reference
+  </a>
+  <a href="/docs/api-reference/">
+    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    API Reference
+  </a>
+  <a href="/docs/architecture/">
+    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    Architecture
+  </a>
+</nav>
+
+  <!-- ========== Mobile Sidebar Toggle ========== -->
+  <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- ========== Three-Column Layout ========== -->
+  <div class="docs-layout">
+
+    <!-- ===== Left Sidebar ===== -->
+    <aside class="docs-sidebar" id="docs-sidebar">
+      <div class="sidebar-group">
+  <div class="sidebar-label">On this page</div>
+  <ul class="sidebar-list">
+    <li><a href="#commands-by-category" class="sidebar-link">Commands by Category</a></li>
+    <li><a href="#avakill-setup" class="sidebar-link">avakill setup</a></li>
+    <li><a href="#avakill-reset" class="sidebar-link">avakill reset</a></li>
+    <li><a href="#avakill-tracking" class="sidebar-link">avakill tracking</a></li>
+    <li><a href="#avakill-guide" class="sidebar-link">avakill guide</a></li>
+    <li><a href="#avakill-validate" class="sidebar-link">avakill validate</a></li>
+    <li><a href="#avakill-evaluate" class="sidebar-link">avakill evaluate</a></li>
+    <li><a href="#avakill-fix" class="sidebar-link">avakill fix</a></li>
+    <li><a href="#avakill-hook-install" class="sidebar-link">avakill hook install</a></li>
+    <li><a href="#avakill-hook-uninstall" class="sidebar-link">avakill hook uninstall</a></li>
+    <li><a href="#avakill-hook-list" class="sidebar-link">avakill hook list</a></li>
+    <li><a href="#hook-binaries" class="sidebar-link sidebar-link--sub">Hook Binaries</a></li>
+    <li><a href="#avakill-shim" class="sidebar-link">avakill-shim</a></li>
+    <li><a href="#flags" class="sidebar-link sidebar-link--sub">Flags</a></li>
+    <li><a href="#kill-switch" class="sidebar-link sidebar-link--sub">Kill switch</a></li>
+    <li><a href="#diagnose" class="sidebar-link sidebar-link--sub">Diagnose</a></li>
+    <li><a href="#examples" class="sidebar-link sidebar-link--sub">Examples</a></li>
+    <li><a href="#avakill-logs" class="sidebar-link">avakill logs</a></li>
+    <li><a href="#avakill-logs-tail" class="sidebar-link sidebar-link--sub">avakill logs tail</a></li>
+    <li><a href="#avakill-dashboard" class="sidebar-link">avakill dashboard</a></li>
+    <li><a href="#avakill-daemon-start" class="sidebar-link">avakill daemon start</a></li>
+    <li><a href="#avakill-daemon-stop" class="sidebar-link">avakill daemon stop</a></li>
+    <li><a href="#avakill-daemon-status" class="sidebar-link">avakill daemon status</a></li>
+    <li><a href="#avakill-review" class="sidebar-link">avakill review</a></li>
+    <li><a href="#avakill-approve" class="sidebar-link">avakill approve</a></li>
+    <li><a href="#avakill-approvals-list" class="sidebar-link">avakill approvals list</a></li>
+    <li><a href="#avakill-approvals-grant" class="sidebar-link">avakill approvals grant</a></li>
+    <li><a href="#avakill-approvals-reject" class="sidebar-link">avakill approvals reject</a></li>
+    <li><a href="#avakill-keygen" class="sidebar-link">avakill keygen</a></li>
+    <li><a href="#avakill-sign" class="sidebar-link">avakill sign</a></li>
+    <li><a href="#avakill-verify" class="sidebar-link">avakill verify</a></li>
+    <li><a href="#avakill-harden" class="sidebar-link">avakill harden</a></li>
+    <li><a href="#avakill-check-hardening" class="sidebar-link">avakill check-hardening</a></li>
+    <li><a href="#avakill-schema" class="sidebar-link">avakill schema</a></li>
+    <li><a href="#avakill-profile-list" class="sidebar-link">avakill profile list</a></li>
+    <li><a href="#avakill-profile-show" class="sidebar-link">avakill profile show</a></li>
+    <li><a href="#avakill-compliance-report" class="sidebar-link">avakill compliance report</a></li>
+    <li><a href="#avakill-compliance-gaps" class="sidebar-link">avakill compliance gaps</a></li>
+    <li><a href="#avakill-mcp-wrap" class="sidebar-link">avakill mcp-wrap</a></li>
+    <li><a href="#avakill-mcp-unwrap" class="sidebar-link">avakill mcp-unwrap</a></li>
+    <li><a href="#avakill-enforce-landlock" class="sidebar-link">avakill enforce landlock</a></li>
+    <li><a href="#avakill-enforce-sandbox" class="sidebar-link">avakill enforce sandbox</a></li>
+    <li><a href="#avakill-enforce-windows" class="sidebar-link">avakill enforce windows</a></li>
+    <li><a href="#avakill-enforce-tetragon" class="sidebar-link">avakill enforce tetragon</a></li>
+    <li><a href="#avakill-launch" class="sidebar-link">avakill launch</a></li>
+    <li><a href="#avakill-mcp-proxy" class="sidebar-link">avakill mcp-proxy</a></li>
+    <li><a href="#avakill-metrics" class="sidebar-link">avakill metrics</a></li>
+    <li><a href="#further-reading" class="sidebar-link">Further Reading</a></li>
+  </ul>
+</div>
+<div class="sidebar-group">
+  <div class="sidebar-label">Documentation</div>
+  <ul class="sidebar-list">
+    <li><a href="/docs/getting-started/" class="sidebar-link">Getting Started</a></li>
+    <li><a href="/docs/policy-reference/" class="sidebar-link">Policy Reference</a></li>
+    <li><a href="/docs/cli-reference/" class="sidebar-link active">CLI Reference</a></li>
+    <li><a href="/docs/api-reference/" class="sidebar-link">API Reference</a></li>
+    <li><a href="/docs/architecture/" class="sidebar-link">Architecture</a></li>
+  </ul>
+</div>
+    </aside>
+
+    <!-- ===== Main Content ===== -->
+    <main class="docs-content">
+      <h1 id="cli-reference">CLI Reference</h1>
+<p>AvaKill provides a command-line interface for policy management, security, monitoring, and integration. All commands use <a href="https://rich.readthedocs.io/">Rich</a> for formatted terminal output.</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span><span class="o">[</span>--version<span class="o">]</span><span class="w"> </span>&lt;command&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+</code></pre></div>
+
+<h2 id="commands-by-category">Commands by Category</h2>
+<p><strong>Tier 1 — Core:</strong> <a href="#avakill-setup">setup</a> | <a href="#avakill-reset">reset</a> | <a href="#avakill-tracking">tracking</a> | <a href="#avakill-validate">validate</a> | <a href="#avakill-evaluate">evaluate</a> | <a href="#avakill-fix">fix</a> | <a href="#avakill-hook-install">hook install</a> | <a href="#avakill-hook-uninstall">hook uninstall</a> | <a href="#avakill-hook-list">hook list</a> | <a href="#hook-binaries">Hook Binaries</a> | <a href="#avakill-shim">avakill-shim</a> | <a href="#avakill-guide">guide</a></p>
+<p><strong>Tier 2 — Operations:</strong> <a href="#avakill-logs">logs</a> | <a href="#avakill-logs-tail">logs tail</a> | <a href="#avakill-dashboard">dashboard</a> | <a href="#avakill-daemon-start">daemon start</a> | <a href="#avakill-daemon-stop">daemon stop</a> | <a href="#avakill-daemon-status">daemon status</a> | <a href="#avakill-review">review</a> | <a href="#avakill-approve">approve</a> | <a href="#avakill-approvals-list">approvals list</a> | <a href="#avakill-approvals-grant">approvals grant</a> | <a href="#avakill-approvals-reject">approvals reject</a></p>
+<p><strong>Tier 3 — Security:</strong> <a href="#avakill-keygen">keygen</a> | <a href="#avakill-sign">sign</a> | <a href="#avakill-verify">verify</a> | <a href="#avakill-harden">harden</a> | <a href="#avakill-check-hardening">check-hardening</a></p>
+<p><strong>Tier 4 — Advanced (shipped):</strong> <a href="#avakill-schema">schema</a> | <a href="#avakill-profile-list">profile list</a> | <a href="#avakill-profile-show">profile show</a> | <a href="#avakill-compliance-report">compliance report</a> | <a href="#avakill-compliance-gaps">compliance gaps</a> | <a href="#avakill-mcp-wrap">mcp-wrap</a> | <a href="#avakill-mcp-unwrap">mcp-unwrap</a></p>
+<p><strong>Tier 4 — Advanced (future release):</strong> <a href="#avakill-enforce-landlock">enforce landlock</a> | <a href="#avakill-enforce-sandbox">enforce sandbox</a> | <a href="#avakill-enforce-windows">enforce windows</a> | <a href="#avakill-enforce-tetragon">enforce tetragon</a> | <a href="#avakill-launch">launch</a> | <a href="#avakill-mcp-proxy">mcp-proxy</a> | <a href="#avakill-metrics">metrics</a></p>
+<hr />
+<h2 id="avakill-setup">avakill setup</h2>
+<p>Interactive setup — one command to go from zero to protected.</p>
+<div class="codehilite"><pre><span></span><code>avakill setup
+</code></pre></div>
+
+<p>No arguments or options. Launches a 5-step interactive flow:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Detect agents</td>
+<td>Scans for Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex</td>
+</tr>
+<tr>
+<td>2. Create policy</td>
+<td>Generates <code>avakill.yaml</code> from the <code>hooks</code> template</td>
+</tr>
+<tr>
+<td>3. Install hooks</td>
+<td>Registers AvaKill with detected agents</td>
+</tr>
+<tr>
+<td>4. Activity tracking</td>
+<td>Optionally enables the tracking daemon</td>
+</tr>
+<tr>
+<td>5. Summary</td>
+<td>Shows what was configured</td>
+</tr>
+</tbody>
+</table>
+<p>Non-interactive use: <code>avakill init --template hooks</code></p>
+<hr />
+<h2 id="avakill-reset">avakill reset</h2>
+<p>Factory-reset AvaKill — reverses everything <code>avakill setup</code> does.</p>
+<div class="codehilite"><pre><span></span><code>avakill reset [--confirm] [--include-policy] [--keep-hooks]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--confirm</code></td>
+<td><code>false</code></td>
+<td>Skip interactive prompt (for scripted use)</td>
+</tr>
+<tr>
+<td><code>--include-policy</code></td>
+<td><code>false</code></td>
+<td>Also delete <code>avakill.yaml</code>/<code>avakill.yml</code> in the current directory</td>
+</tr>
+<tr>
+<td><code>--keep-hooks</code></td>
+<td><code>false</code></td>
+<td>Skip hook uninstallation</td>
+</tr>
+</tbody>
+</table>
+<p>Performs a complete cleanup in order:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Stop daemon</td>
+<td>Sends SIGTERM to the running daemon process</td>
+</tr>
+<tr>
+<td>2. Uninstall hooks</td>
+<td>Removes AvaKill entries from all agent config files</td>
+</tr>
+<tr>
+<td>3. Unwrap MCP</td>
+<td>Restores original MCP server configurations</td>
+</tr>
+<tr>
+<td>4. Delete <code>~/.avakill/</code></td>
+<td>Removes config, audit DB, PID file, socket, and all state</td>
+</tr>
+<tr>
+<td>5. Delete policy</td>
+<td>Only with <code>--include-policy</code> (preserved by default)</td>
+</tr>
+</tbody>
+</table>
+<p>Without <code>--confirm</code>, requires typing <code>reset</code> at the prompt — deliberate friction for a destructive operation. Self-protection blocks agents from running this command.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Interactive reset — shows inventory, prompts for confirmation</span>
+avakill<span class="w"> </span>reset
+
+<span class="c1"># Non-interactive (for scripts)</span>
+avakill<span class="w"> </span>reset<span class="w"> </span>--confirm
+
+<span class="c1"># Full cleanup including policy file</span>
+avakill<span class="w"> </span>reset<span class="w"> </span>--confirm<span class="w"> </span>--include-policy
+
+<span class="c1"># Reset but keep hooks installed</span>
+avakill<span class="w"> </span>reset<span class="w"> </span>--confirm<span class="w"> </span>--keep-hooks
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-tracking">avakill tracking</h2>
+<p>Manage activity tracking (daemon lifecycle with user-friendly language).</p>
+<div class="codehilite"><pre><span></span><code>avakill tracking &lt;on|off|status&gt;
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Subcommand</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>on</code></td>
+<td>Enable tracking — starts the background daemon</td>
+</tr>
+<tr>
+<td><code>off</code></td>
+<td>Disable tracking — stops the daemon, preserves audit history</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>Show whether tracking is active and audit DB location</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="avakill-guide">avakill guide</h2>
+<p>Interactive guide — setup, learning, and reference.</p>
+<div class="codehilite"><pre><span></span><code>avakill guide
+</code></pre></div>
+
+<p>No arguments or options. Launches a navigable menu:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Section</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Set up AvaKill</td>
+<td>Detect agents, select template, generate policy, install hooks</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Policies</td>
+<td>Writing, validating, testing policies</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Hooks &amp; Agents</td>
+<td>Install hooks, agent profiles, self-protection</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Signing &amp; Hardening</td>
+<td>Sign/verify policies, immutable flags</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Monitoring</td>
+<td>Dashboard, logs, fix</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Advanced</td>
+<td>Compliance, approvals, MCP wrapping, daemon, schema</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Quick Reference</td>
+<td>All commands at a glance</td>
+</tr>
+</tbody>
+</table>
+<p>For detailed learning and reference, see also <a href="#avakill-setup">avakill setup</a> which is the recommended entry point for new users.</p>
+<blockquote>
+<p><code>avakill init</code> and <code>avakill quickstart</code> are deprecated. Use <code>avakill setup</code> for first-time configuration.</p>
+</blockquote>
+<hr />
+<h2 id="avakill-validate">avakill validate</h2>
+<p>Validate a policy file for correctness.</p>
+<div class="codehilite"><pre><span></span><code>avakill validate [POLICY_FILE]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POLICY_FILE</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+</tbody>
+</table>
+<p>Checks YAML syntax, schema validation, and prints a summary table of all rules. Exits <code>0</code> if valid, <code>1</code> if invalid — safe for CI pipelines.</p>
+<p>If <code>AVAKILL_POLICY_KEY</code> is set, also checks the signature.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Validate default policy file</span>
+avakill<span class="w"> </span>validate
+
+<span class="c1"># Validate a specific file</span>
+avakill<span class="w"> </span>validate<span class="w"> </span>policies/production.yaml
+
+<span class="c1"># Use in CI</span>
+avakill<span class="w"> </span>validate<span class="w"> </span>avakill.yaml<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-evaluate">avakill evaluate</h2>
+<p>Evaluate a tool call against the policy.</p>
+<div class="codehilite"><pre><span></span><code>avakill evaluate --agent AGENT [--socket PATH] [--tcp-port PORT] [--policy FILE] [--json] [--simulate-burst N]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--agent</code></td>
+<td><code>cli</code></td>
+<td>Agent identifier (e.g., <code>cli</code>, <code>claude-code</code>, <code>gemini-cli</code>)</td>
+</tr>
+<tr>
+<td><code>--socket</code></td>
+<td><code>~/.avakill/avakill.sock</code></td>
+<td>Unix domain socket path for daemon mode (Linux/macOS)</td>
+</tr>
+<tr>
+<td><code>--tcp-port</code></td>
+<td><em>(none)</em></td>
+<td>TCP port for daemon mode (default on Windows)</td>
+</tr>
+<tr>
+<td><code>--policy</code></td>
+<td><em>(none)</em></td>
+<td>Policy file path (for standalone mode, bypasses daemon)</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td><code>false</code></td>
+<td>Output full JSON response</td>
+</tr>
+<tr>
+<td><code>--simulate-burst</code></td>
+<td><em>(none)</em></td>
+<td>Simulate N rapid calls to test rate limiting (requires <code>--policy</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Reads a JSON object from stdin with <code>tool</code> and <code>args</code> fields. Connects to the daemon via Unix socket (Linux/macOS) or TCP localhost (Windows); use <code>--policy</code> for standalone evaluation without a daemon.</p>
+<p><strong>Exit codes:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Tool call allowed</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>Tool call denied</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Error (invalid input, daemon unreachable without fallback)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Evaluate via daemon</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;shell_execute&quot;, &quot;args&quot;: {&quot;command&quot;: &quot;rm -rf /&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli
+
+<span class="c1"># Evaluate standalone (no daemon needed)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;file_write&quot;, &quot;args&quot;: {&quot;path&quot;: &quot;/etc/passwd&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+
+<span class="c1"># JSON output</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;file_read&quot;, &quot;args&quot;: {&quot;path&quot;: &quot;README.md&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--agent<span class="w"> </span>cli<span class="w"> </span>--json
+
+<span class="c1"># Test rate limiting with 50 rapid calls</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;tool&quot;: &quot;Bash&quot;, &quot;args&quot;: {&quot;cmd&quot;: &quot;curl example.com&quot;}}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avakill<span class="w"> </span>evaluate<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--simulate-burst<span class="w"> </span><span class="m">50</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-fix">avakill fix</h2>
+<p>Show recovery steps for recent policy denials.</p>
+<div class="codehilite"><pre><span></span><code>avakill fix [--last] [--all] [--db PATH] [--json]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--last</code></td>
+<td><em>(default behavior)</em></td>
+<td>Show only the most recent denial</td>
+</tr>
+<tr>
+<td><code>--all</code></td>
+<td><code>false</code></td>
+<td>Show all recent denials (up to 20)</td>
+</tr>
+<tr>
+<td><code>--db</code></td>
+<td><code>avakill_audit.db</code></td>
+<td>Path to the audit database</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td><code>false</code></td>
+<td>Output as JSON</td>
+</tr>
+</tbody>
+</table>
+<p>Queries the audit database for denied events and generates actionable recovery suggestions — including copy-pasteable commands and YAML snippets you can add to your policy.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Show fix for the most recent denial</span>
+avakill<span class="w"> </span>fix
+
+<span class="c1"># Show fixes for all recent denials</span>
+avakill<span class="w"> </span>fix<span class="w"> </span>--all
+
+<span class="c1"># Machine-readable output</span>
+avakill<span class="w"> </span>fix<span class="w"> </span>--json
+
+<span class="c1"># Custom audit database</span>
+avakill<span class="w"> </span>fix<span class="w"> </span>--db<span class="w"> </span>/var/log/avakill/audit.db
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-hook-install">avakill hook install</h2>
+<p>Register AvaKill hooks in an agent's configuration.</p>
+<div class="codehilite"><pre><span></span><code>avakill hook install --agent AGENT
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--agent</code></td>
+<td><em>(required)</em></td>
+<td>Agent to install hook for: <code>claude-code</code>, <code>gemini-cli</code>, <code>cursor</code>, <code>windsurf</code>, <code>openai-codex</code>, or <code>all</code></td>
+</tr>
+</tbody>
+</table>
+<p>Writes the appropriate hook configuration to the agent's config directory.</p>
+<p><strong>Per-agent configuration paths:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Config Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td><code>~/.claude/settings.json</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>~/.gemini/settings.json</code></td>
+</tr>
+<tr>
+<td>Cursor</td>
+<td><code>~/.cursor/hooks.json</code></td>
+</tr>
+<tr>
+<td>Windsurf</td>
+<td><code>~/.windsurf/hooks.json</code></td>
+</tr>
+<tr>
+<td>OpenAI Codex</td>
+<td><code>~/.codex/config.toml</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>claude-code
+avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>openai-codex
+avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--agent<span class="w"> </span>all
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-hook-uninstall">avakill hook uninstall</h2>
+<p>Remove AvaKill hooks from an agent's configuration.</p>
+<div class="codehilite"><pre><span></span><code>avakill hook uninstall --agent AGENT
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--agent</code></td>
+<td><em>(required)</em></td>
+<td>Agent to uninstall hook for: <code>claude-code</code>, <code>gemini-cli</code>, <code>cursor</code>, <code>windsurf</code>, <code>openai-codex</code>, or <code>all</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w"> </span>--agent<span class="w"> </span>claude-code
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-hook-list">avakill hook list</h2>
+<p>Show detected agents and hook installation status.</p>
+<div class="codehilite"><pre><span></span><code>avakill hook list
+</code></pre></div>
+
+<p>No options. Displays a table of all supported agents with their detection and hook installation status.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>avakill<span class="w"> </span>hook<span class="w"> </span>list
+<span class="w">     </span>Agent<span class="w"> </span>Hook<span class="w"> </span>Status
+┌─────────────┬──────────┬────────────────┐
+│<span class="w"> </span>Agent<span class="w">       </span>│<span class="w"> </span>Detected<span class="w"> </span>│<span class="w"> </span>Hook<span class="w"> </span>Installed<span class="w"> </span>│
+├─────────────┼──────────┼────────────────┤
+│<span class="w"> </span>claude-code<span class="w"> </span>│<span class="w"> </span>yes<span class="w">      </span>│<span class="w"> </span>yes<span class="w">            </span>│
+│<span class="w"> </span>gemini-cli<span class="w">  </span>│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
+│<span class="w"> </span>cursor<span class="w">      </span>│<span class="w"> </span>yes<span class="w">      </span>│<span class="w"> </span>no<span class="w">             </span>│
+│<span class="w"> </span>windsurf<span class="w">    </span>│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
+│<span class="w"> </span>openai-codex│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
+└─────────────┴──────────┴────────────────┘
+</code></pre></div>
+
+<hr />
+<h3 id="hook-binaries">Hook Binaries</h3>
+<p>Installed alongside <code>avakill</code>. Called by agent hooks — you don't invoke these directly.</p>
+<table>
+<thead>
+<tr>
+<th>Binary</th>
+<th>Agent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>avakill-hook-claude-code</td>
+<td>Claude Code</td>
+</tr>
+<tr>
+<td>avakill-hook-gemini-cli</td>
+<td>Gemini CLI</td>
+</tr>
+<tr>
+<td>avakill-hook-cursor</td>
+<td>Cursor</td>
+</tr>
+<tr>
+<td>avakill-hook-windsurf</td>
+<td>Windsurf</td>
+</tr>
+<tr>
+<td>avakill-hook-openai-codex</td>
+<td>OpenAI Codex</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="avakill-shim">avakill-shim</h2>
+<p>MCP stdio proxy — sits between an MCP client and an upstream MCP server, intercepting JSON-RPC traffic for policy evaluation, tool-hash verification, and emergency kill switch enforcement. This is a standalone Go binary, separate from the Python <code>avakill</code> CLI.</p>
+<div class="codehilite"><pre><span></span><code>avakill-shim [flags] -- &lt;command&gt; [args...]
+</code></pre></div>
+
+<p>Everything after <code>--</code> is the upstream MCP server command.</p>
+<h3 id="flags">Flags</h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--socket PATH</code></td>
+<td><code>~/.avakill/avakill.sock</code></td>
+<td>Daemon socket path for evaluation</td>
+</tr>
+<tr>
+<td><code>--policy PATH</code></td>
+<td><em>(none)</em></td>
+<td>Policy file for in-process evaluation (bypasses daemon)</td>
+</tr>
+<tr>
+<td><code>--verbose</code></td>
+<td><code>false</code></td>
+<td>Detailed stderr diagnostics</td>
+</tr>
+<tr>
+<td><code>--diagnose</code></td>
+<td><code>false</code></td>
+<td>Run preflight checks and exit (JSON output)</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td><code>false</code></td>
+<td>Print version and exit</td>
+</tr>
+<tr>
+<td><code>--pin-tools</code></td>
+<td><code>false</code></td>
+<td>Pin tool definitions on first <code>tools/list</code> response and exit</td>
+</tr>
+<tr>
+<td><code>--kill</code></td>
+<td><code>false</code></td>
+<td>Create kill switch sentinel file and exit</td>
+</tr>
+<tr>
+<td><code>--kill-reason REASON</code></td>
+<td><em>(none)</em></td>
+<td>Reason for kill switch activation (used with <code>--kill</code>)</td>
+</tr>
+<tr>
+<td><code>--unkill</code></td>
+<td><code>false</code></td>
+<td>Remove kill switch sentinel file and exit</td>
+</tr>
+<tr>
+<td><code>--killswitch-file PATH</code></td>
+<td><code>~/.avakill/killswitch</code></td>
+<td>Kill switch sentinel file path</td>
+</tr>
+</tbody>
+</table>
+<h3 id="kill-switch">Kill switch</h3>
+<p>The kill switch is an emergency mechanism that instantly denies ALL tool calls. It has two independent triggers:</p>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Scope</th>
+<th>Engage</th>
+<th>Disengage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sentinel file</td>
+<td>Machine-wide (all shim instances)</td>
+<td><code>avakill-shim --kill</code> or create <code>~/.avakill/killswitch</code></td>
+<td><code>avakill-shim --unkill</code> or delete the file</td>
+</tr>
+<tr>
+<td>Signal</td>
+<td>Per-process</td>
+<td><code>kill -USR1 &lt;pid&gt;</code></td>
+<td><code>kill -USR2 &lt;pid&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>The shim is engaged if <em>either</em> trigger is active. SIGUSR2 only clears the per-process signal engagement — it does not remove the sentinel file or affect other shim instances.</p>
+<h3 id="diagnose">Diagnose</h3>
+<p><code>--diagnose</code> runs preflight checks and prints JSON to stdout. Checks: daemon reachability, kill switch status (including engagement timestamp), upstream command resolution, policy file validity, shell environment recovery, and tool manifest state.</p>
+<h3 id="examples">Examples</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Wrap an MCP server with policy evaluation</span>
+avakill-shim<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>npx<span class="w"> </span>@modelcontextprotocol/server-filesystem<span class="w"> </span>/tmp
+
+<span class="c1"># Use daemon for evaluation</span>
+avakill-shim<span class="w"> </span>--socket<span class="w"> </span>~/.avakill/avakill.sock<span class="w"> </span>--<span class="w"> </span>python<span class="w"> </span>mcp_server.py
+
+<span class="c1"># Pin tool definitions (one-shot, exits after first tools/list)</span>
+avakill-shim<span class="w"> </span>--pin-tools<span class="w"> </span>--<span class="w"> </span>npx<span class="w"> </span>@modelcontextprotocol/server-filesystem<span class="w"> </span>/tmp
+
+<span class="c1"># Emergency kill — deny all tool calls immediately</span>
+avakill-shim<span class="w"> </span>--kill<span class="w"> </span>--kill-reason<span class="w"> </span><span class="s2">&quot;compromised session detected&quot;</span>
+
+<span class="c1"># Resume normal operation</span>
+avakill-shim<span class="w"> </span>--unkill
+
+<span class="c1"># Per-process kill via signal</span>
+<span class="nb">kill</span><span class="w"> </span>-USR1<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>-f<span class="w"> </span>avakill-shim<span class="k">)</span>
+
+<span class="c1"># Per-process resume via signal</span>
+<span class="nb">kill</span><span class="w"> </span>-USR2<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>-f<span class="w"> </span>avakill-shim<span class="k">)</span>
+
+<span class="c1"># Run preflight checks</span>
+avakill-shim<span class="w"> </span>--diagnose<span class="w"> </span>--<span class="w"> </span>npx<span class="w"> </span>@modelcontextprotocol/server-filesystem<span class="w"> </span>/tmp
+
+<span class="c1"># Verbose mode for debugging</span>
+avakill-shim<span class="w"> </span>--verbose<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>python<span class="w"> </span>mcp_server.py
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-logs">avakill logs</h2>
+<p>Query and display audit logs.</p>
+<div class="codehilite"><pre><span></span><code>avakill logs [--db PATH] [--tool PATTERN] [--limit N] [--denied-only] [--agent ID]
+             [--session ID] [--since DURATION] [--json]
+avakill logs tail [--db PATH]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--db</code></td>
+<td><code>avakill_audit.db</code></td>
+<td>Path to the audit database</td>
+</tr>
+<tr>
+<td><code>--tool</code></td>
+<td><em>(all)</em></td>
+<td>Filter by tool name (supports globs)</td>
+</tr>
+<tr>
+<td><code>--limit</code></td>
+<td><code>50</code></td>
+<td>Maximum number of entries</td>
+</tr>
+<tr>
+<td><code>--denied-only</code></td>
+<td><code>false</code></td>
+<td>Show only denied events</td>
+</tr>
+<tr>
+<td><code>--agent</code></td>
+<td><em>(all)</em></td>
+<td>Filter by agent ID</td>
+</tr>
+<tr>
+<td><code>--session</code></td>
+<td><em>(all)</em></td>
+<td>Filter by session ID</td>
+</tr>
+<tr>
+<td><code>--since</code></td>
+<td><em>(all)</em></td>
+<td>Show events after this time (e.g. <code>1h</code>, <code>30m</code>, <code>7d</code>)</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td><code>false</code></td>
+<td>Output as JSON instead of table</td>
+</tr>
+</tbody>
+</table>
+<h3 id="avakill-logs-tail">avakill logs tail</h3>
+<p>Follow new audit events in real-time (like <code>tail -f</code>).</p>
+<div class="codehilite"><pre><span></span><code>avakill logs tail [--db PATH]
+</code></pre></div>
+
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Show last 50 events</span>
+avakill<span class="w"> </span>logs
+
+<span class="c1"># Only denied events from the last hour</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--denied-only<span class="w"> </span>--since<span class="w"> </span>1h
+
+<span class="c1"># Filter by tool pattern</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--tool<span class="w"> </span><span class="s2">&quot;database_*&quot;</span>
+
+<span class="c1"># Export as JSON</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--json<span class="w"> </span>&gt;<span class="w"> </span>audit-export.json
+
+<span class="c1"># Filter by agent</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>--agent<span class="w"> </span>my-agent<span class="w"> </span>--limit<span class="w"> </span><span class="m">100</span>
+
+<span class="c1"># Follow in real-time</span>
+avakill<span class="w"> </span>logs<span class="w"> </span>tail
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-dashboard">avakill dashboard</h2>
+<p>Launch the real-time terminal dashboard.</p>
+<div class="codehilite"><pre><span></span><code>avakill dashboard [--db PATH] [--refresh SECONDS] [--policy PATH] [--watch|--no-watch]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--db</code></td>
+<td><code>avakill_audit.db</code></td>
+<td>Path to the audit database</td>
+</tr>
+<tr>
+<td><code>--refresh</code></td>
+<td><code>0.5</code></td>
+<td>Refresh interval in seconds</td>
+</tr>
+<tr>
+<td><code>--policy</code></td>
+<td><em>(none)</em></td>
+<td>Path to the policy file to monitor</td>
+</tr>
+<tr>
+<td><code>--watch/--no-watch</code></td>
+<td><code>--no-watch</code></td>
+<td>Auto-reload policy when file changes on disk</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Keyboard shortcuts:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>q</code></td>
+<td>Quit</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Reload policy</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>Clear events</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Default dashboard</span>
+avakill<span class="w"> </span>dashboard
+
+<span class="c1"># Custom database and refresh interval</span>
+avakill<span class="w"> </span>dashboard<span class="w"> </span>--db<span class="w"> </span>/var/lib/avakill/audit.db<span class="w"> </span>--refresh<span class="w"> </span><span class="m">1</span>.0
+
+<span class="c1"># With policy monitoring and auto-reload</span>
+avakill<span class="w"> </span>dashboard<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--watch
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-daemon-start">avakill daemon start</h2>
+<p>Start the AvaKill evaluation daemon.</p>
+<div class="codehilite"><pre><span></span><code>avakill daemon start [--policy PATH] [--socket PATH] [--tcp-port PORT] [--log-db PATH] [--approval-db PATH] [--foreground] [--enforce]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--socket</code></td>
+<td><code>~/.avakill/avakill.sock</code></td>
+<td>Unix domain socket path (Linux/macOS). Also set via <code>AVAKILL_SOCKET</code> env var.</td>
+</tr>
+<tr>
+<td><code>--tcp-port</code></td>
+<td><code>19426</code></td>
+<td>TCP localhost port (default on Windows, optional on Linux/macOS)</td>
+</tr>
+<tr>
+<td><code>--log-db</code></td>
+<td><em>(none)</em></td>
+<td>Path to the audit database</td>
+</tr>
+<tr>
+<td><code>--approval-db</code></td>
+<td><code>~/.avakill/approvals.db</code></td>
+<td>Approval request database path</td>
+</tr>
+<tr>
+<td><code>--foreground</code>, <code>-f</code></td>
+<td><code>false</code></td>
+<td>Run in foreground instead of daemonizing</td>
+</tr>
+<tr>
+<td><code>--enforce</code></td>
+<td><code>false</code></td>
+<td>Apply OS-level enforcement (Landlock/sandbox-exec)</td>
+</tr>
+</tbody>
+</table>
+<p>The daemon evaluates tool calls sent by agent hooks or the <code>avakill evaluate</code> command. On Linux/macOS it listens on a Unix domain socket by default; on Windows it uses TCP localhost (port 19426). It creates a PID file at <code>~/.avakill/avakill.pid</code>.</p>
+<p><strong>Signal handling:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SIGHUP</code></td>
+<td>Reload the policy file from disk</td>
+</tr>
+<tr>
+<td><code>SIGTERM</code></td>
+<td>Graceful shutdown</td>
+</tr>
+<tr>
+<td><code>SIGINT</code></td>
+<td>Graceful shutdown</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Start in background with default settings</span>
+avakill<span class="w"> </span>daemon<span class="w"> </span>start
+
+<span class="c1"># Start with explicit policy and logging</span>
+avakill<span class="w"> </span>daemon<span class="w"> </span>start<span class="w"> </span>--policy<span class="w"> </span>policies/strict.yaml<span class="w"> </span>--log-db<span class="w"> </span>/var/log/avakill/audit.db
+
+<span class="c1"># Start in foreground (for debugging or systemd)</span>
+avakill<span class="w"> </span>daemon<span class="w"> </span>start<span class="w"> </span>--foreground
+
+<span class="c1"># Start with OS enforcement enabled</span>
+avakill<span class="w"> </span>daemon<span class="w"> </span>start<span class="w"> </span>--enforce
+
+<span class="c1"># Reload policy without restarting</span>
+<span class="nb">kill</span><span class="w"> </span>-HUP<span class="w"> </span><span class="k">$(</span>cat<span class="w"> </span>~/.avakill/avakill.pid<span class="k">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-daemon-stop">avakill daemon stop</h2>
+<p>Stop the running AvaKill daemon.</p>
+<div class="codehilite"><pre><span></span><code>avakill daemon stop [--socket PATH] [--tcp-port PORT]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--socket</code></td>
+<td><code>~/.avakill/avakill.sock</code></td>
+<td>Unix domain socket path (Linux/macOS)</td>
+</tr>
+<tr>
+<td><code>--tcp-port</code></td>
+<td><em>(none)</em></td>
+<td>TCP port</td>
+</tr>
+</tbody>
+</table>
+<p>Sends SIGTERM to the daemon process. Cleans up socket/port and PID files.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>daemon<span class="w"> </span>stop
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-daemon-status">avakill daemon status</h2>
+<p>Check the AvaKill daemon status.</p>
+<div class="codehilite"><pre><span></span><code>avakill daemon status [--socket PATH] [--tcp-port PORT]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--socket</code></td>
+<td><code>~/.avakill/avakill.sock</code></td>
+<td>Unix domain socket path (Linux/macOS)</td>
+</tr>
+<tr>
+<td><code>--tcp-port</code></td>
+<td><em>(none)</em></td>
+<td>TCP port</td>
+</tr>
+</tbody>
+</table>
+<p>Reports whether the daemon is running, its PID, and listening address.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>daemon<span class="w"> </span>status
+<span class="c1"># → Daemon is running (PID 12345)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-review">avakill review</h2>
+<p>Review a proposed policy file before activation.</p>
+<div class="codehilite"><pre><span></span><code>avakill review PROPOSED_FILE
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PROPOSED_FILE</code></td>
+<td>Yes</td>
+<td>Path to the proposed policy file</td>
+</tr>
+</tbody>
+</table>
+<p>Validates the YAML, shows a syntax-highlighted view and rules summary, then prints the <code>avakill approve</code> command to activate it. Exits <code>0</code> if valid, <code>1</code> if invalid.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>review<span class="w"> </span>avakill.proposed.yaml
+<span class="c1"># Shows formatted rules table and validation result</span>
+<span class="c1"># Prints: avakill approve avakill.proposed.yaml</span>
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-approve">avakill approve</h2>
+<p>Activate a proposed policy file.</p>
+<div class="codehilite"><pre><span></span><code>avakill approve PROPOSED_FILE [--target PATH] [--yes]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PROPOSED_FILE</code></td>
+<td><em>(required)</em></td>
+<td>Path to the proposed policy file</td>
+</tr>
+<tr>
+<td><code>--target</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Target filename for the activated policy</td>
+</tr>
+<tr>
+<td><code>--yes</code>, <code>-y</code></td>
+<td><code>false</code></td>
+<td>Skip confirmation prompt</td>
+</tr>
+</tbody>
+</table>
+<p>Validates the proposed policy, then copies it to the target location. This command should only be run by humans — self-protection blocks agents from executing it.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Review then approve</span>
+avakill<span class="w"> </span>review<span class="w"> </span>avakill.proposed.yaml
+avakill<span class="w"> </span>approve<span class="w"> </span>avakill.proposed.yaml
+
+<span class="c1"># Skip confirmation</span>
+avakill<span class="w"> </span>approve<span class="w"> </span>avakill.proposed.yaml<span class="w"> </span>--yes
+
+<span class="c1"># Custom target</span>
+avakill<span class="w"> </span>approve<span class="w"> </span>staging.yaml<span class="w"> </span>--target<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-approvals-list">avakill approvals list</h2>
+<p>List pending approval requests.</p>
+<div class="codehilite"><pre><span></span><code>avakill approvals list [--db PATH]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--db</code></td>
+<td><code>~/.avakill/approvals.db</code></td>
+<td>Path to the approvals database</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>approvals<span class="w"> </span>list
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-approvals-grant">avakill approvals grant</h2>
+<p>Approve a pending approval request.</p>
+<div class="codehilite"><pre><span></span><code>avakill approvals grant REQUEST_ID [--db PATH] [--approver NAME]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST_ID</code></td>
+<td><em>(required)</em></td>
+<td>ID of the approval request</td>
+</tr>
+<tr>
+<td><code>--db</code></td>
+<td><code>~/.avakill/approvals.db</code></td>
+<td>Path to the approvals database</td>
+</tr>
+<tr>
+<td><code>--approver</code></td>
+<td><code>cli-user</code></td>
+<td>Name of the approver</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>approvals<span class="w"> </span>grant<span class="w"> </span>abc123<span class="w"> </span>--approver<span class="w"> </span>admin
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-approvals-reject">avakill approvals reject</h2>
+<p>Reject a pending approval request.</p>
+<div class="codehilite"><pre><span></span><code>avakill approvals reject REQUEST_ID [--db PATH] [--approver NAME]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST_ID</code></td>
+<td><em>(required)</em></td>
+<td>ID of the approval request</td>
+</tr>
+<tr>
+<td><code>--db</code></td>
+<td><code>~/.avakill/approvals.db</code></td>
+<td>Path to the approvals database</td>
+</tr>
+<tr>
+<td><code>--approver</code></td>
+<td><code>cli-user</code></td>
+<td>Name of the approver</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>approvals<span class="w"> </span>reject<span class="w"> </span>abc123<span class="w"> </span>--approver<span class="w"> </span>admin
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-keygen">avakill keygen</h2>
+<p>Generate an Ed25519 keypair for policy signing.</p>
+<div class="codehilite"><pre><span></span><code>avakill keygen
+</code></pre></div>
+
+<p>No arguments or options. Prints export commands for both keys:</p>
+<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>avakill<span class="w"> </span>keygen
+<span class="c1"># Output:</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AVAKILL_SIGNING_KEY</span><span class="o">=</span>&lt;private-key-hex&gt;<span class="w">   </span><span class="c1"># Keep secret — use in CI/deploy</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AVAKILL_VERIFY_KEY</span><span class="o">=</span>&lt;public-key-hex&gt;<span class="w">     </span><span class="c1"># Deploy to production</span>
+</code></pre></div>
+
+<p>Store the signing key in your secrets manager. Only the verify key needs to be on production machines.</p>
+<hr />
+<h2 id="avakill-sign">avakill sign</h2>
+<p>Sign a policy file with HMAC-SHA256 or Ed25519.</p>
+<div class="codehilite"><pre><span></span><code>avakill sign [POLICY_FILE] [--key HEX] [--generate-key] [--ed25519]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POLICY_FILE</code></td>
+<td><em>(required unless <code>--generate-key</code>)</em></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--key</code></td>
+<td><em>(from env)</em></td>
+<td>Hex-encoded signing key</td>
+</tr>
+<tr>
+<td><code>--generate-key</code></td>
+<td><code>false</code></td>
+<td>Generate a new HMAC key and print it</td>
+</tr>
+<tr>
+<td><code>--ed25519</code></td>
+<td><code>false</code></td>
+<td>Use Ed25519 signing (requires PyNaCl)</td>
+</tr>
+</tbody>
+</table>
+<p>Creates a <code>.sig</code> sidecar file alongside the policy. Uses <code>AVAKILL_POLICY_KEY</code> for HMAC or <code>AVAKILL_SIGNING_KEY</code> for Ed25519 from environment.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Generate an HMAC key</span>
+avakill<span class="w"> </span>sign<span class="w"> </span>--generate-key
+
+<span class="c1"># Sign with HMAC (key from environment)</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AVAKILL_POLICY_KEY</span><span class="o">=</span>&lt;key-hex&gt;
+avakill<span class="w"> </span>sign<span class="w"> </span>avakill.yaml
+
+<span class="c1"># Sign with HMAC (key inline)</span>
+avakill<span class="w"> </span>sign<span class="w"> </span>avakill.yaml<span class="w"> </span>--key<span class="w"> </span>a1b2c3d4...
+
+<span class="c1"># Sign with Ed25519</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AVAKILL_SIGNING_KEY</span><span class="o">=</span>&lt;private-key-hex&gt;
+avakill<span class="w"> </span>sign<span class="w"> </span>--ed25519<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-verify">avakill verify</h2>
+<p>Verify a policy file's signature.</p>
+<div class="codehilite"><pre><span></span><code>avakill verify POLICY_FILE [--key HEX] [--verbose]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POLICY_FILE</code></td>
+<td><em>(required)</em></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--key</code></td>
+<td><em>(from env)</em></td>
+<td>Hex-encoded signing/verify key</td>
+</tr>
+<tr>
+<td><code>--verbose</code>, <code>-v</code></td>
+<td><code>false</code></td>
+<td>Show full file metadata (SHA-256, size, permissions)</td>
+</tr>
+</tbody>
+</table>
+<p>Auto-detects whether the <code>.sig</code> file contains an HMAC or Ed25519 signature. Uses <code>AVAKILL_POLICY_KEY</code> for HMAC or <code>AVAKILL_VERIFY_KEY</code> for Ed25519.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Verify (key from environment)</span>
+avakill<span class="w"> </span>verify<span class="w"> </span>avakill.yaml
+
+<span class="c1"># Verify with verbose metadata</span>
+avakill<span class="w"> </span>verify<span class="w"> </span>avakill.yaml<span class="w"> </span>-v
+
+<span class="c1"># Verify with explicit key</span>
+avakill<span class="w"> </span>verify<span class="w"> </span>avakill.yaml<span class="w"> </span>--key<span class="w"> </span>a1b2c3d4...
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-harden">avakill harden</h2>
+<p>Apply OS-level hardening to a policy file.</p>
+<div class="codehilite"><pre><span></span><code>avakill harden [POLICY_FILE] [--chattr] [--schg] [--selinux] [--apparmor] [--seccomp] [-o PATH]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POLICY_FILE</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--chattr</code></td>
+<td><code>false</code></td>
+<td>Set Linux immutable flag (<code>chattr +i</code>). Requires root.</td>
+</tr>
+<tr>
+<td><code>--schg</code></td>
+<td><code>false</code></td>
+<td>Set macOS system immutable flag (<code>chflags schg</code>). Requires root.</td>
+</tr>
+<tr>
+<td><code>--selinux</code></td>
+<td><code>false</code></td>
+<td>Output SELinux type enforcement template</td>
+</tr>
+<tr>
+<td><code>--apparmor</code></td>
+<td><code>false</code></td>
+<td>Output AppArmor profile template</td>
+</tr>
+<tr>
+<td><code>--seccomp</code></td>
+<td><code>false</code></td>
+<td>Output seccomp-bpf profile JSON</td>
+</tr>
+<tr>
+<td><code>--output</code>, <code>-o</code></td>
+<td><em>(stdout)</em></td>
+<td>Write template output to file</td>
+</tr>
+</tbody>
+</table>
+<p>When no specific flag is given, auto-detects the platform and applies the appropriate immutable flag.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Auto-detect platform and set immutable flag</span>
+sudo<span class="w"> </span>avakill<span class="w"> </span>harden<span class="w"> </span>avakill.yaml
+
+<span class="c1"># Linux: set chattr +i</span>
+sudo<span class="w"> </span>avakill<span class="w"> </span>harden<span class="w"> </span>--chattr<span class="w"> </span>avakill.yaml
+
+<span class="c1"># macOS: set chflags schg</span>
+sudo<span class="w"> </span>avakill<span class="w"> </span>harden<span class="w"> </span>--schg<span class="w"> </span>avakill.yaml
+
+<span class="c1"># Generate SELinux template</span>
+avakill<span class="w"> </span>harden<span class="w"> </span>--selinux<span class="w"> </span>-o<span class="w"> </span>avakill.te<span class="w"> </span>avakill.yaml
+
+<span class="c1"># Generate seccomp profile for Docker</span>
+avakill<span class="w"> </span>harden<span class="w"> </span>--seccomp<span class="w"> </span>-o<span class="w"> </span>seccomp.json<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-check-hardening">avakill check-hardening</h2>
+<p>Report hardening status of a policy file.</p>
+<div class="codehilite"><pre><span></span><code>avakill check-hardening [POLICY_FILE]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POLICY_FILE</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+</tbody>
+</table>
+<p>Shows immutable flag status, file permissions, owner/group, signing configuration, and signature validity.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>check-hardening<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-schema">avakill schema</h2>
+<p>Export the AvaKill policy JSON Schema or generate an LLM prompt.</p>
+<div class="codehilite"><pre><span></span><code>avakill schema [--format json|prompt] [--compact] [--tools TOOLS] [--use-case DESC] [-o PATH]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--format</code></td>
+<td><code>json</code></td>
+<td>Output format: <code>json</code> for JSON Schema, <code>prompt</code> for LLM prompt</td>
+</tr>
+<tr>
+<td><code>--compact</code></td>
+<td><code>false</code></td>
+<td>Minified JSON output (only with <code>--format=json</code>)</td>
+</tr>
+<tr>
+<td><code>--tools</code></td>
+<td><em>(none)</em></td>
+<td>Comma-separated tool names to include in the prompt</td>
+</tr>
+<tr>
+<td><code>--use-case</code></td>
+<td><em>(none)</em></td>
+<td>Description of your use case (e.g. <code>code assistant</code>)</td>
+</tr>
+<tr>
+<td><code>-o</code>, <code>--output</code></td>
+<td><em>(stdout)</em></td>
+<td>Write output to a file</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Export JSON Schema</span>
+avakill<span class="w"> </span>schema
+
+<span class="c1"># Minified JSON for embedding</span>
+avakill<span class="w"> </span>schema<span class="w"> </span>--compact<span class="w"> </span>-o<span class="w"> </span>schema.json
+
+<span class="c1"># Generate LLM prompt</span>
+avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt
+
+<span class="c1"># Customized prompt with your tools</span>
+avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt<span class="w"> </span>--tools<span class="o">=</span><span class="s2">&quot;execute_sql,shell_exec,file_write&quot;</span><span class="w"> </span>--use-case<span class="o">=</span><span class="s2">&quot;data pipeline&quot;</span>
+
+<span class="c1"># Save prompt to file</span>
+avakill<span class="w"> </span>schema<span class="w"> </span>--format<span class="o">=</span>prompt<span class="w"> </span>-o<span class="w"> </span>prompt.txt
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-profile-list">avakill profile list</h2>
+<p>List available agent containment profiles.</p>
+<div class="codehilite"><pre><span></span><code>avakill profile list [--verbose]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--verbose</code>, <code>-v</code></td>
+<td><code>false</code></td>
+<td>Show profile descriptions</td>
+</tr>
+</tbody>
+</table>
+<p>Displays a table of built-in agent profiles with their hook support and MCP capabilities.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>avakill<span class="w"> </span>profile<span class="w"> </span>list<span class="w"> </span>-v
+<span class="w">       </span>Agent<span class="w"> </span>Profiles
+┌────────────┬───────┬─────┬──────────────────────┐
+│<span class="w"> </span>Name<span class="w">       </span>│<span class="w"> </span>Hooks<span class="w"> </span>│<span class="w"> </span>MCP<span class="w"> </span>│<span class="w"> </span>Description<span class="w">          </span>│
+├────────────┼───────┼─────┼──────────────────────┤
+│<span class="w"> </span>Claude<span class="w"> </span>Code│<span class="w"> </span>yes<span class="w">   </span>│<span class="w"> </span>yes<span class="w"> </span>│<span class="w"> </span>Anthropic<span class="w"> </span>CLI<span class="w"> </span>agent<span class="w">  </span>│
+│<span class="w"> </span>Aider<span class="w">      </span>│<span class="w"> </span>no<span class="w">    </span>│<span class="w"> </span>no<span class="w">  </span>│<span class="w"> </span>AI<span class="w"> </span>pair<span class="w"> </span>programmer<span class="w">   </span>│
+│<span class="w"> </span>OpenClaw<span class="w">   </span>│<span class="w"> </span>yes<span class="w">   </span>│<span class="w"> </span>yes<span class="w"> </span>│<span class="w"> </span>Open-source<span class="w"> </span>agent<span class="w">    </span>│
+└────────────┴───────┴─────┴──────────────────────┘
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-profile-show">avakill profile show</h2>
+<p>Show details of an agent containment profile.</p>
+<div class="codehilite"><pre><span></span><code>avakill profile show NAME
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NAME</code></td>
+<td>Yes</td>
+<td>Profile name (e.g. <code>openclaw</code>, <code>aider</code>, <code>claude-code</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Displays the full profile details including protection modes, detection paths, sandbox paths, network rules, and resource limits.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>profile<span class="w"> </span>show<span class="w"> </span>openclaw
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-compliance-report">avakill compliance report</h2>
+<p>Generate a compliance assessment report.</p>
+<div class="codehilite"><pre><span></span><code>avakill compliance report --framework FRAMEWORK --policy PATH [--format FORMAT] [--output FILE]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--framework</code></td>
+<td><em>(required)</em></td>
+<td>Framework: <code>soc2</code>, <code>nist-ai-rmf</code>, <code>eu-ai-act</code>, <code>iso-42001</code>, or <code>all</code></td>
+</tr>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--format</code></td>
+<td><code>table</code></td>
+<td>Output format: <code>table</code>, <code>json</code>, or <code>markdown</code></td>
+</tr>
+<tr>
+<td><code>--output</code></td>
+<td><em>(stdout)</em></td>
+<td>Write output to file</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>compliance<span class="w"> </span>report<span class="w"> </span>--framework<span class="w"> </span>soc2<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+avakill<span class="w"> </span>compliance<span class="w"> </span>report<span class="w"> </span>--framework<span class="w"> </span>all<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>--output<span class="w"> </span>compliance.json
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-compliance-gaps">avakill compliance gaps</h2>
+<p>Show compliance gaps for the current configuration.</p>
+<div class="codehilite"><pre><span></span><code>avakill compliance gaps [--policy PATH]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>compliance<span class="w"> </span>gaps<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-mcp-wrap">avakill mcp-wrap</h2>
+<p>Wrap MCP server configs to route tool calls through AvaKill.</p>
+<div class="codehilite"><pre><span></span><code>avakill mcp-wrap [--agent AGENT] [--policy PATH] [--daemon] [--dry-run]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--agent</code></td>
+<td><code>all</code></td>
+<td>Which agent to wrap: <code>claude-desktop</code>, <code>cursor</code>, <code>windsurf</code>, <code>cline</code>, <code>continue</code>, or <code>all</code></td>
+</tr>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--daemon</code></td>
+<td><code>false</code></td>
+<td>Use daemon mode instead of embedded Guard</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td><code>false</code></td>
+<td>Show changes without writing</td>
+</tr>
+</tbody>
+</table>
+<p>Rewrites agent MCP configs so all stdio-transport tool calls pass through <code>avakill mcp-proxy</code>. Creates a backup of the original config. Skips servers that are already wrapped or use non-stdio transports.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Wrap all detected agents</span>
+avakill<span class="w"> </span>mcp-wrap
+
+<span class="c1"># Wrap a specific agent with custom policy</span>
+avakill<span class="w"> </span>mcp-wrap<span class="w"> </span>--agent<span class="w"> </span>claude-desktop<span class="w"> </span>--policy<span class="w"> </span>hardened.yaml
+
+<span class="c1"># Use daemon mode for evaluation</span>
+avakill<span class="w"> </span>mcp-wrap<span class="w"> </span>--agent<span class="w"> </span>all<span class="w"> </span>--daemon
+
+<span class="c1"># Preview changes without writing</span>
+avakill<span class="w"> </span>mcp-wrap<span class="w"> </span>--dry-run
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-mcp-unwrap">avakill mcp-unwrap</h2>
+<p>Restore original MCP server configs (undo mcp-wrap).</p>
+<div class="codehilite"><pre><span></span><code>avakill mcp-unwrap [--agent AGENT]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--agent</code></td>
+<td><code>all</code></td>
+<td>Which agent to unwrap: <code>claude-desktop</code>, <code>cursor</code>, <code>windsurf</code>, <code>cline</code>, <code>continue</code>, or <code>all</code></td>
+</tr>
+</tbody>
+</table>
+<p>Reverses the wrapping done by <code>mcp-wrap</code>, restoring the original server commands. Creates a backup before writing.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Unwrap all agents</span>
+avakill<span class="w"> </span>mcp-unwrap
+
+<span class="c1"># Unwrap a specific agent</span>
+avakill<span class="w"> </span>mcp-unwrap<span class="w"> </span>--agent<span class="w"> </span>claude-desktop
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-enforce-landlock">avakill enforce landlock</h2>
+<p>Apply Landlock filesystem restrictions (Linux 5.13+).</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill enforce landlock --policy PATH [--dry-run]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td><code>false</code></td>
+<td>Show what would be restricted without applying</td>
+</tr>
+</tbody>
+</table>
+<p>Translates deny rules into Landlock filesystem access restrictions. <strong>Applying is irreversible for the current process.</strong> Requires Linux 5.13+, unprivileged.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>enforce<span class="w"> </span>landlock<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--dry-run
+avakill<span class="w"> </span>enforce<span class="w"> </span>landlock<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-enforce-sandbox">avakill enforce sandbox</h2>
+<p>Generate a macOS sandbox-exec SBPL profile.</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill enforce sandbox --policy PATH [--output PATH] [--dry-run]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--output</code>, <code>-o</code></td>
+<td><em>(none)</em></td>
+<td>Output path for the SBPL profile (required when not using <code>--dry-run</code>)</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td><code>false</code></td>
+<td>Print generated profile to stdout without writing</td>
+</tr>
+</tbody>
+</table>
+<p>macOS only.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>enforce<span class="w"> </span>sandbox<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--output<span class="w"> </span>avakill.sb
+sandbox-exec<span class="w"> </span>-f<span class="w"> </span>avakill.sb<span class="w"> </span>python<span class="w"> </span>my_agent.py
+
+<span class="c1"># Preview without writing</span>
+avakill<span class="w"> </span>enforce<span class="w"> </span>sandbox<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--dry-run
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-enforce-windows">avakill enforce windows</h2>
+<p>Apply Windows process restrictions.</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill enforce windows --policy PATH [--dry-run]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td><code>false</code></td>
+<td>Show restrictions without applying</td>
+</tr>
+</tbody>
+</table>
+<p>Creates a Job Object with child-process limits and removes dangerous token privileges (SeRestorePrivilege, SeBackupPrivilege, etc.). <strong>Privilege removal is irreversible for the process lifetime.</strong> Requires Windows.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Preview restrictions</span>
+avakill<span class="w"> </span>enforce<span class="w"> </span>windows<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--dry-run
+
+<span class="c1"># Apply restrictions</span>
+avakill<span class="w"> </span>enforce<span class="w"> </span>windows<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-enforce-tetragon">avakill enforce tetragon</h2>
+<p>Generate a Cilium Tetragon TracingPolicy.</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill enforce tetragon --policy PATH --output PATH
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--output</code></td>
+<td><em>(required)</em></td>
+<td>Output path for the TracingPolicy YAML</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>enforce<span class="w"> </span>tetragon<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--output<span class="w"> </span>tetragon-policy.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>tetragon-policy.yaml
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-launch">avakill launch</h2>
+<p>Launch a process inside an OS-level sandbox.</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability. Depends on untested enforce backends.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill launch [--policy PATH] [--agent NAME] [--pty|--no-pty] [--dry-run] [--timeout N] [--keep-profile] -- COMMAND...
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--agent</code></td>
+<td><em>(none)</em></td>
+<td>Agent profile name (e.g. <code>openclaw</code>, <code>aider</code>)</td>
+</tr>
+<tr>
+<td><code>--pty/--no-pty</code></td>
+<td><code>--no-pty</code></td>
+<td>Allocate PTY for interactive agents</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td><code>false</code></td>
+<td>Show sandbox restrictions without launching</td>
+</tr>
+<tr>
+<td><code>--timeout</code></td>
+<td><em>(none)</em></td>
+<td>Kill child process after N seconds</td>
+</tr>
+<tr>
+<td><code>--keep-profile</code></td>
+<td><code>false</code></td>
+<td>Save the generated sandbox profile for inspection</td>
+</tr>
+<tr>
+<td><code>COMMAND</code></td>
+<td><em>(from profile)</em></td>
+<td>Command to run (everything after <code>--</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The command to run can be specified after <code>--</code> or pulled from the agent profile's default command. If <code>--agent</code> is specified, the profile's sandbox configuration is used when the policy has no <code>sandbox:</code> section.</p>
+<p><strong>Exit codes:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(child's code)</em></td>
+<td>Propagated from the child process</td>
+</tr>
+<tr>
+<td><code>126</code></td>
+<td>Sandbox setup failed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Launch with explicit command</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--policy<span class="w"> </span>hardened.yaml<span class="w"> </span>--<span class="w"> </span>openclaw<span class="w"> </span>start
+
+<span class="c1"># Launch using agent profile defaults</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>openclaw
+
+<span class="c1"># Launch with profile and custom command</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--<span class="w"> </span>aider<span class="w"> </span>--model<span class="w"> </span>gpt-4
+
+<span class="c1"># Preview sandbox restrictions</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--dry-run<span class="w"> </span>--agent<span class="w"> </span>openclaw
+
+<span class="c1"># Set a timeout</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>openclaw<span class="w"> </span>--timeout<span class="w"> </span><span class="m">3600</span>
+
+<span class="c1"># Keep generated sandbox profile for inspection</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>openclaw<span class="w"> </span>--keep-profile
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-mcp-proxy">avakill mcp-proxy</h2>
+<p>Start the MCP transparent proxy.</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability. Not yet tested with a real MCP server.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill mcp-proxy --upstream-cmd CMD [--upstream-args ARGS] [--policy PATH] [--log-db PATH] [--daemon SOCKET] [--agent NAME]
+avakill mcp-proxy --upstream-url URL [--listen-port PORT] [--policy PATH] [--log-db PATH] [--daemon SOCKET] [--agent NAME]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--upstream-cmd</code></td>
+<td><em>(none)</em></td>
+<td>Stdio: command to run the upstream MCP server</td>
+</tr>
+<tr>
+<td><code>--upstream-args</code></td>
+<td><code>""</code></td>
+<td>Stdio: arguments for the upstream command (space-separated)</td>
+</tr>
+<tr>
+<td><code>--upstream-url</code></td>
+<td><em>(none)</em></td>
+<td>HTTP: URL of the upstream MCP server</td>
+</tr>
+<tr>
+<td><code>--listen-port</code></td>
+<td><code>5100</code></td>
+<td>HTTP: local port to listen on</td>
+</tr>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file</td>
+</tr>
+<tr>
+<td><code>--log-db</code></td>
+<td><em>(none)</em></td>
+<td>Path to the audit database (omit to disable logging)</td>
+</tr>
+<tr>
+<td><code>--daemon</code></td>
+<td><em>(none)</em></td>
+<td>Evaluate via daemon socket instead of embedded Guard</td>
+</tr>
+<tr>
+<td><code>--agent</code></td>
+<td><code>mcp</code></td>
+<td>Agent name for tool normalization</td>
+</tr>
+</tbody>
+</table>
+<p>Sits between an MCP client and an upstream MCP server, intercepting <code>tools/call</code> requests and evaluating them against the policy. Supports two transport modes: stdio (with <code>--upstream-cmd</code>) and HTTP (with <code>--upstream-url</code>). See the <a href="internal/mcp-proxy.md">MCP Proxy Guide</a> for detailed setup.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Stdio proxy</span>
+avakill<span class="w"> </span>mcp-proxy<span class="w"> </span>--upstream-cmd<span class="w"> </span>python<span class="w"> </span>--upstream-args<span class="w"> </span><span class="s2">&quot;server.py&quot;</span>
+
+<span class="c1"># With custom policy and logging</span>
+avakill<span class="w"> </span>mcp-proxy<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--upstream-cmd<span class="w"> </span>node<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--upstream-args<span class="w"> </span><span class="s2">&quot;dist/server.js&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--policy<span class="w"> </span>policies/mcp.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--log-db<span class="w"> </span>/var/log/avakill/mcp-audit.db
+
+<span class="c1"># HTTP proxy</span>
+avakill<span class="w"> </span>mcp-proxy<span class="w"> </span>--upstream-url<span class="w"> </span>http://localhost:8080<span class="w"> </span>--listen-port<span class="w"> </span><span class="m">5100</span>
+
+<span class="c1"># Evaluate via daemon instead of embedded Guard</span>
+avakill<span class="w"> </span>mcp-proxy<span class="w"> </span>--upstream-cmd<span class="w"> </span>python<span class="w"> </span>--upstream-args<span class="w"> </span><span class="s2">&quot;server.py&quot;</span><span class="w"> </span>--daemon<span class="w"> </span>/tmp/avakill.sock
+</code></pre></div>
+
+<hr />
+<h2 id="avakill-metrics">avakill metrics</h2>
+<p>Start a Prometheus metrics HTTP server.</p>
+<blockquote>
+<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability. Requires the <code>[metrics]</code> extra: <code>pip install avakill[metrics]</code>.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>avakill metrics [--port PORT] [--host HOST]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--port</code></td>
+<td><code>9090</code></td>
+<td>HTTP port for <code>/metrics</code> endpoint</td>
+</tr>
+<tr>
+<td><code>--host</code></td>
+<td><code>0.0.0.0</code></td>
+<td>Bind address</td>
+</tr>
+</tbody>
+</table>
+<p>Exposes AvaKill metrics at <code>http://&lt;host&gt;:&lt;port&gt;/metrics</code> for Prometheus scraping.</p>
+<p><strong>Examples:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Default port</span>
+avakill<span class="w"> </span>metrics
+
+<span class="c1"># Custom port and bind to localhost only</span>
+avakill<span class="w"> </span>metrics<span class="w"> </span>--port<span class="w"> </span><span class="m">9100</span><span class="w"> </span>--host<span class="w"> </span><span class="m">127</span>.0.0.1
+</code></pre></div>
+
+<hr />
+<h2 id="further-reading">Further Reading</h2>
+<ul>
+<li><strong><a href="/docs/getting-started/">Getting Started</a></strong> — walkthrough using the CLI</li>
+<li><strong><a href="/docs/policy-reference/">Policy Reference</a></strong> — full YAML schema</li>
+<li><strong><a href="internal/security-hardening.md">Security Hardening</a></strong> — signing and hardening workflows</li>
+<li><strong><a href="internal/deployment.md">Deployment</a></strong> — production deployment patterns</li>
+<li><strong><a href="internal/framework-integrations.md">Framework Integrations</a></strong> — native hooks and SDK wrappers</li>
+</ul>
+
+<div class="docs-nav-bottom">
+  <a href="/docs/policy-reference/" class="docs-nav-card">
+    <div class="docs-nav-label">&larr; Previous</div>
+    <div class="docs-nav-title">Policy Reference</div>
+  </a>
+  <a href="/docs/api-reference/" class="docs-nav-card docs-nav-card--next">
+    <div class="docs-nav-label">Next &rarr;</div>
+    <div class="docs-nav-title">API Reference</div>
+  </a>
+</div>
+    </main>
+
+    <!-- ===== Right TOC ("On this page") ===== -->
+    <aside class="docs-toc">
+      <div class="toc-heading">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg>
+        On this page
+      </div>
+      <ul class="toc-list">
+        <li><a href="#commands-by-category" class="toc-link">Commands by Category</a></li>
+        <li><a href="#avakill-setup" class="toc-link">avakill setup</a></li>
+        <li><a href="#avakill-reset" class="toc-link">avakill reset</a></li>
+        <li><a href="#avakill-tracking" class="toc-link">avakill tracking</a></li>
+        <li><a href="#avakill-guide" class="toc-link">avakill guide</a></li>
+        <li><a href="#avakill-validate" class="toc-link">avakill validate</a></li>
+        <li><a href="#avakill-evaluate" class="toc-link">avakill evaluate</a></li>
+        <li><a href="#avakill-fix" class="toc-link">avakill fix</a></li>
+        <li><a href="#avakill-hook-install" class="toc-link">avakill hook install</a></li>
+        <li><a href="#avakill-hook-uninstall" class="toc-link">avakill hook uninstall</a></li>
+        <li><a href="#avakill-hook-list" class="toc-link">avakill hook list</a></li>
+        <li><a href="#avakill-shim" class="toc-link">avakill-shim</a></li>
+        <li><a href="#avakill-logs" class="toc-link">avakill logs</a></li>
+        <li><a href="#avakill-dashboard" class="toc-link">avakill dashboard</a></li>
+        <li><a href="#avakill-daemon-start" class="toc-link">avakill daemon start</a></li>
+        <li><a href="#avakill-daemon-stop" class="toc-link">avakill daemon stop</a></li>
+        <li><a href="#avakill-daemon-status" class="toc-link">avakill daemon status</a></li>
+        <li><a href="#avakill-review" class="toc-link">avakill review</a></li>
+        <li><a href="#avakill-approve" class="toc-link">avakill approve</a></li>
+        <li><a href="#avakill-approvals-list" class="toc-link">avakill approvals list</a></li>
+        <li><a href="#avakill-approvals-grant" class="toc-link">avakill approvals grant</a></li>
+        <li><a href="#avakill-approvals-reject" class="toc-link">avakill approvals reject</a></li>
+        <li><a href="#avakill-keygen" class="toc-link">avakill keygen</a></li>
+        <li><a href="#avakill-sign" class="toc-link">avakill sign</a></li>
+        <li><a href="#avakill-verify" class="toc-link">avakill verify</a></li>
+        <li><a href="#avakill-harden" class="toc-link">avakill harden</a></li>
+        <li><a href="#avakill-check-hardening" class="toc-link">avakill check-hardening</a></li>
+        <li><a href="#avakill-schema" class="toc-link">avakill schema</a></li>
+        <li><a href="#avakill-profile-list" class="toc-link">avakill profile list</a></li>
+        <li><a href="#avakill-profile-show" class="toc-link">avakill profile show</a></li>
+        <li><a href="#avakill-compliance-report" class="toc-link">avakill compliance report</a></li>
+        <li><a href="#avakill-compliance-gaps" class="toc-link">avakill compliance gaps</a></li>
+        <li><a href="#avakill-mcp-wrap" class="toc-link">avakill mcp-wrap</a></li>
+        <li><a href="#avakill-mcp-unwrap" class="toc-link">avakill mcp-unwrap</a></li>
+        <li><a href="#avakill-enforce-landlock" class="toc-link">avakill enforce landlock</a></li>
+        <li><a href="#avakill-enforce-sandbox" class="toc-link">avakill enforce sandbox</a></li>
+        <li><a href="#avakill-enforce-windows" class="toc-link">avakill enforce windows</a></li>
+        <li><a href="#avakill-enforce-tetragon" class="toc-link">avakill enforce tetragon</a></li>
+        <li><a href="#avakill-launch" class="toc-link">avakill launch</a></li>
+        <li><a href="#avakill-mcp-proxy" class="toc-link">avakill mcp-proxy</a></li>
+        <li><a href="#avakill-metrics" class="toc-link">avakill metrics</a></li>
+        <li><a href="#further-reading" class="toc-link">Further Reading</a></li>
+      </ul>
+    </aside>
+
+  </div>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <nav class="footer-links">
+      <a href="/docs">Docs</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href="https://pypi.org/project/avakill/">PyPI</a>
+      <span class="sep">&middot;</span>
+      <a href="https://github.com/log-bell/avakill/blob/main/CHANGELOG.md">Changelog</a>
+      <span class="sep">&middot;</span>
+      <a href="https://discord.gg/gTBvbkSV2">Discord</a>
+    </nav>
+    <div class="footer-attribution">
+      Built with &#128737;&#65039; by AvaKill contributors.<br>
+      Open-source under AGPL-3.0 license.
+    </div>
+  </footer>
+
+  <!-- ========== JavaScript ========== -->
+  <script>
+    // --- Hamburger menu ---
+    const navEl = document.getElementById('site-nav');
+    const hamburger = document.getElementById('nav-hamburger');
+    hamburger.addEventListener('click', () => navEl.classList.toggle('nav-open'));
+
+    // --- Mobile sidebar ---
+    const mobileSidebarBtn = document.getElementById('mobile-sidebar-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    mobileSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('open');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('open');
+    });
+
+    // --- Copy code buttons ---
+    document.querySelectorAll('.docs-codeblock-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code || btn.closest('.docs-codeblock').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          btn.style.color = 'var(--color-allowed)';
+          setTimeout(() => btn.style.color = '', 1500);
+        });
+      });
+    });
+
+    // --- Scroll spy for right TOC ---
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const headings = [];
+    tocLinks.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) headings.push({ el, link });
+    });
+
+    const tocObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(l => l.classList.remove('active'));
+          const match = headings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -60% 0px',
+      threshold: 0
+    });
+
+    headings.forEach(h => tocObserver.observe(h.el));
+
+    // --- Scroll spy for left sidebar ---
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const sidebarHeadings = [];
+    sidebarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const el = document.getElementById(href.slice(1));
+      if (el) sidebarHeadings.push({ el, link });
+    });
+
+    const sidebarObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          sidebarLinks.forEach(l => l.classList.remove('active'));
+          const match = sidebarHeadings.find(h => h.el === entry.target);
+          if (match) match.link.classList.add('active');
+        }
+      });
+    }, {
+      rootMargin: '-120px 0px -70% 0px',
+      threshold: 0
+    });
+
+    sidebarHeadings.forEach(h => sidebarObserver.observe(h.el));
+  </script>
+
+</body>
+</html>

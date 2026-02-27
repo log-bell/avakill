@@ -45,6 +45,11 @@ _APPROVE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_RESET_PATTERN = re.compile(
+    r"avakill\s+reset\b",
+    re.IGNORECASE,
+)
+
 _DAEMON_SHUTDOWN_PATTERN = re.compile(
     r"(?:"
     # avakill daemon stop [--force]
@@ -369,6 +374,15 @@ class SelfProtection:
                 "I'm blocked from running avakill approve — only humans should "
                 "activate policy changes. You can run it yourself: "
                 "avakill approve <policy-file>",
+            )
+
+        # Check for reset command (only humans should run this)
+        if _RESET_PATTERN.search(scan_text):
+            return _deny_message(
+                "reset",
+                "avakill reset (only humans may factory-reset AvaKill)",
+                "I'm blocked from running avakill reset — only humans should "
+                "factory-reset AvaKill. You can run it yourself: avakill reset",
             )
 
         # Check for daemon shutdown commands
