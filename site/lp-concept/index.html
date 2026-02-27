@@ -1000,6 +1000,105 @@
       color: var(--text-muted);
       font-size: 0.75rem;
     }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 768px) {
+      .z1-agents {
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .z1-agent-icon {
+        width: 44px;
+        height: 44px;
+      }
+
+      .z1-agent-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .z2-arch-branches {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .z3-constellation {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .z3-constellation .z3-node:nth-child(5),
+      .z3-constellation .z3-node:nth-child(6),
+      .z3-constellation .z3-node:nth-child(7) {
+        grid-column: auto;
+      }
+
+      .z4-stats {
+        gap: 32px;
+      }
+
+      .z4-cta-links {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .zone-2 {
+        min-height: 250vh;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .z1-agents {
+        gap: 12px;
+      }
+
+      .z1-headline {
+        font-size: 1.8rem;
+      }
+
+      .z2-intercept-rule {
+        display: none;
+      }
+
+      .z2-arch-branches {
+        grid-template-columns: 1fr;
+      }
+
+      .z3-constellation {
+        grid-template-columns: 1fr;
+      }
+
+      .z4-stats {
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .z4-newsletter-form {
+        flex-direction: column;
+      }
+
+      .z4-pills {
+        gap: 6px;
+      }
+
+      .z4-pill {
+        font-size: 0.7rem;
+        padding: 4px 10px;
+      }
+    }
+
+    /* =========================================================
+       Reduced Motion
+       ========================================================= */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1229,6 +1328,8 @@
     </div>
   </footer>
   <script>
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     /* ===== Scroll Engine =====
      * Tracks scroll position and calculates per-zone progress (0–1).
      * All animations read from `zoneProgress` on each frame.
@@ -1294,14 +1395,6 @@
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => { initZones(); tick(); }, 100);
     }, { passive: true });
-
-    // Debug overlay — shows zone progress values. Remove in Task 10.
-    const debugEl = document.createElement('div');
-    debugEl.style.cssText = 'position:fixed;top:10px;left:10px;background:rgba(0,0,0,0.85);color:#0f0;font:11px/1.6 monospace;padding:8px 12px;z-index:9999;pointer-events:none;border-radius:6px;white-space:pre;';
-    document.body.appendChild(debugEl);
-    onFrame((p) => {
-      debugEl.textContent = Object.entries(p).map(([k, v]) => `${k}: ${v.toFixed(3)}`).join('\n');
-    });
 
     /* ===== Zone 1: Tool Call Packets ===== */
     const PACKETS = [
@@ -1553,9 +1646,108 @@
       });
     }
 
+    /* ===== Particle System ===== */
+    const particleCanvas = document.getElementById('particle-canvas');
+    const pCtx = particleCanvas.getContext('2d');
+    const PARTICLE_COUNT = 60;
+    let pParticles = [];
+    let pW, pH;
+    let particleFrameId;
+    let pResizeTimer;
+
+    function pResize() {
+      pW = particleCanvas.width = window.innerWidth;
+      pH = particleCanvas.height = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        window.innerHeight
+      );
+    }
+
+    function createParticle(startAtTop) {
+      return {
+        x: Math.random() * pW,
+        y: startAtTop ? -(Math.random() * 40) : Math.random() * pH,
+        r: 0.8 + Math.random() * 1.2,
+        vx: (Math.random() - 0.5) * 0.2,
+        vy: 0.15 + Math.random() * 0.3,  // drift DOWN (descent metaphor)
+        alpha: 0.08 + Math.random() * 0.12
+      };
+    }
+
+    function initPParticles() {
+      pParticles = [];
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        pParticles.push(createParticle(false));
+      }
+    }
+
+    function drawParticles() {
+      pCtx.clearRect(0, 0, pW, pH);
+      for (const p of pParticles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        // Respawn at top when particle exits bottom
+        if (p.y - p.r > pH) {
+          p.x = Math.random() * pW;
+          p.y = -(Math.random() * 20);
+        }
+        if (p.x < -10) p.x = pW + 10;
+        if (p.x > pW + 10) p.x = -10;
+        pCtx.beginPath();
+        pCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        pCtx.fillStyle = `rgba(0, 212, 255, ${p.alpha})`;
+        pCtx.fill();
+      }
+      particleFrameId = requestAnimationFrame(drawParticles);
+    }
+
+    pResize();
+    initPParticles();
+    drawParticles();
+
+    // Pause when tab hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        cancelAnimationFrame(particleFrameId);
+      } else {
+        drawParticles();
+      }
+    });
+
+    // Resize canvas on window resize (debounced)
+    window.addEventListener('resize', () => {
+      clearTimeout(pResizeTimer);
+      pResizeTimer = setTimeout(pResize, 100);
+    }, { passive: true });
+
+    // Adjust canvas height on scroll if page grows
+    window.addEventListener('scroll', () => {
+      const newH = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        window.innerHeight
+      );
+      if (Math.abs(newH - pH) > 50) {
+        pH = particleCanvas.height = newH;
+      }
+    }, { passive: true });
+
     // Initialize
     initZones();
     tick();
+
+    // If reduced motion, make all elements visible immediately
+    if (prefersReducedMotion) {
+      document.querySelectorAll('[style*="opacity"]').forEach(el => {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      });
+      document.querySelectorAll('.z1-agent, .z1-copy, .z2-intercept, .z3-node, .z3-headline, .z3-sub, .z3-yaml, .z4-sub').forEach(el => {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      });
+    }
   </script>
 </body>
 </html>
