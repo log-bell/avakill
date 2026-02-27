@@ -54,7 +54,7 @@ htmlcov/
 
 # Project-local config
 CLAUDE.md
-.claude/plans/
+.claude/
 docs/plans/
 docs/audit.md
 
@@ -66,3 +66,6 @@ site/pitch-deck/
 
 # Dashboard (local dev tool, not public)
 site/dashboard/
+
+# Rules page (generated)
+site/rules/
