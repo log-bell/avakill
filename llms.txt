@@ -2,7 +2,7 @@
 
 > Open-source safety firewall for AI agents. She doesn't guard. She kills.
 
-AvaKill is a deterministic safety firewall that intercepts AI agent tool calls and enforces YAML-based policies before they execute. It adds <1ms overhead, requires no LLM at runtime, and works across all major AI coding agents (Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex). Policies are simple YAML files with glob patterns, argument matching, rate limiting, and human-in-the-loop approval gates. AvaKill is open source (AGPL-3.0), written in Python 3.10+, and installable via pipx.
+AvaKill is a deterministic safety firewall that intercepts AI agent tool calls and enforces YAML-based policies before they execute. It adds <1ms overhead, requires no LLM at runtime, and works across all major AI coding agents (Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, Amp). Policies are simple YAML files with glob patterns, argument matching, rate limiting, and human-in-the-loop approval gates. AvaKill is open source (AGPL-3.0), written in Python 3.10+, and installable via pipx.
 
 ---
 

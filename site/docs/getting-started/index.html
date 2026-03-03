@@ -1049,6 +1049,8 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
       · Cursor            not detected
       · Windsurf          not detected
       ✓ OpenAI Codex      ~/.codex/
+      · Kiro              not detected
+      · Amp               not detected
 
     MCP Proxy (wrap MCP servers):
       ✓ Claude Desktop    ~/Library/Application Support/Claude/
@@ -1183,6 +1185,8 @@ Customize max calls? (500):
   • Claude Code     → ~/.claude/settings.json
   • Gemini CLI      → .gemini/settings.json
   • OpenAI Codex    → ~/.codex/config.toml
+  • Kiro            → ~/.kiro/settings/hooks.json
+  • Amp             → ~/.amp/settings.json
 
 Install? [y/n] (y):
 </code></pre></div>
@@ -1237,7 +1241,7 @@ Setup complete. Your agents are now protected.
 
   Policy:     avakill.yaml (67 rules)
   Tracking:   off
-  Hooks:      Claude Code, Gemini CLI, OpenAI Codex
+  Hooks:      Claude Code, Gemini CLI, OpenAI Codex, Kiro, Amp
   MCP:        Claude Desktop
   Sandbox:    OpenClaw (protect with: avakill launch --agent openclaw)
 
@@ -1474,7 +1478,7 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 
 <p>See the <a href="/docs/api-reference/">API Reference</a> for the full <code>Guard</code> constructor options, <code>Decision</code> fields, and framework integrations.</p>
 <h2 id="3-protect-ai-coding-agents">3. Protect AI Coding Agents</h2>
-<p>This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an <code>avakill.yaml</code> policy file from Section 1 (or written by hand) and one install command.</p>
+<p>This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, and Amp. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an <code>avakill.yaml</code> policy file from Section 1 (or written by hand) and one install command.</p>
 <p>Two paths to get started:</p>
 <ul>
 <li><strong><code>avakill setup</code></strong> (recommended) — interactive wizard that creates a policy and installs hooks in one pass (covered in Section 1)</li>

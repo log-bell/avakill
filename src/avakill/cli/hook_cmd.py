@@ -15,7 +15,19 @@ def hook() -> None:
 @hook.command()
 @click.option(
     "--agent",
-    type=click.Choice(["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex", "all"]),
+    type=click.Choice(
+        [
+            "claude-code",
+            "gemini-cli",
+            "cursor",
+            "windsurf",
+            "openai-codex",
+            "kiro",
+            "amp",
+            "openclaw",
+            "all",
+        ]
+    ),
     required=True,
     help="Agent to install hook for.",
 )
@@ -25,7 +37,16 @@ def install(agent: str) -> None:
 
     console = Console()
     agents = (
-        ["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex"]
+        [
+            "claude-code",
+            "gemini-cli",
+            "cursor",
+            "windsurf",
+            "openai-codex",
+            "kiro",
+            "amp",
+            "openclaw",
+        ]
         if agent == "all"
         else [agent]
     )
@@ -79,11 +100,30 @@ def install(agent: str) -> None:
             "or set [cyan]AVAKILL_POLICY[/cyan]."
         )
 
+    if agent in ("openclaw", "all"):
+        console.print()
+        console.print(
+            "[yellow]OpenClaw note:[/yellow] Uses a native plugin with 6 enforcement layers."
+        )
+        console.print("  Docs: https://github.com/log-bell/avakill-openclaw")
+
 
 @hook.command()
 @click.option(
     "--agent",
-    type=click.Choice(["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex", "all"]),
+    type=click.Choice(
+        [
+            "claude-code",
+            "gemini-cli",
+            "cursor",
+            "windsurf",
+            "openai-codex",
+            "kiro",
+            "amp",
+            "openclaw",
+            "all",
+        ]
+    ),
     required=True,
     help="Agent to uninstall hook for.",
 )
@@ -93,7 +133,16 @@ def uninstall(agent: str) -> None:
 
     console = Console()
     agents = (
-        ["claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex"]
+        [
+            "claude-code",
+            "gemini-cli",
+            "cursor",
+            "windsurf",
+            "openai-codex",
+            "kiro",
+            "amp",
+            "openclaw",
+        ]
         if agent == "all"
         else [agent]
     )
@@ -123,7 +172,17 @@ def list_hooks() -> None:
     table.add_column("Detected")
     table.add_column("Hook Installed")
 
-    for agent in ("claude-code", "gemini-cli", "cursor", "windsurf", "openai-codex"):
+    all_agents = (
+        "claude-code",
+        "gemini-cli",
+        "cursor",
+        "windsurf",
+        "openai-codex",
+        "kiro",
+        "amp",
+        "openclaw",
+    )
+    for agent in all_agents:
         is_detected = agent in detected
         is_installed = installed.get(agent, False)
         table.add_row(

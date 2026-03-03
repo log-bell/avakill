@@ -5,7 +5,7 @@ AvaKill enforces a single YAML policy across three independent enforcement paths
 ```
 avakill.yaml (one policy file)
     |
-    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex)
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex, Kiro, Amp, OpenClaw)
     |     → work standalone, evaluate in-process
     |
     ├── MCP Proxy (wraps MCP servers)
@@ -52,6 +52,22 @@ Each hook follows the same fallback chain:
 | Cursor | `avakill-hook-cursor` | `shell_command`, `read_file` |
 | Windsurf | `avakill-hook-windsurf` | `run_command`, `write_code`, `read_code` |
 | OpenAI Codex | `avakill-hook-openai-codex` | `shell`, `apply_patch`, `read_file` |
+| Kiro | `avakill-hook-kiro` | PreToolUse JSON with `tool_name`, `tool_input` |
+| Amp | `avakill-hook-amp` | Env var `AGENT_TOOL_NAME` + JSON args on stdin |
+| OpenClaw | `avakill-openclaw` (native plugin) | Plugin API with 6 enforcement layers |
+
+### OpenClaw native plugin
+
+OpenClaw uses a deeper integration than other agents. Instead of a hook binary, it uses a native plugin ([avakill-openclaw](https://github.com/log-bell/avakill-openclaw)) that provides 6 enforcement layers:
+
+1. **L1: Hard Block** — intercepts tool calls before execution (equivalent to standard hooks)
+2. **L2: Guard Tool** — registers an `avakill_guard` tool the agent can call to check permissions
+3. **L3: Output Scan** — scans tool results and redacts secrets
+4. **L4: Message Gate** — blocks outbound messages containing sensitive data
+5. **L5: Spawn Control** — rate-limits subagent spawning
+6. **L6: Context Inject** — injects security rules into the agent's bootstrap context
+
+This is still a hooks integration (not a fourth enforcement path). The native plugin evaluates the same `avakill.yaml` policy as all other hooks.
 
 ## MCP Proxy
 
@@ -98,7 +114,7 @@ The OS sandbox restricts what a launched process can do at the operating system 
 
 Pre-built sandbox profiles ship for common agents:
 
-- `openclaw` — high-risk agent with MCP support
+- `openclaw` — high-risk agent with MCP support (fallback — prefer [native plugin](https://github.com/log-bell/avakill-openclaw))
 - `cline` — VS Code extension agent
 - `continue` — VS Code extension agent
 - `swe-agent` — Princeton SWE-Agent

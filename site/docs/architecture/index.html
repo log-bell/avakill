@@ -978,7 +978,7 @@
 <p>AvaKill enforces a single YAML policy across three independent enforcement paths. Each path works standalone — no daemon required. The daemon adds shared evaluation, audit logging, and visibility tooling.</p>
 <div class="codehilite"><pre><span></span><code>avakill.yaml (one policy file)
     |
-    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex)
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex, Kiro, Amp)
     |     → work standalone, evaluate in-process
     |
     ├── MCP Proxy (wraps MCP servers)
@@ -1047,6 +1047,16 @@
 <td>OpenAI Codex</td>
 <td><code>avakill-hook-openai-codex</code></td>
 <td><code>shell</code>, <code>apply_patch</code>, <code>read_file</code></td>
+</tr>
+<tr>
+<td>Kiro</td>
+<td><code>avakill-hook-kiro</code></td>
+<td><code>execute_command</code>, <code>read_file</code>, <code>write_file</code></td>
+</tr>
+<tr>
+<td>Amp</td>
+<td><code>avakill-hook-amp</code></td>
+<td><code>execute_command</code>, <code>read_file</code>, <code>write_file</code></td>
 </tr>
 </tbody>
 </table>

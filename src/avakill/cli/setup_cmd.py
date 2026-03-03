@@ -29,6 +29,9 @@ _HOOK_AGENTS = (
     ("cursor", "Cursor", "~/.cursor/"),
     ("windsurf", "Windsurf", "~/.codeium/windsurf/"),
     ("openai-codex", "OpenAI Codex", "~/.codex/"),
+    ("kiro", "Kiro", "~/.kiro/"),
+    ("amp", "Amp", "~/.config/amp/"),
+    ("openclaw", "OpenClaw", "~/.openclaw/"),
 )
 
 _MCP_AGENTS = (
@@ -38,7 +41,6 @@ _MCP_AGENTS = (
 )
 
 _SANDBOX_AGENTS = (
-    ("openclaw", "OpenClaw", "~/.openclaw/"),
     ("aider", "Aider", "aider"),
     ("swe-agent", "SWE-Agent", "sweagent"),
 )
@@ -135,8 +137,8 @@ def setup() -> None:
         console.print("    [bold]No AI coding agents detected.[/bold]")
         console.print()
         console.print("    AvaKill protects agents via hooks (Claude Code, Gemini CLI,")
-        console.print("    Cursor, Windsurf, Codex), MCP proxy (Claude Desktop, Cline,")
-        console.print("    Continue), and OS sandbox (OpenClaw, Aider, SWE-Agent).")
+        console.print("    Cursor, Windsurf, Codex, Kiro, Amp), MCP proxy (Claude Desktop,")
+        console.print("    Cline, Continue), and OS sandbox (Aider, SWE-Agent).")
         console.print()
         console.print(
             "    Install a supported agent, then run [bold cyan]avakill setup[/bold cyan] again."
@@ -216,29 +218,63 @@ def setup() -> None:
         console.print("    normally \u2014 AvaKill only intervenes when a tool call matches a")
         console.print("    block rule.")
         console.print()
+        console.print("  [dim]Type numbers to toggle, Enter to confirm.[/dim]")
 
-        # Show exactly which files will be modified
-        for agent in detected_hook_agents:
-            display = _AGENT_DISPLAY[agent]
-            cfg_path = _display_config_path(agent)
-            console.print(
-                f"    \u2022 {display:<16s}\u2192 {cfg_path}",
-                style="dim",
+        # Toggle loop — all agents start selected
+        selected_hooks = set(detected_hook_agents)
+        while True:
+            console.print()
+            for i, agent in enumerate(detected_hook_agents, 1):
+                display = _AGENT_DISPLAY[agent]
+                marker = "[green]\u2713[/green]" if agent in selected_hooks else "[ ]"
+                if agent == "openclaw":
+                    target = "openclaw plugins install avakill-openclaw"
+                else:
+                    target = _display_config_path(agent)
+                console.print(f"    {i}. {marker} {display:<16s}\u2192 {target}")
+
+            console.print()
+            answer = Prompt.ask(
+                "  Toggle (Enter to install)",
+                default="",
+                console=console,
             )
 
-        console.print()
-        confirm = Prompt.ask(
-            "  Install?",
-            choices=["y", "n"],
-            default="y",
-            console=console,
-        )
+            answer = answer.strip()
+            if answer == "":
+                break
 
-        if confirm == "y":
+            # Parse space/comma-separated numbers
+            for token in answer.replace(",", " ").split():
+                try:
+                    idx = int(token) - 1
+                    if 0 <= idx < len(detected_hook_agents):
+                        agent = detected_hook_agents[idx]
+                        if agent in selected_hooks:
+                            selected_hooks.discard(agent)
+                        else:
+                            selected_hooks.add(agent)
+                except ValueError:
+                    pass
+
+        # Uninstall hooks for deselected agents
+        from avakill.hooks.installer import install_hook, uninstall_hook
+
+        for agent in detected_hook_agents:
+            if agent not in selected_hooks:
+                display = _AGENT_DISPLAY[agent]
+                try:
+                    if uninstall_hook(agent):
+                        console.print(f"    [yellow]\u2212[/yellow] {display}    hook removed")
+                except Exception:
+                    pass  # nothing to remove
+
+        if selected_hooks:
             console.print()
-            from avakill.hooks.installer import install_hook
 
             for agent in detected_hook_agents:
+                if agent not in selected_hooks:
+                    continue
                 display = _AGENT_DISPLAY[agent]
                 try:
                     result = install_hook(agent)
@@ -357,6 +393,32 @@ def setup() -> None:
     tracking_enabled = _offer_tracking(console, policy_path)
 
     # ------------------------------------------------------------------
+    # Phase 6b: Rage mode
+    # ------------------------------------------------------------------
+    console.print()
+    console.print("  [bold]Enable rage mode?[/bold]")
+    console.print()
+    console.print("    Adds colorful (sometimes explicit) messages to blocked tool calls.")
+    console.print("    Purely cosmetic — doesn't change what gets blocked.")
+    console.print()
+    rage_choice = Prompt.ask(
+        "  Enable?",
+        choices=["y", "n"],
+        default="n",
+        console=console,
+    )
+    rage_enabled = rage_choice == "y"
+    if rage_enabled:
+        console.print()
+        console.print("    \U0001f52a Rage mode enabled. Denial messages will be... colorful.")
+    else:
+        console.print()
+        console.print(
+            "    [dim]\u00b7 Rage mode off. You can enable it later:"
+            " [cyan]avakill rage on[/cyan][/dim]"
+        )
+
+    # ------------------------------------------------------------------
     # Phase 7: Verify + Summary
     # ------------------------------------------------------------------
     console.print()
@@ -370,6 +432,7 @@ def setup() -> None:
     mark_setup(
         protection_level=template_name,
         selected_rules=selected_rules if selected_rules else None,
+        rage_mode=rage_enabled,
     )
 
     # Print summary
@@ -503,7 +566,13 @@ def _print_summary(
 
     # Hooks line
     if hooks_installed:
-        names = ", ".join(_AGENT_DISPLAY.get(a, a) for a in hooks_installed)
+        parts = []
+        for a in hooks_installed:
+            name = _AGENT_DISPLAY.get(a, a)
+            if a == "openclaw":
+                name += " (native plugin)"
+            parts.append(name)
+        names = ", ".join(parts)
         console.print(f"    Hooks:      {names}")
     else:
         console.print("    Hooks:      [dim]none installed[/dim]")

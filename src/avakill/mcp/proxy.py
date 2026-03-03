@@ -272,6 +272,11 @@ class MCPProxyServer:
 
         decision = self._evaluator(eval_tool, arguments)
 
+        # Fire-and-forget: log to audit DB for standalone visibility
+        from avakill.logging.standalone import try_log_to_audit_db
+
+        try_log_to_audit_db(eval_tool, arguments, decision, agent_id=self._agent)
+
         # Emit audit event for daemon mode (Guard mode emits internally)
         if self._emit_audit:
             event = AuditEvent(
@@ -579,6 +584,11 @@ class MCPHTTPProxy:
             request_id = body.get("id")
 
             decision = self._evaluator(tool_name, arguments)
+
+            # Fire-and-forget: log to audit DB for standalone visibility
+            from avakill.logging.standalone import try_log_to_audit_db
+
+            try_log_to_audit_db(tool_name, arguments, decision, agent_id="mcp-http")
 
             if not decision.allowed:
                 reason = decision.reason or "Denied by policy"

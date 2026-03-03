@@ -32,7 +32,7 @@ No arguments or options. Launches a 5-step interactive flow:
 
 | Step | What it does |
 |------|-------------|
-| 1. Detect agents | Scans for Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex |
+| 1. Detect agents | Scans for Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, Amp |
 | 2. Create policy | Generates `avakill.yaml` from the `hooks` template |
 | 3. Install hooks | Registers AvaKill with detected agents |
 | 4. Activity tracking | Optionally enables the tracking daemon |
@@ -301,7 +301,7 @@ avakill hook install --agent AGENT
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--agent` | *(required)* | Agent to install hook for: `claude-code`, `gemini-cli`, `cursor`, `windsurf`, `openai-codex`, or `all` |
+| `--agent` | *(required)* | Agent to install hook for: `claude-code`, `gemini-cli`, `cursor`, `windsurf`, `openai-codex`, `kiro`, `amp`, or `all` |
 
 Writes the appropriate hook configuration to the agent's config directory.
 
@@ -314,6 +314,8 @@ Writes the appropriate hook configuration to the agent's config directory.
 | Cursor | `~/.cursor/hooks.json` |
 | Windsurf | `~/.windsurf/hooks.json` |
 | OpenAI Codex | `~/.codex/config.toml` |
+| Kiro | `~/.kiro/agents/avakill.json` |
+| Amp | `~/.config/amp/settings.json` |
 
 **Examples:**
 
@@ -335,7 +337,7 @@ avakill hook uninstall --agent AGENT
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--agent` | *(required)* | Agent to uninstall hook for: `claude-code`, `gemini-cli`, `cursor`, `windsurf`, `openai-codex`, or `all` |
+| `--agent` | *(required)* | Agent to uninstall hook for: `claude-code`, `gemini-cli`, `cursor`, `windsurf`, `openai-codex`, `kiro`, `amp`, or `all` |
 
 **Example:**
 
@@ -368,6 +370,8 @@ $ avakill hook list
 │ cursor      │ yes      │ no             │
 │ windsurf    │ no       │ no             │
 │ openai-codex│ no       │ no             │
+│ kiro        │ no       │ no             │
+│ amp         │ no       │ no             │
 └─────────────┴──────────┴────────────────┘
 ```
 
@@ -384,6 +388,8 @@ Installed alongside `avakill`. Called by agent hooks — you don't invoke these 
 | avakill-hook-cursor | Cursor |
 | avakill-hook-windsurf | Windsurf |
 | avakill-hook-openai-codex | OpenAI Codex |
+| avakill-hook-kiro | Kiro |
+| avakill-hook-amp | Amp |
 
 ---
 

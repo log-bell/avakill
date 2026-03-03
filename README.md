@@ -49,7 +49,7 @@ avakill setup
 
 1. **Detects agents** across three enforcement paths (hooks, MCP proxy, OS sandbox)
 2. **Creates a policy** from a catalog of 81 rules across 14 categories
-3. **Installs hooks** for detected agents (Claude Code, Cursor, Windsurf, Gemini CLI, Codex)
+3. **Installs hooks** for detected agents (Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp, OpenClaw)
 4. **Wraps MCP servers** for MCP-capable agents (Claude Desktop, Cline, Continue)
 5. **Shows sandbox commands** for agents that support OS-level containment
 6. **Enables tracking** (optional) for audit logs and diagnostics
@@ -80,7 +80,7 @@ AvaKill enforces a single YAML policy across three independent enforcement paths
 ```
 avakill.yaml (one policy file)
     |
-    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex)
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp, OpenClaw)
     |     → work standalone, evaluate in-process
     |
     ├── MCP Proxy (wraps MCP servers)
@@ -106,7 +106,7 @@ avakill.yaml (one policy file)
 <td width="50%">
 
 **Native Agent Hooks**<br>
-Drop-in hooks for Claude Code, Cursor, Windsurf, Gemini CLI, and Codex. One command to install. Works standalone — no daemon required.
+Drop-in hooks for Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp, and OpenClaw. One command to install. Works standalone — no daemon required.
 
 </td>
 </tr>
@@ -148,7 +148,7 @@ Protect AI agents with zero code changes — just install the hook:
 
 ```bash
 # Install hooks (works standalone — no daemon required)
-avakill hook install --agent claude-code  # or cursor, windsurf, gemini-cli, openai-codex, all
+avakill hook install --agent claude-code  # or cursor, windsurf, gemini-cli, openai-codex, kiro, amp, openclaw, all
 avakill hook list
 ```
 
@@ -161,6 +161,11 @@ Hooks work standalone by default — each hook evaluates policies in-process. Po
 | Windsurf | Supported |
 | Gemini CLI | Supported |
 | OpenAI Codex | Supported |
+| Kiro | Supported |
+| Amp | Supported |
+| OpenClaw | Native plugin (6-layer) |
+
+**OpenClaw native plugin:** OpenClaw uses a dedicated plugin ([avakill-openclaw](https://github.com/log-bell/avakill-openclaw)) with 6 enforcement layers — hard block, guard tool, output scanning, message gate, spawn control, and context injection. Install with `openclaw plugins install avakill-openclaw`. Sandbox is available as a fallback via `avakill launch --agent openclaw`.
 
 ### MCP Proxy
 
@@ -183,7 +188,7 @@ avakill profile show aider              # See what a profile restricts
 avakill launch --agent aider -- aider   # Launch with OS sandbox
 ```
 
-Profiles ship for OpenClaw, Cline, Continue, SWE-Agent, and Aider.
+Profiles ship for OpenClaw (fallback — prefer the [native plugin](https://github.com/log-bell/avakill-openclaw)), Cline, Continue, SWE-Agent, and Aider.
 
 ### Python SDK
 
@@ -374,7 +379,7 @@ avakill validate generated-policy.yaml     # Validate the LLM's output
 
 - [x] Core policy engine with glob patterns, argument matching, rate limiting
 - [x] Interactive setup wizard with 81-rule catalog (`avakill setup`)
-- [x] Native agent hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex)
+- [x] Native agent hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp, OpenClaw)
 - [x] MCP proxy with `avakill mcp-wrap` and `avakill-shim` (Go binary)
 - [x] OS-level sandboxing — Landlock, sandbox-exec, Tetragon, AppContainer
 - [x] Standalone hook mode (no daemon required)

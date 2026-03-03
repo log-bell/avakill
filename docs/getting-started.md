@@ -90,6 +90,9 @@ Scanning your machine...
       · Cursor            not detected
       · Windsurf          not detected
       ✓ OpenAI Codex      ~/.codex/
+      · Kiro              not detected
+      · Amp               not detected
+      ✓ OpenClaw          ~/.openclaw/
 
     MCP Proxy (wrap MCP servers):
       ✓ Claude Desktop    ~/Library/Application Support/Claude/
@@ -97,7 +100,6 @@ Scanning your machine...
       · Continue.dev      not detected
 
     OS Sandbox (avakill launch):
-      ✓ OpenClaw          ~/.openclaw/
       · Aider             not detected
       · SWE-Agent         not detected
 ```
@@ -171,7 +173,7 @@ At the end you'll see something like:
 
 #### Step 3: Hook installation
 
-For each detected hook agent, setup shows the exact config file it will modify:
+For each detected hook agent, setup shows the exact config file it will modify. All agents start selected — type numbers to toggle individual agents off (or back on), then press Enter to install:
 
 ```
 Install hooks for your detected agents?
@@ -180,14 +182,23 @@ Install hooks for your detected agents?
   normally — AvaKill only intervenes when a tool call matches a
   block rule.
 
-  • Claude Code     → ~/.claude/settings.json
-  • Gemini CLI      → .gemini/settings.json
-  • OpenAI Codex    → ~/.codex/config.toml
+  Type numbers to toggle, Enter to confirm.
 
-Install? [y/n] (y):
+    1. ✓ Claude Code     → ~/.claude/settings.json
+    2. ✓ Gemini CLI      → .gemini/settings.json
+    3. ✓ OpenAI Codex    → ~/.codex/config.toml
+    4. ✓ Kiro            → ~/.kiro/agents/avakill.json
+    5. ✓ Amp             → ~/.config/amp/settings.json
+    6. ✓ OpenClaw        → openclaw plugins install avakill-openclaw
+
+  Toggle (Enter to install):
 ```
 
+Type `2` to deselect Gemini CLI, then Enter to install the remaining agents. Multiple numbers work too — `2 5` deselects both Gemini and Amp. If you deselect everything and press Enter, hook installation is skipped.
+
 Each hook is smoke-tested after installation to verify `avakill` is on your PATH. If you skip this step, you can install later with `avakill hook install --agent all`.
+
+> **OpenClaw note:** OpenClaw uses a native plugin ([avakill-openclaw](https://github.com/log-bell/avakill-openclaw)) with 6 enforcement layers — hard block, guard tool, output scanning, message gate, spawn control, and context injection. This is deeper than a standard hook and is the preferred integration path. Sandbox (`avakill launch --agent openclaw`) is available as a fallback.
 
 #### Step 4: MCP wrapping
 
@@ -207,7 +218,7 @@ If servers are already wrapped, setup reports their status. Unwrapped servers ar
 
 #### Step 5: OS Sandbox guidance
 
-If sandbox-capable agents were detected (OpenClaw, Aider, SWE-Agent), setup shows how to launch them:
+If sandbox-capable agents were detected (Aider, SWE-Agent), setup shows how to launch them:
 
 ```
 OS Sandbox agents detected
@@ -215,10 +226,10 @@ OS Sandbox agents detected
   These agents are protected by running them through AvaKill's
   OS-level sandbox. No config changes needed — just launch with:
 
-  • OpenClaw        avakill launch --agent openclaw
+  • Aider           avakill launch --agent aider
 ```
 
-No configuration is needed -- OS sandboxing is applied at launch time.
+No configuration is needed -- OS sandboxing is applied at launch time. OpenClaw uses a native plugin as its primary protection path; sandbox is available as a fallback via `avakill launch --agent openclaw`.
 
 #### Step 6: Activity tracking
 
@@ -252,9 +263,8 @@ Setup complete. Your agents are now protected.
 
   Policy:     avakill.yaml (67 rules)
   Tracking:   off
-  Hooks:      Claude Code, Gemini CLI, OpenAI Codex
+  Hooks:      Claude Code, Gemini CLI, OpenAI Codex, OpenClaw (native plugin)
   MCP:        Claude Desktop
-  Sandbox:    OpenClaw (protect with: avakill launch --agent openclaw)
 
 If something gets blocked:
   Run  avakill fix            to see why and how to fix it
@@ -512,7 +522,7 @@ See the [API Reference](api-reference.md) for the full `Guard` constructor optio
 
 ## 3. Protect AI Coding Agents
 
-This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, and OpenAI Codex. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an `avakill.yaml` policy file from Section 1 (or written by hand) and one install command.
+This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, Amp, and OpenClaw. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an `avakill.yaml` policy file from Section 1 (or written by hand) and one install command.
 
 Two paths to get started:
 
@@ -585,6 +595,33 @@ Use `shell_safe` and `command_allowlist` to control shell access:
 ```
 
 See the [Policy Reference](policy-reference.md) for the full list of conditions.
+
+### OpenClaw
+
+OpenClaw uses a native plugin instead of a standard hook. The plugin provides 6 enforcement layers:
+
+| Layer | What It Does |
+|-------|-------------|
+| **L1: Hard Block** | Blocks dangerous tool calls before they run |
+| **L2: Guard Tool** | Agent checks permissions before risky operations |
+| **L3: Output Scan** | Redacts secrets (API keys, tokens) from tool results |
+| **L4: Message Gate** | Blocks outbound messages containing secrets |
+| **L5: Spawn Control** | Rate-limits subagent spawning (prevents fork bombs) |
+| **L6: Context Inject** | Teaches agents the security rules at session start |
+
+Install the plugin:
+
+```bash
+openclaw plugins install avakill-openclaw
+```
+
+The plugin activates immediately and auto-discovers `avakill.yaml` in your project root. For full documentation, see the [avakill-openclaw repo](https://github.com/log-bell/avakill-openclaw):
+
+- [Getting Started](https://github.com/log-bell/avakill-openclaw/blob/main/docs/getting-started.md)
+- [Policy Guide](https://github.com/log-bell/avakill-openclaw/blob/main/docs/policy-guide.md)
+- [Troubleshooting](https://github.com/log-bell/avakill-openclaw/blob/main/docs/troubleshooting.md)
+
+OS sandbox (`avakill launch --agent openclaw`) is available as a fallback if you prefer OS-level enforcement.
 
 Your coding agents are now protected by AvaKill hooks. Section 4 covers monitoring — viewing audit logs and testing tool calls from the CLI.
 

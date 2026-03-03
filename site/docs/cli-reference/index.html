@@ -1030,7 +1030,7 @@
 <tbody>
 <tr>
 <td>1. Detect agents</td>
-<td>Scans for Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex</td>
+<td>Scans for Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, Amp</td>
 </tr>
 <tr>
 <td>2. Create policy</td>
@@ -1442,7 +1442,7 @@ avakill<span class="w"> </span>fix<span class="w"> </span>--db<span class="w"> <
 <tr>
 <td><code>--agent</code></td>
 <td><em>(required)</em></td>
-<td>Agent to install hook for: <code>claude-code</code>, <code>gemini-cli</code>, <code>cursor</code>, <code>windsurf</code>, <code>openai-codex</code>, or <code>all</code></td>
+<td>Agent to install hook for: <code>claude-code</code>, <code>gemini-cli</code>, <code>cursor</code>, <code>windsurf</code>, <code>openai-codex</code>, <code>kiro</code>, <code>amp</code>, or <code>all</code></td>
 </tr>
 </tbody>
 </table>
@@ -1476,6 +1476,14 @@ avakill<span class="w"> </span>fix<span class="w"> </span>--db<span class="w"> <
 <td>OpenAI Codex</td>
 <td><code>~/.codex/config.toml</code></td>
 </tr>
+<tr>
+<td>Kiro</td>
+<td><code>~/.kiro/settings/hooks.json</code></td>
+</tr>
+<tr>
+<td>Amp</td>
+<td><code>~/.amp/settings.json</code></td>
+</tr>
 </tbody>
 </table>
 <p><strong>Examples:</strong></p>
@@ -1502,7 +1510,7 @@ avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w
 <tr>
 <td><code>--agent</code></td>
 <td><em>(required)</em></td>
-<td>Agent to uninstall hook for: <code>claude-code</code>, <code>gemini-cli</code>, <code>cursor</code>, <code>windsurf</code>, <code>openai-codex</code>, or <code>all</code></td>
+<td>Agent to uninstall hook for: <code>claude-code</code>, <code>gemini-cli</code>, <code>cursor</code>, <code>windsurf</code>, <code>openai-codex</code>, <code>kiro</code>, <code>amp</code>, or <code>all</code></td>
 </tr>
 </tbody>
 </table>
@@ -1528,6 +1536,8 @@ avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w
 │<span class="w"> </span>cursor<span class="w">      </span>│<span class="w"> </span>yes<span class="w">      </span>│<span class="w"> </span>no<span class="w">             </span>│
 │<span class="w"> </span>windsurf<span class="w">    </span>│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
 │<span class="w"> </span>openai-codex│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
+│<span class="w"> </span>kiro<span class="w">        </span>│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
+│<span class="w"> </span>amp<span class="w">         </span>│<span class="w"> </span>no<span class="w">       </span>│<span class="w"> </span>no<span class="w">             </span>│
 └─────────────┴──────────┴────────────────┘
 </code></pre></div>
 
@@ -1561,6 +1571,14 @@ avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w
 <tr>
 <td>avakill-hook-openai-codex</td>
 <td>OpenAI Codex</td>
+</tr>
+<tr>
+<td>avakill-hook-kiro</td>
+<td>Kiro</td>
+</tr>
+<tr>
+<td>avakill-hook-amp</td>
+<td>Amp</td>
 </tr>
 </tbody>
 </table>

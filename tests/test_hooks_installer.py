@@ -111,8 +111,12 @@ class TestInstallHook:
         install_hook("cursor", config_path=config_path)
 
         data = json.loads(config_path.read_text())
-        hooks = data["hooks"]["beforeShellExecution"]
-        assert len(hooks) == 1
+        # All 4 events should be registered.
+        for event in ("beforeShellExecution", "beforeMCPExecution", "beforeReadFile", "preToolUse"):
+            hooks = data["hooks"][event]
+            assert len(hooks) == 1, f"expected 1 hook for {event}"
+        # version field must be present.
+        assert data["version"] == 1
 
     def test_install_windsurf_creates_hooks_json(self, tmp_path: Path) -> None:
         config_path = tmp_path / "hooks.json"
@@ -164,6 +168,19 @@ class TestUninstallHook:
     def test_uninstall_nonexistent_returns_false(self, tmp_path: Path) -> None:
         config_path = tmp_path / "settings.json"
         assert uninstall_hook("claude-code", config_path=config_path) is False
+
+    def test_uninstall_cursor_removes_all_events(self, tmp_path: Path) -> None:
+        config_path = tmp_path / ".cursor" / "hooks.json"
+        install_hook("cursor", config_path=config_path)
+        assert uninstall_hook("cursor", config_path=config_path) is True
+
+        data = json.loads(config_path.read_text())
+        for event in ("beforeShellExecution", "beforeMCPExecution", "beforeReadFile", "preToolUse"):
+            assert len(data["hooks"][event]) == 0, f"expected 0 hooks for {event}"
+
+    def test_uninstall_cursor_returns_false_when_not_installed(self, tmp_path: Path) -> None:
+        config_path = tmp_path / ".cursor" / "hooks.json"
+        assert uninstall_hook("cursor", config_path=config_path) is False
 
 
 class TestCursorConfigPathLazy:

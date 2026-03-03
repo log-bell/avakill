@@ -772,8 +772,10 @@ Abstract base class for all hook adapters.
 | `CursorAdapter` | `cursor` | beforeShellExecution | `continue: false` in JSON (always exit 0) |
 | `WindsurfAdapter` | `windsurf` | pre_run_command | Exit code 2 + reason on stderr |
 | `OpenAICodexAdapter` | `openai-codex` | before_tool_use | Exit code 1 + JSON `{"decision": "block"}` |
+| `KiroAdapter` | `kiro` | PreToolUse | Exit code 2 + reason on stderr |
+| `AmpAdapter` | `amp` | pre_tool_use | Exit code 2 + stderr (deny), exit 1 (ask) |
 
-Each adapter has a corresponding console script entry point: `avakill-hook-claude-code`, `avakill-hook-gemini-cli`, `avakill-hook-cursor`, `avakill-hook-windsurf`, `avakill-hook-openai-codex`.
+Each adapter has a corresponding console script entry point: `avakill-hook-claude-code`, `avakill-hook-gemini-cli`, `avakill-hook-cursor`, `avakill-hook-windsurf`, `avakill-hook-openai-codex`, `avakill-hook-kiro`, `avakill-hook-amp`.
 
 **Standalone mode:** If the daemon is unreachable, adapters fall back to standalone evaluation using the policy file at `AVAKILL_POLICY` environment variable.
 

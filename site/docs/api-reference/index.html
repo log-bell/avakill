@@ -2301,9 +2301,21 @@
 <td>before_tool_use</td>
 <td>Exit code 1 + JSON <code>{"decision": "block"}</code></td>
 </tr>
+<tr>
+<td><code>KiroAdapter</code></td>
+<td><code>kiro</code></td>
+<td>PreToolUse</td>
+<td><code>permissionDecision: "deny"</code> in JSON</td>
+</tr>
+<tr>
+<td><code>AmpAdapter</code></td>
+<td><code>amp</code></td>
+<td>PreToolUse</td>
+<td><code>permissionDecision: "deny"</code> in JSON</td>
+</tr>
 </tbody>
 </table>
-<p>Each adapter has a corresponding console script entry point: <code>avakill-hook-claude-code</code>, <code>avakill-hook-gemini-cli</code>, <code>avakill-hook-cursor</code>, <code>avakill-hook-windsurf</code>, <code>avakill-hook-openai-codex</code>.</p>
+<p>Each adapter has a corresponding console script entry point: <code>avakill-hook-claude-code</code>, <code>avakill-hook-gemini-cli</code>, <code>avakill-hook-cursor</code>, <code>avakill-hook-windsurf</code>, <code>avakill-hook-openai-codex</code>, <code>avakill-hook-kiro</code>, <code>avakill-hook-amp</code>.</p>
 <p><strong>Standalone mode:</strong> If the daemon is unreachable, adapters fall back to standalone evaluation using the policy file at <code>AVAKILL_POLICY</code> environment variable.</p>
 <hr />
 <h2 id="enforcement-backends">Enforcement Backends</h2>

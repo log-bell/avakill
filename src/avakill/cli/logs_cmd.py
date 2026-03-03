@@ -168,8 +168,18 @@ async def _tail_events(
         await logger.close()
 
 
+def _default_audit_db() -> str:
+    """Return the audit DB path from config, falling back to ~/.avakill/audit.db."""
+    try:
+        from avakill.cli.config import get_audit_db_path
+
+        return get_audit_db_path()
+    except Exception:  # noqa: BLE001
+        return "~/.avakill/audit.db"
+
+
 @click.group(invoke_without_command=True)
-@click.option("--db", default="avakill_audit.db", help="Path to the audit database.")
+@click.option("--db", default=None, help="Path to the audit database.")
 @click.option("--tool", default=None, help="Filter by tool name (supports globs).")
 @click.option("--limit", default=50, help="Maximum number of log entries to display.")
 @click.option("--denied-only", is_flag=True, help="Show only denied events.")
@@ -199,6 +209,10 @@ def logs(
     ctx.obj["session"] = session
     ctx.obj["since"] = since
     ctx.obj["fmt"] = "json" if fmt else "table"
+
+    if db is None:
+        db = _default_audit_db()
+    ctx.obj["db"] = db
 
     if ctx.invoked_subcommand is not None:
         return

@@ -210,6 +210,17 @@ class HookAdapter(ABC):
         decision = guard.evaluate(tool=canonical_tool, args=request.args)
         latency = (time.perf_counter() - t0) * 1000
 
+        # Fire-and-forget: log to audit DB if tracking is enabled
+        from avakill.logging.standalone import try_log_to_audit_db
+
+        try_log_to_audit_db(
+            canonical_tool,
+            request.args,
+            decision,
+            agent_id=request.agent,
+            latency_ms=round(latency, 2),
+        )
+
         return EvaluateResponse(
             decision=decision.action,
             reason=decision.reason,

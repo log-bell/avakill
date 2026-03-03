@@ -1,5 +1,15 @@
 {
   "hooks": {
-    "BeforeTool": []
+    "BeforeTool": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ablecoffee/.local/bin/avakill-hook-gemini-cli"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -54,6 +54,7 @@ def mark_setup(
     *,
     protection_level: str,
     selected_rules: list[str] | None = None,
+    rage_mode: bool = False,
 ) -> None:
     """Record that setup was completed."""
     data = _read()
@@ -64,6 +65,7 @@ def mark_setup(
         data["selected_rules"] = selected_rules
     if "audit_db" not in data:
         data["audit_db"] = _DEFAULT_AUDIT_DB
+    data["rage_mode"] = rage_mode
     _write(data)
 
 
@@ -77,6 +79,13 @@ def set_selected_rules(rule_ids: list[str]) -> None:
     """Save selected rule IDs to config."""
     data = _read()
     data["selected_rules"] = rule_ids
+    _write(data)
+
+
+def set_rage_mode(enabled: bool) -> None:
+    """Toggle rage mode on or off."""
+    data = _read()
+    data["rage_mode"] = enabled
     _write(data)
 
 

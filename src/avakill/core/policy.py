@@ -199,14 +199,18 @@ class PolicyEngine:
             # Rule matches — check rate limit before returning decision
             if rule.rate_limit and not self._check_rate_limit(tool_call, rule.rate_limit):
                 elapsed = (time.monotonic() - start) * 1000
+                from avakill.core.rage import ragify
+
+                rl_reason = ragify(
+                    rule.name,
+                    f"Rate limit exceeded: {rule.rate_limit.max_calls} calls "
+                    f"per {rule.rate_limit.window}",
+                )
                 decision = Decision(
                     allowed=False,
                     action="deny",
                     policy_name=rule.name,
-                    reason=(
-                        f"Rate limit exceeded: {rule.rate_limit.max_calls} calls "
-                        f"per {rule.rate_limit.window}"
-                    ),
+                    reason=rl_reason,
                     latency_ms=elapsed,
                 )
                 raise RateLimitExceeded(tool_call.tool_name, decision)
@@ -231,6 +235,11 @@ class PolicyEngine:
             if rule.enforcement == "soft" and not allowed:
                 reason = f"[overridable] {reason}"
                 overridable = True
+
+            if not allowed:
+                from avakill.core.rage import ragify
+
+                reason = ragify(rule.name, reason)
 
             return Decision(
                 allowed=allowed,

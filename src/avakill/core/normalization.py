@@ -36,8 +36,18 @@ AGENT_TOOL_MAP: dict[str, dict[str, str]] = {
         "web_fetch": "web_fetch",
     },
     "cursor": {
+        # Legacy event tool names (beforeShellExecution, beforeReadFile)
         "shell_command": "shell_execute",
         "read_file": "file_read",
+        # preToolUse tool names (Cursor's internal names)
+        "Shell": "shell_execute",
+        "Read": "file_read",
+        "Write": "file_write",
+        "Edit": "file_edit",
+        "Grep": "content_search",
+        "Delete": "file_delete",
+        "MCP": "mcp_tool",
+        "Task": "agent_spawn",
     },
     "windsurf": {
         "run_command": "shell_execute",

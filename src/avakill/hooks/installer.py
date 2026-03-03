@@ -18,9 +18,11 @@ from pathlib import Path
 
 def _cursor_installed() -> bool:
     """Check if Cursor is installed."""
+    if Path.home().joinpath(".cursor").is_dir():
+        return True
     if platform.system() == "Darwin":
         return Path("/Applications/Cursor.app").exists()
-    return shutil.which("cursor") is not None or Path.home().joinpath(".cursor").is_dir()
+    return shutil.which("cursor") is not None
 
 
 def _windsurf_installed() -> bool:
@@ -63,6 +65,10 @@ AGENT_DETECTORS: dict[str, Callable[[], bool]] = {
     "openai-codex": lambda: (
         Path.home().joinpath(".codex").is_dir() or shutil.which("codex") is not None
     ),
+    "kiro": lambda: Path.home().joinpath(".kiro").is_dir() or shutil.which("kiro") is not None,
+    "amp": lambda: (
+        Path.home().joinpath(".config", "amp").is_dir() or shutil.which("amp") is not None
+    ),
 }
 
 
@@ -88,7 +94,7 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         },
     },
     "gemini-cli": {
-        "config_path": lambda: Path.cwd() / ".gemini" / "settings.json",
+        "config_path": Path.home() / ".gemini" / "settings.json",
         "event": "BeforeTool",
         "hook_entry": lambda cmd: {
             "matcher": ".*",
@@ -96,8 +102,13 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         },
     },
     "cursor": {
-        "config_path": lambda: Path.cwd() / ".cursor" / "hooks.json",
-        "event": "beforeShellExecution",
+        "config_path": Path.home() / ".cursor" / "hooks.json",
+        "events": [
+            "beforeShellExecution",
+            "beforeMCPExecution",
+            "beforeReadFile",
+            "preToolUse",
+        ],
         "hook_entry": lambda cmd: {"command": cmd},
     },
     "windsurf": {
@@ -110,6 +121,26 @@ _AGENT_CONFIG: dict[str, dict[str, object]] = {
         "event": "before_tool_use",
         "pending_upstream": True,
         "hook_entry": lambda cmd: {"command": cmd},
+    },
+    "kiro": {
+        "config_path": Path.home() / ".kiro" / "agents" / "avakill.json",
+        "event": "preToolUse",
+        "hook_entry": lambda cmd: {"command": cmd},
+    },
+    "amp": {
+        "config_path": Path.home() / ".config" / "amp" / "settings.json",
+        "event": "permissions",
+        "hook_entry": lambda cmd: {
+            "tool": "*",
+            "action": "delegate",
+            "to": cmd,
+        },
+    },
+    "openclaw": {
+        "config_path": Path.home() / ".openclaw" / "openclaw.json",
+        "plugin_install": "openclaw plugins install avakill-openclaw",
+        "plugin_uninstall": "openclaw plugins uninstall avakill-openclaw",
+        "plugin_check": "avakill-openclaw",
     },
 }
 
@@ -156,6 +187,10 @@ def _is_avakill_entry(entry: dict[str, object]) -> bool:
     # Check command field directly.
     cmd = entry.get("command", "")
     if isinstance(cmd, str) and "avakill" in cmd:
+        return True
+    # Check "to" field (Amp's delegation shape).
+    to = entry.get("to", "")
+    if isinstance(to, str) and "avakill" in to:
         return True
     # Check nested hooks list (Claude Code / Gemini CLI shape).
     hooks = entry.get("hooks", [])
@@ -238,8 +273,42 @@ def install_hook(agent: str, config_path: Path | None = None) -> HookInstallResu
 
         return result
 
+    # OpenClaw uses a native plugin system — install via `openclaw plugins install`.
+    if cfg.get("plugin_install"):
+        path = config_path or _resolve_config_path(cfg)
+        install_cmd = str(cfg["plugin_install"])
+        result = HookInstallResult(config_path=path, command=install_cmd)
+
+        if not shutil.which("openclaw"):
+            result.warnings.append(
+                "OpenClaw CLI not found on PATH. "
+                "Install it first, then run: avakill hook install --agent openclaw"
+            )
+            return result
+
+        try:
+            proc = subprocess.run(
+                install_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if proc.returncode != 0:
+                stderr = proc.stderr.strip()
+                result.warnings.append(
+                    f"Plugin install returned exit code {proc.returncode}"
+                    + (f": {stderr}" if stderr else "")
+                )
+            result.smoke_test_passed = proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            result.warnings.append(f"Plugin install failed: {exc}")
+            result.smoke_test_passed = False
+
+        return result
+
     path = config_path or _resolve_config_path(cfg)
-    event: str = cfg["event"]  # type: ignore[assignment]
+    events: list[str] = cfg.get("events") or [cfg["event"]]  # type: ignore[assignment]
     make_entry: Callable[[str], dict[str, object]] = cfg["hook_entry"]  # type: ignore[assignment]
 
     cmd = _hook_command(agent)
@@ -258,13 +327,23 @@ def install_hook(agent: str, config_path: Path | None = None) -> HookInstallResu
     path.parent.mkdir(parents=True, exist_ok=True)
     data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
-    # Ensure hooks section exists.
-    hooks = data.setdefault("hooks", {})
-    event_hooks = hooks.setdefault(event, [])
+    # Cursor hooks.json requires a version field.
+    if "events" in cfg:
+        data.setdefault("version", 1)
 
-    # Idempotent: don't duplicate if already present.
-    if not any(_is_avakill_entry(e) for e in event_hooks):
-        event_hooks.append(entry)
+    # Amp uses a different JSON structure: amp.permissions[] instead of hooks.event[]
+    if agent == "amp":
+        amp_cfg = data.setdefault("amp", {})
+        perms = amp_cfg.setdefault("permissions", [])
+        if not any(_is_avakill_entry(e) for e in perms):
+            perms.append(entry)
+    else:
+        # Standard hooks.event[] structure — register for each event.
+        hooks = data.setdefault("hooks", {})
+        for event in events:
+            event_hooks = hooks.setdefault(event, [])
+            if not any(_is_avakill_entry(e) for e in event_hooks):
+                event_hooks.append(entry)
 
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
@@ -310,24 +389,54 @@ def uninstall_hook(agent: str, config_path: Path | None = None) -> bool:
         raise KeyError(f"unknown agent: {agent!r}")
 
     cfg = _AGENT_CONFIG[agent]
+
+    # OpenClaw uses a native plugin system — uninstall via `openclaw plugins uninstall`.
+    if cfg.get("plugin_uninstall"):
+        uninstall_cmd = str(cfg["plugin_uninstall"])
+        if not shutil.which("openclaw"):
+            return False
+        try:
+            proc = subprocess.run(
+                uninstall_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            return proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
     path = config_path or _resolve_config_path(cfg)
-    event: str = cfg["event"]  # type: ignore[assignment]
+    events: list[str] = cfg.get("events") or [cfg["event"]]  # type: ignore[assignment]
 
     if not path.exists():
         return False
 
     data = json.loads(path.read_text(encoding="utf-8"))
-    hooks = data.get("hooks", {})
-    event_hooks = hooks.get(event, [])
 
-    original_len = len(event_hooks)
-    event_hooks[:] = [e for e in event_hooks if not _is_avakill_entry(e)]
+    # Amp uses amp.permissions[] instead of hooks.event[]
+    if agent == "amp":
+        perms = data.get("amp", {}).get("permissions", [])
+        original_len = len(perms)
+        perms[:] = [e for e in perms if not _is_avakill_entry(e)]
+        if len(perms) == original_len:
+            return False
+        data.setdefault("amp", {})["permissions"] = perms
+    else:
+        hooks = data.get("hooks", {})
+        removed_any = False
+        for event in events:
+            event_hooks = hooks.get(event, [])
+            original_len = len(event_hooks)
+            event_hooks[:] = [e for e in event_hooks if not _is_avakill_entry(e)]
+            if len(event_hooks) < original_len:
+                removed_any = True
+            hooks[event] = event_hooks
+        if not removed_any:
+            return False
+        data["hooks"] = hooks
 
-    if len(event_hooks) == original_len:
-        return False
-
-    hooks[event] = event_hooks
-    data["hooks"] = hooks
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return True
 
@@ -336,13 +445,37 @@ def list_installed_hooks() -> dict[str, bool]:
     """Return ``{agent: is_installed}`` for all known agents."""
     result: dict[str, bool] = {}
     for agent, cfg in _AGENT_CONFIG.items():
+        # OpenClaw uses a native plugin system — check config for plugin entry.
+        if cfg.get("plugin_check"):
+            path = _resolve_config_path(cfg)
+            installed = False
+            if path.exists():
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                    plugin_name = str(cfg["plugin_check"])
+                    plugins = data.get("plugins", {}).get("entries", {})
+                    if plugin_name in plugins:
+                        entry = plugins[plugin_name]
+                        installed = entry.get("enabled", True) if isinstance(entry, dict) else True
+                except (json.JSONDecodeError, OSError):
+                    pass
+            result[agent] = installed
+            continue
+
         path = _resolve_config_path(cfg)
         installed = False
         if path.exists():
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
-                event: str = cfg["event"]  # type: ignore[assignment]
-                for entry in data.get("hooks", {}).get(event, []):
+                # Amp uses amp.permissions[] instead of hooks.event[]
+                if agent == "amp":
+                    entries = data.get("amp", {}).get("permissions", [])
+                else:
+                    events: list[str] = cfg.get("events") or [cfg["event"]]  # type: ignore[assignment]
+                    entries = []
+                    for ev in events:
+                        entries.extend(data.get("hooks", {}).get(ev, []))
+                for entry in entries:
                     if _is_avakill_entry(entry):
                         installed = True
                         break

@@ -7,7 +7,7 @@ agent:
     - "~/.openclaw/config.json"
   detect_commands:
     - "openclaw"
-  supports_hooks: false
+  supports_hooks: true
   mcp_native: true
   description: >-
     High-risk AI agent with native MCP support and a history of

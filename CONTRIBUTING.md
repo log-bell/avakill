@@ -50,7 +50,7 @@ AvaKill enforces a single YAML policy across three independent enforcement paths
 ```
 avakill.yaml (one policy file)
     |
-    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex)
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp)
     |     → work standalone, evaluate in-process
     |
     ├── MCP Proxy (wraps MCP servers)
