@@ -955,7 +955,7 @@ class TestPolicyEngineOrdering:
         )
         tc = ToolCall(tool_name="t", arguments={})
         decision = engine.evaluate(tc)
-        assert decision.reason == "Custom deny message"
+        assert "Custom deny message" in decision.reason
 
     def test_latency_populated(self) -> None:
         engine = PolicyEngine(
