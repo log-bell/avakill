@@ -117,9 +117,9 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding-top: 0;
+      padding-top: 80px;
       text-align: center;
-      max-width: 864px;
+      max-width: 1000px;
       margin: 0 auto;
       padding-left: 24px;
       padding-right: 24px;
@@ -289,7 +289,7 @@
       font-size: 1.05rem;
       line-height: 1.7;
       margin-bottom: 36px;
-      animation: heroFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s forwards;
+      animation: heroFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.9s forwards;
       opacity: 0;
     }
 
@@ -310,9 +310,10 @@
       color: var(--text-secondary);
       cursor: pointer;
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
-      animation: heroFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+      animation: heroFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s forwards;
       opacity: 0;
       text-decoration: none;
+      margin-bottom: 32px;
     }
 
     .hero-pill:hover {
@@ -345,6 +346,35 @@
 
     .hero-pill:hover .arrow {
       transform: translateX(3px);
+    }
+
+    /* ---- Demo Video ---- */
+    .hero-video {
+      width: 100%;
+      max-width: 1200px;
+      margin-bottom: 36px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      background: var(--code-bg);
+      box-shadow: 0 0 60px rgba(0, 212, 255, 0.10),
+                  0 0 120px rgba(0, 212, 255, 0.04);
+      animation: heroFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s forwards;
+      opacity: 0;
+    }
+
+    .hero-video-chrome {
+      height: 40px;
+      background: #161B22;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+    }
+
+    .hero-video video {
+      display: block;
+      width: 100%;
+      height: auto;
     }
 
     /* =========================================================
@@ -1717,6 +1747,16 @@
         gap: 8px;
       }
 
+      .hero-video {
+        max-width: 100%;
+        border-radius: 8px;
+      }
+
+      .hero-video-chrome {
+        height: 32px;
+        padding: 0 12px;
+      }
+
       .quickstart {
         padding-top: 72px;
       }
@@ -1877,16 +1917,29 @@
 
     <p class="hero-tagline">The AI Safety Firewall.</p>
 
-    <div class="hero-desc">
-      <p>One YAML policy. Three independent enforcement paths. Every agent protected. Each path works standalone &mdash; no daemon required, no single point of failure.</p>
-      <p>Native hooks for Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, and Amp. MCP proxy for tool servers. OS-level sandboxing. &lt;1ms overhead.</p>
-    </div>
-
     <a href="https://pypi.org/project/avakill/" class="hero-pill">
       <span class="badge">New</span>
       <span class="pill-text">AvaKill v1.1.0 — Ship Agents Safely</span>
       <span class="arrow">&rarr;</span>
     </a>
+
+    <div class="hero-video">
+      <div class="hero-video-chrome">
+        <div class="terminal-dots">
+          <span class="terminal-dot terminal-dot--red"></span>
+          <span class="terminal-dot terminal-dot--yellow"></span>
+          <span class="terminal-dot terminal-dot--green"></span>
+        </div>
+      </div>
+      <video muted loop playsinline controls>
+        <source src="https://avakill-demo-video.b-cdn.net/avakill_demo.mp4" type="video/mp4">
+      </video>
+    </div>
+
+    <div class="hero-desc">
+      <p>One YAML policy. Three independent enforcement paths. Every agent protected. Each path works standalone &mdash; no daemon required, no single point of failure.</p>
+      <p>Native hooks for Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, and Amp. MCP proxy for tool servers. OS-level sandboxing. &lt;1ms overhead.</p>
+    </div>
   </section>
 
   <!-- Testimonials Section (placeholder — add real testimonials when available) -->
@@ -2169,6 +2222,22 @@
        JavaScript: Particles + Nav scroll behavior
        ===================================================== -->
   <script>
+    /* ----- Hero Video: play on 80% visible ----- */
+    (function() {
+      const video = document.querySelector('.hero-video video');
+      if (!video) return;
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            video.play();
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.8 });
+      observer.observe(video);
+    })();
+
     /* ----- Particle System ----- */
     const canvas = document.getElementById('particle-canvas');
     const ctx = canvas.getContext('2d');
