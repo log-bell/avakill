@@ -157,3 +157,27 @@ policies:
         - file
         - stat
     message: "Safe shell commands allowed (no metacharacters)"
+
+# # OS-level sandbox restrictions (uncomment to enable)
+# # Used with: avakill launch --policy avakill.yaml -- <agent>
+# sandbox:
+#   allow_paths:
+#     read:
+#       - /usr
+#       - /bin
+#       - /sbin
+#       - /private/etc/ssl
+#       - /Library/Apple
+#       - /System
+#     write:
+#       - /tmp
+#       - .    # current directory
+#     execute:
+#       - /usr/bin
+#       - /bin
+#   allow_network:
+#     connect:
+#       - "api.anthropic.com:443"
+#       - "api.openai.com:443"
+#       - "generativelanguage.googleapis.com:443"
+#       - "api.github.com:443"

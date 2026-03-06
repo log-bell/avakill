@@ -107,30 +107,7 @@ def launch(
 
     if dry_run:
         result = launcher.launch(cmd_list or ["echo", "dry-run"], dry_run=True)
-
-        # On macOS with sandbox-exec, show the generated SBPL profile
-        sbpl_profile = result.sandbox_features.get("sbpl_profile")
-        if sbpl_profile:
-            click.echo("Generated sandbox-exec profile (.sb):")
-            click.echo(sbpl_profile)
-            return
-
-        click.echo("Sandbox dry-run report:")
-        if profile:
-            click.echo(f"  Agent profile: {profile.agent.name}")
-        fs_avail = result.sandbox_features.get("filesystem", False)
-        click.echo(f"  Platform sandbox available: {fs_avail}")
-        click.echo(f"  Features: {result.sandbox_features}")
-        if config.sandbox:
-            click.echo(f"  Allowed read paths: {config.sandbox.allow_paths.read}")
-            click.echo(f"  Allowed write paths: {config.sandbox.allow_paths.write}")
-            click.echo(f"  Allowed executables: {config.sandbox.allow_paths.execute}")
-            click.echo(f"  Allowed network: {config.sandbox.allow_network.connect}")
-        elif not fs_avail:
-            click.echo("  Note: No sandbox section in policy and no --agent specified.")
-            click.echo("  Use --agent <name> to load a profile with sandbox paths,")
-            click.echo("  or add a 'sandbox:' section to your policy file.")
-        click.echo(f"  Command: {cmd_list}")
+        _print_dry_run(result, config, profile, cmd_list)
         return
 
     try:
@@ -166,3 +143,56 @@ def launch(
             )
 
     raise SystemExit(result.exit_code)
+
+
+def _print_dry_run(result, config, profile, cmd_list):
+    """Print structured dry-run output."""
+    features = result.sandbox_features
+    sandbox_applied = features.get("sandbox_applied", False)
+    mode = features.get("mode", "unknown")
+
+    click.echo("Sandbox dry-run report:")
+    click.echo(f"  Platform:  {features.get('platform', 'unknown')}")
+    click.echo(f"  Backend:   {features.get('backend', 'unknown')}")
+
+    if profile:
+        click.echo(f"  Agent:     {profile.agent.name}")
+
+    if sandbox_applied:
+        click.echo("  Status:    ACTIVE")
+        click.echo(f"  Mode:      {mode}")
+
+        # Show allowed paths when available
+        for key, label in [
+            ("allowed_read_paths", "Read paths"),
+            ("allowed_write_paths", "Write paths"),
+            ("allowed_exec_paths", "Exec paths"),
+            ("allowed_network", "Network"),
+        ]:
+            vals = features.get(key)
+            if vals:
+                click.echo(f"  {label}:")
+                for v in vals:
+                    click.echo(f"    - {v}")
+
+        # Resource limits
+        if config.sandbox and config.sandbox.resource_limits.timeout_seconds:
+            click.echo(f"  Timeout:   {config.sandbox.resource_limits.timeout_seconds}s")
+
+        # Show the SBPL profile
+        sbpl_profile = features.get("sbpl_profile")
+        if sbpl_profile:
+            click.echo()
+            click.echo("Generated SBPL profile (.sb):")
+            click.echo(sbpl_profile)
+    else:
+        click.echo("  Status:    NOT ACTIVE")
+        reason = features.get("reason", "")
+        if reason:
+            click.echo(f"  Reason:    {reason}")
+        else:
+            click.echo("  Note: No sandbox section in policy. Add a 'sandbox:' section")
+            click.echo("  with allow_paths to enable OS-level sandboxing, or use")
+            click.echo("  --agent <name> to load a profile with sandbox paths.")
+
+    click.echo(f"  Command:   {' '.join(cmd_list) if cmd_list else '(none)'}")

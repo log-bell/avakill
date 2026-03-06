@@ -2095,6 +2095,7 @@ def build_policy_dict(
     selected_ids: list[str] | set[str],
     default_action: str = "allow",
     extra_rules: list[dict] | None = None,
+    sandbox_config: dict | None = None,
 ) -> dict:
     """Assemble a full PolicyConfig dict from selected rule IDs.
 
@@ -2106,6 +2107,7 @@ def build_policy_dict(
         selected_ids: IDs of optional rules to include.
         default_action: "allow" or "deny".
         extra_rules: Additional rule dicts to append (e.g. from scanner).
+        sandbox_config: Optional sandbox config dict to include under "sandbox".
 
     Returns:
         A dict ready for PolicyConfig.model_validate() and yaml.dump().
@@ -2137,11 +2139,16 @@ def build_policy_dict(
             }
         )
 
-    return {
+    result: dict = {
         "version": "1.0",
         "default_action": default_action,
         "policies": policies,
     }
+
+    if sandbox_config is not None:
+        result["sandbox"] = sandbox_config
+
+    return result
 
 
 def get_optional_rules_by_category() -> dict[str, list[RuleDef]]:
@@ -2179,6 +2186,7 @@ def generate_yaml(
     selected_ids: list[str] | set[str],
     default_action: str = "allow",
     extra_rules: list[dict] | None = None,
+    sandbox_config: dict | None = None,
 ) -> str:
     """Generate a complete policy YAML string.
 
@@ -2189,13 +2197,14 @@ def generate_yaml(
         selected_ids: IDs of optional rules to include.
         default_action: "allow" or "deny".
         extra_rules: Additional rule dicts to append.
+        sandbox_config: Optional sandbox config dict to include.
 
     Returns:
         A YAML string ready to write to a file.
     """
     from avakill.core.models import PolicyConfig
 
-    policy_dict = build_policy_dict(selected_ids, default_action, extra_rules)
+    policy_dict = build_policy_dict(selected_ids, default_action, extra_rules, sandbox_config)
 
     # Validate
     PolicyConfig.model_validate(policy_dict)

@@ -31,8 +31,14 @@ class MacOSSandboxBackend:
 
     Instead of applying the sandbox via preexec_fn (private API), this
     backend generates a .sb profile and wraps the command with
-    ``sandbox-exec -f <profile>``.  The profile is generated from the
-    policy's deny rules via SandboxExecEnforcer.
+    ``sandbox-exec -f <profile>``.
+
+    Two modes:
+    - **allow-based** (deny-default): When the policy has
+      ``sandbox.allow_paths`` with entries, generates a deny-default
+      profile via ``darwin_sbpl.generate_sbpl_profile()``.
+    - **deny-based** (allow-default): Falls back to deny-rule
+      generation via ``SandboxExecEnforcer`` when no allow_paths.
     """
 
     def __init__(self, policy: PolicyConfig | None = None) -> None:
@@ -43,6 +49,7 @@ class MacOSSandboxBackend:
         )
         self._profile_path: Path | None = None
         self._profile_content: str | None = None
+        self._profile_mode: str = "deny-based"
         self._keep_profile: bool = False
 
     def available(self) -> bool:
@@ -94,14 +101,25 @@ class MacOSSandboxBackend:
                 "reason": f"Profile generation failed: {exc}",
             }
 
-        return {
+        report: dict[str, Any] = {
             "platform": "darwin",
             "sandbox_applied": True,
             "backend": "sandbox-exec",
             "mechanism": "sandbox-exec",
+            "mode": self._profile_mode,
             "sbpl_profile": profile,
             "filesystem": True,
         }
+
+        # Include allowed paths in report when in allow-based mode
+        sandbox_cfg = self._policy.sandbox
+        if self._profile_mode == "allow-based" and sandbox_cfg is not None:
+            report["allowed_read_paths"] = list(sandbox_cfg.allow_paths.read)
+            report["allowed_write_paths"] = list(sandbox_cfg.allow_paths.write)
+            report["allowed_exec_paths"] = list(sandbox_cfg.allow_paths.execute)
+            report["allowed_network"] = list(sandbox_cfg.allow_network.connect)
+
+        return report
 
     def get_profile_content(self) -> str:
         """Return the generated SBPL profile content."""
@@ -125,15 +143,35 @@ class MacOSSandboxBackend:
                 self._profile_path.unlink(missing_ok=True)
             self._profile_path = None
 
+    @staticmethod
+    def _has_allow_paths(cfg: SandboxConfig) -> bool:
+        """Return True if the sandbox config has any allow_paths entries."""
+        paths = cfg.allow_paths
+        return bool(paths.read or paths.write or paths.execute)
+
     def _generate_profile(self) -> str:
-        """Generate SBPL profile from policy deny rules."""
+        """Generate SBPL profile, choosing mode based on sandbox config.
+
+        If the policy has ``sandbox.allow_paths`` with entries, generates
+        an allow-based (deny-default) profile. Otherwise falls back to
+        deny-based generation from policy deny rules.
+        """
         if self._profile_content is not None:
             return self._profile_content
 
-        from avakill.enforcement.sandbox_exec import SandboxExecEnforcer
+        sandbox_cfg = self._policy.sandbox
+        if sandbox_cfg is not None and self._has_allow_paths(sandbox_cfg):
+            from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
 
-        enforcer = SandboxExecEnforcer()
-        self._profile_content = enforcer.generate_profile(self._policy)
+            self._profile_content = generate_sbpl_profile(sandbox_cfg)
+            self._profile_mode = "allow-based"
+        else:
+            from avakill.enforcement.sandbox_exec import SandboxExecEnforcer
+
+            enforcer = SandboxExecEnforcer()
+            self._profile_content = enforcer.generate_profile(self._policy)
+            self._profile_mode = "deny-based"
+
         return self._profile_content
 
     def _write_temp_profile(self, profile: str) -> Path:

@@ -4,13 +4,17 @@ Generates Sandbox Profile Language profiles from SandboxConfig allow
 rules. Unlike SandboxExecEnforcer (deny-based from PolicyConfig), this
 produces deny-default profiles with explicit allows - the correct
 pattern for child process sandboxing.
+
+Also provides ``default_sandbox_config()`` for generating sensible
+sandbox defaults during ``avakill setup``.
 """
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
-from avakill.core.models import SandboxConfig
+from avakill.core.models import SandboxConfig, SandboxNetworkRules, SandboxPathRules
 
 
 def generate_sbpl_profile(config: SandboxConfig) -> str:
@@ -126,3 +130,84 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
         lines.append("")
 
     return "\n".join(lines) + "\n"
+
+
+# Common AI API endpoints for network allows
+_DEFAULT_NETWORK_CONNECTS = [
+    "api.anthropic.com:443",
+    "api.openai.com:443",
+    "generativelanguage.googleapis.com:443",
+    "api.github.com:443",
+]
+
+# System paths that should be readable on macOS
+_DEFAULT_READ_PATHS = [
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/private/etc/ssl",
+    "/private/etc/resolv.conf",
+    "/Library/Apple",
+    "/System",
+]
+
+# Common runtime binaries to resolve
+_RUNTIME_BINARIES = [
+    "python3",
+    "python",
+    "node",
+    "git",
+    "npm",
+    "pip",
+    "uv",
+    "pipx",
+]
+
+
+def default_sandbox_config(workspace: Path | None = None) -> SandboxConfig:
+    """Build a sensible default SandboxConfig for the current environment.
+
+    Detects the workspace (defaults to cwd), resolves runtime binary
+    locations, and includes standard system read paths plus Homebrew
+    paths if present.
+
+    This is called by ``avakill setup``, NOT by the SBPL generator.
+
+    Args:
+        workspace: Project root directory. Defaults to cwd.
+
+    Returns:
+        A SandboxConfig ready for YAML serialization.
+    """
+    ws = (workspace or Path.cwd()).resolve()
+
+    # Resolve read paths: system paths + Homebrew if present
+    read_paths = list(_DEFAULT_READ_PATHS)
+    for brew_prefix in ("/opt/homebrew", "/usr/local/Cellar", "/usr/local/opt"):
+        if Path(brew_prefix).is_dir():
+            read_paths.append(brew_prefix)
+
+    # Resolve execute paths from runtime binaries on PATH
+    exec_paths: list[str] = []
+    seen_dirs: set[str] = set()
+    for binary in _RUNTIME_BINARIES:
+        resolved = shutil.which(binary)
+        if resolved:
+            bin_dir = str(Path(resolved).parent)
+            if bin_dir not in seen_dirs:
+                seen_dirs.add(bin_dir)
+                exec_paths.append(bin_dir)
+
+    # Write paths: workspace + /tmp
+    write_paths = [str(ws), "/tmp"]
+
+    return SandboxConfig(
+        allow_paths=SandboxPathRules(
+            read=read_paths,
+            write=write_paths,
+            execute=exec_paths,
+        ),
+        allow_network=SandboxNetworkRules(
+            connect=list(_DEFAULT_NETWORK_CONNECTS),
+        ),
+    )

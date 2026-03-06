@@ -66,7 +66,7 @@ class TestLaunchCLI:
         )
         assert result.exit_code == 0
         assert "Sandbox dry-run report" in result.output
-        assert "Features:" in result.output
+        assert "Platform:" in result.output
 
     def test_launch_echo_returns_0(
         self,
@@ -130,8 +130,49 @@ class TestLaunchDarwinSandboxExec:
         )
         assert result.exit_code == 0
         assert "(version 1)" in result.output
-        assert "(allow default)" in result.output
-        assert "sandbox-exec profile" in result.output.lower()
+        # allow_paths.write is populated -> allow-based mode -> deny default
+        assert "(deny default)" in result.output
+        assert "SBPL profile" in result.output
+
+    def test_dry_run_structured_output_allow_mode(
+        self,
+        tmp_path: Path,
+        monkeypatch: object,
+    ) -> None:
+        """Dry-run with allow_paths should show structured allow-based output."""
+        monkeypatch.setattr("sys.platform", "darwin")  # type: ignore[attr-defined]
+        monkeypatch.setattr(  # type: ignore[attr-defined]
+            "os.path.isfile",
+            lambda p: p == "/usr/bin/sandbox-exec" or os.path.isfile.__wrapped__(p),
+        )
+        policy_path = _write_policy(
+            tmp_path,
+            sandbox={"allow_paths": {"read": ["/usr"], "write": ["/tmp"]}},
+        )
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, ["launch", "--policy", str(policy_path), "--dry-run", "--", "echo", "hello"]
+        )
+        assert result.exit_code == 0
+        assert "ACTIVE" in result.output
+        assert "allow-based" in result.output
+        assert "/usr" in result.output
+        assert "/tmp" in result.output
+
+    def test_dry_run_no_sandbox_shows_not_active(
+        self,
+        tmp_path: Path,
+        monkeypatch: object,
+    ) -> None:
+        """Dry-run without sandbox section should show NOT ACTIVE."""
+        monkeypatch.setattr("sys.platform", "linux")  # type: ignore[attr-defined]
+        policy_path = _write_policy(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, ["launch", "--policy", str(policy_path), "--dry-run", "--", "echo", "hello"]
+        )
+        assert result.exit_code == 0
+        assert "NOT ACTIVE" in result.output
 
     def test_backend_detection_selects_macos_sandbox(self) -> None:
         """get_sandbox_backend returns MacOSSandboxBackend on darwin."""
@@ -240,7 +281,8 @@ class TestLaunchDarwinSandboxExec:
         assert profile_path.exists()
         content = profile_path.read_text()
         assert "(version 1)" in content
-        assert "(allow default)" in content
+        # allow_paths.write is populated -> allow-based mode -> deny default
+        assert "(deny default)" in content
 
         # Cleanup should remove the file
         backend.cleanup()

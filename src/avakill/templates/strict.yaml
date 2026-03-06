@@ -102,3 +102,27 @@ policies:
       - "*_remove"
     action: deny
     message: "Destructive operations are blocked in strict mode"
+
+# OS-level sandbox restrictions (deny-default)
+# Used with: avakill launch --policy strict.yaml -- <agent>
+sandbox:
+  allow_paths:
+    read:
+      - /usr
+      - /bin
+      - /sbin
+      - /private/etc/ssl
+      - /private/etc/resolv.conf
+      - /Library/Apple
+      - /System
+    write:
+      - /tmp
+    execute:
+      - /usr/bin
+      - /bin
+  allow_network:
+    connect:
+      - "api.anthropic.com:443"
+      - "api.openai.com:443"
+      - "generativelanguage.googleapis.com:443"
+      - "api.github.com:443"

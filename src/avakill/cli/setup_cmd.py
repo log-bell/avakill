@@ -373,18 +373,9 @@ def setup() -> None:
                 console.print("      You can wrap later: [cyan]avakill mcp-wrap --agent all[/cyan]")
 
     # ------------------------------------------------------------------
-    # Phase 5: OS Sandbox guidance
+    # Phase 5: OS Sandbox
     # ------------------------------------------------------------------
-    if detected_sandbox:
-        console.print()
-        console.print("  [bold]OS Sandbox agents detected[/bold]")
-        console.print()
-        console.print("    These agents are protected by running them through AvaKill's")
-        console.print("    OS-level sandbox. No config changes needed \u2014 just launch with:")
-        console.print()
-        for agent in detected_sandbox:
-            display = _AGENT_DISPLAY[agent]
-            console.print(f"    \u2022 {display:<16s}[cyan]avakill launch --agent {agent}[/cyan]")
+    sandbox_added = _offer_sandbox(console, policy_path)
 
     # ------------------------------------------------------------------
     # Phase 6: Activity tracking
@@ -447,7 +438,72 @@ def setup() -> None:
         detected_mcp=detected_mcp,
         detected_sandbox=detected_sandbox,
         mcp_wrapped=mcp_wrapped,
+        sandbox_added=sandbox_added,
     )
+
+
+def _offer_sandbox(console: Console, policy_path: Path) -> bool:
+    """Ask user about adding OS sandbox config to their policy. Returns True if added."""
+    console.print()
+    console.print("  [bold]Add OS sandbox restrictions to your policy?[/bold]")
+    console.print()
+    console.print("    This limits what agents can access at the OS level (filesystem,")
+    console.print(
+        "    network, executables). Works with any agent via [cyan]avakill launch[/cyan]."
+    )
+    console.print()
+
+    choice = Prompt.ask(
+        "  Add sandbox?",
+        choices=["y", "n"],
+        default="y",
+        console=console,
+    )
+
+    if choice != "y":
+        console.print()
+        console.print(
+            "    [dim]\u00b7 Sandbox skipped. Add a 'sandbox:' section to your policy later.[/dim]"
+        )
+        return False
+
+    from avakill.launcher.backends.darwin_sbpl import default_sandbox_config
+
+    sandbox_cfg = default_sandbox_config(workspace=Path.cwd())
+    sandbox_dict = sandbox_cfg.model_dump(exclude_defaults=False)
+
+    # Merge sandbox into existing policy file
+    import yaml
+
+    if policy_path.exists():
+        data = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
+    else:
+        data = {}
+    data["sandbox"] = sandbox_dict
+    policy_path.write_text(
+        yaml.dump(data, default_flow_style=False, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    console.print()
+    console.print("    [green]\u2713[/green] Sandbox config added to policy")
+    console.print()
+    console.print("    [dim]Allowed reads:[/dim]")
+    for p in sandbox_cfg.allow_paths.read[:5]:
+        console.print(f"      {p}")
+    if len(sandbox_cfg.allow_paths.read) > 5:
+        console.print(f"      ... and {len(sandbox_cfg.allow_paths.read) - 5} more")
+    console.print(f"    [dim]Allowed writes:[/dim] {', '.join(sandbox_cfg.allow_paths.write)}")
+    if sandbox_cfg.allow_paths.execute:
+        console.print(f"    [dim]Exec dirs:[/dim]     {', '.join(sandbox_cfg.allow_paths.execute)}")
+    if sandbox_cfg.allow_network.connect:
+        nets = ", ".join(sandbox_cfg.allow_network.connect)
+        console.print(f"    [dim]Network:[/dim]       {nets}")
+    console.print()
+    console.print("    Run any agent sandboxed:")
+    console.print("      [cyan]avakill launch --policy avakill.yaml -- <agent>[/cyan]")
+
+    return True
 
 
 def _offer_tracking(console: Console, policy_path: Path) -> bool:
@@ -525,6 +581,7 @@ def _print_summary(
     detected_mcp: list[str] | None = None,
     detected_sandbox: list[str] | None = None,
     mcp_wrapped: list[str] | None = None,
+    sandbox_added: bool = False,
 ) -> None:
     """Print the final setup summary."""
     sep = "\u2500" * min(53, console.width - 4)
@@ -597,13 +654,20 @@ def _print_summary(
             )
 
     # Sandbox line
-    if detected_sandbox:
+    if sandbox_added:
+        console.print(
+            "    Sandbox:    [green]configured[/green]"
+            " [dim](run: avakill launch --policy avakill.yaml -- <agent>)[/dim]"
+        )
+    elif detected_sandbox:
         for agent in detected_sandbox:
             display = _AGENT_DISPLAY.get(agent, agent)
             console.print(
                 f"    Sandbox:    {display}"
                 f" [dim](protect with: avakill launch --agent {agent})[/dim]"
             )
+    else:
+        console.print("    Sandbox:    [dim]not configured[/dim]")
 
     # Action items
     console.print()
