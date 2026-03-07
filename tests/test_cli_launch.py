@@ -269,16 +269,15 @@ class TestLaunchDarwinSandboxExec:
 
         wrapped = backend.wrap_command(["echo", "hello"], policy.sandbox)
         assert wrapped[0] == "/usr/bin/sandbox-exec"
-        assert wrapped[1] == "-f"
-        # wrapped[2] is the temp profile path
-        assert wrapped[2].endswith(".sb")
-        # -D params come after the profile path, then the command
+        # -D params come first, then -f <profile>, then the command
+        assert "-D" in wrapped
+        f_idx = wrapped.index("-f")
+        assert wrapped[f_idx + 1].endswith(".sb")
         assert "echo" in wrapped
         assert "hello" in wrapped
-        assert "-D" in wrapped
 
         # Verify the temp profile was written
-        profile_path = Path(wrapped[2])
+        profile_path = Path(wrapped[f_idx + 1])
         assert profile_path.exists()
         content = profile_path.read_text()
         assert "(version 1)" in content
@@ -319,7 +318,8 @@ class TestLaunchDarwinSandboxExec:
 
         sandbox_cfg = policy.sandbox or SandboxConfig()
         wrapped = backend.wrap_command(["echo", "hello"], sandbox_cfg)
-        profile_path = Path(wrapped[2])
+        f_idx = wrapped.index("-f")
+        profile_path = Path(wrapped[f_idx + 1])
         assert profile_path.exists()
 
         backend.cleanup()

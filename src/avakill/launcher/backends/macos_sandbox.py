@@ -1,7 +1,7 @@
 """macOS sandbox-exec backend for the process launcher.
 
 Generates an SBPL profile from the policy's sandbox config, then wraps
-the child command with ``sandbox-exec -f <profile> -D KEY=VALUE ...``.
+the child command with ``sandbox-exec -D KEY=VALUE ... -f <profile> ...``.
 
 Always uses deny-default profiles with broad reads + scoped writes.
 """
@@ -28,7 +28,7 @@ class MacOSSandboxBackend:
 
     Generates a deny-default SBPL profile via
     ``darwin_sbpl.generate_sbpl_profile()`` and wraps the command with
-    ``sandbox-exec -f <profile> -D KEY=VALUE ...``.
+    ``sandbox-exec -D KEY=VALUE ... -f <profile> ...``.
     """
 
     def __init__(self, policy: PolicyConfig | None = None) -> None:
@@ -68,9 +68,10 @@ class MacOSSandboxBackend:
         profile_path = self._write_temp_profile(profile)
         params = self._generate_params()
 
-        cmd = [SANDBOX_EXEC_PATH, "-f", str(profile_path)]
+        cmd = [SANDBOX_EXEC_PATH]
         for key, value in params.items():
             cmd.extend(["-D", f"{key}={value}"])
+        cmd.extend(["-f", str(profile_path)])
         cmd.extend(command)
         return cmd
 

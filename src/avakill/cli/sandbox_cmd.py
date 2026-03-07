@@ -103,7 +103,7 @@ def verify(policy: str) -> None:
         # Test 1: Write to disallowed path (expect failure)
         disallowed = "/usr/local/avakill-verify-test-file"
         result = subprocess.run(
-            ["/usr/bin/sandbox-exec", "-f", profile_path, *d_args, "/usr/bin/touch", disallowed],
+            ["/usr/bin/sandbox-exec", *d_args, "-f", profile_path, "/usr/bin/touch", disallowed],
             capture_output=True,
             timeout=5,
         )
@@ -123,7 +123,7 @@ def verify(policy: str) -> None:
         # Test 2: Read from allowed path (expect success)
         allowed_read = "/usr/bin/true"
         result = subprocess.run(
-            ["/usr/bin/sandbox-exec", "-f", profile_path, *d_args, "/bin/cat", allowed_read],
+            ["/usr/bin/sandbox-exec", *d_args, "-f", profile_path, "/bin/cat", allowed_read],
             capture_output=True,
             timeout=5,
         )
@@ -144,7 +144,7 @@ def verify(policy: str) -> None:
             write_dir = sandbox_cfg.allow_paths.write[0]
             test_file = str(Path(write_dir).expanduser().resolve() / ".avakill-verify-test")
             result = subprocess.run(
-                ["/usr/bin/sandbox-exec", "-f", profile_path, *d_args, "/usr/bin/touch", test_file],
+                ["/usr/bin/sandbox-exec", *d_args, "-f", profile_path, "/usr/bin/touch", test_file],
                 capture_output=True,
                 timeout=5,
             )

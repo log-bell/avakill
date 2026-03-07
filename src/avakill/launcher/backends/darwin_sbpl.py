@@ -83,6 +83,8 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
         "(allow iokit-open)",
         "",
         ";; File reads — system paths",
+        ";; literal '/' is required on macOS 26+ for dyld path resolution",
+        '(allow file-read* (literal "/"))',
         "(allow file-read*",
         '  (subpath "/usr/lib")',
         '  (subpath "/usr/share")',
