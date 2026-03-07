@@ -139,7 +139,7 @@ class TestLaunchDarwinSandboxExec:
         tmp_path: Path,
         monkeypatch: object,
     ) -> None:
-        """Dry-run with allow_paths should show structured allow-based output."""
+        """Dry-run with allow_paths should show structured output."""
         monkeypatch.setattr("sys.platform", "darwin")  # type: ignore[attr-defined]
         monkeypatch.setattr(  # type: ignore[attr-defined]
             "os.path.isfile",
@@ -147,7 +147,7 @@ class TestLaunchDarwinSandboxExec:
         )
         policy_path = _write_policy(
             tmp_path,
-            sandbox={"allow_paths": {"read": ["/usr"], "write": ["/tmp"]}},
+            sandbox={"allow_paths": {"write": ["/tmp"]}},
         )
         runner = CliRunner()
         result = runner.invoke(
@@ -155,8 +155,6 @@ class TestLaunchDarwinSandboxExec:
         )
         assert result.exit_code == 0
         assert "ACTIVE" in result.output
-        assert "allow-based" in result.output
-        assert "/usr" in result.output
         assert "/tmp" in result.output
 
     def test_dry_run_no_sandbox_shows_not_active(
@@ -274,7 +272,10 @@ class TestLaunchDarwinSandboxExec:
         assert wrapped[1] == "-f"
         # wrapped[2] is the temp profile path
         assert wrapped[2].endswith(".sb")
-        assert wrapped[3:] == ["echo", "hello"]
+        # -D params come after the profile path, then the command
+        assert "echo" in wrapped
+        assert "hello" in wrapped
+        assert "-D" in wrapped
 
         # Verify the temp profile was written
         profile_path = Path(wrapped[2])

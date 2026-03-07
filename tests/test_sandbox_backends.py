@@ -8,7 +8,6 @@ import pytest
 
 from avakill.core.models import (
     PolicyConfig,
-    PolicyRule,
     SandboxConfig,
     SandboxDenyPaths,
     SandboxNetworkRules,
@@ -267,120 +266,79 @@ class TestWindowsSandboxBackend:
 
 
 class TestMacOSSandboxBackendModes:
-    """Tests for MacOSSandboxBackend allow-based vs deny-based mode switching."""
+    """Tests for MacOSSandboxBackend deny-default profile generation."""
 
-    def _policy_with_sandbox(self, allow_paths=None, deny_rules=False):
-        policies = []
-        if deny_rules:
-            policies.append(PolicyRule(name="deny-write", tools=["file_write"], action="deny"))
-        sandbox = None
-        if allow_paths is not None:
-            sandbox = SandboxConfig(allow_paths=allow_paths)
-        return PolicyConfig(
+    def test_always_generates_deny_default_profile(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "darwin")
+        policy = PolicyConfig(
             version="1.0",
             default_action="allow",
-            policies=policies,
-            sandbox=sandbox,
-        )
-
-    def test_allow_based_mode_when_allow_paths_present(self, monkeypatch):
-        """When sandbox.allow_paths has entries, use allow-based (deny-default) mode."""
-        monkeypatch.setattr("sys.platform", "darwin")
-        policy = self._policy_with_sandbox(
-            allow_paths=SandboxPathRules(read=["/usr"], write=["/tmp"]),
+            policies=[],
+            sandbox=SandboxConfig(allow_paths=SandboxPathRules(write=["/tmp"])),
         )
         backend = MacOSSandboxBackend(policy)
         profile = backend.get_profile_content()
         assert "(deny default)" in profile
-        assert backend._profile_mode == "allow-based"
 
-    def test_deny_based_mode_when_no_allow_paths(self, monkeypatch):
-        """When no sandbox section, fall back to deny-based (allow-default) mode."""
+    def test_empty_sandbox_still_generates_profile(self, monkeypatch):
         monkeypatch.setattr("sys.platform", "darwin")
-        policy = self._policy_with_sandbox(deny_rules=True)
-        backend = MacOSSandboxBackend(policy)
-        profile = backend.get_profile_content()
-        assert "(allow default)" in profile
-        assert backend._profile_mode == "deny-based"
-
-    def test_deny_based_mode_when_empty_allow_paths(self, monkeypatch):
-        """Empty allow_paths should still use deny-based mode."""
-        monkeypatch.setattr("sys.platform", "darwin")
-        policy = self._policy_with_sandbox(
-            allow_paths=SandboxPathRules(),
-            deny_rules=True,
+        policy = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[],
+            sandbox=SandboxConfig(),
         )
         backend = MacOSSandboxBackend(policy)
         profile = backend.get_profile_content()
-        assert "(allow default)" in profile
-        assert backend._profile_mode == "deny-based"
+        assert "(deny default)" in profile
 
-    def test_describe_includes_mode_and_paths(self, monkeypatch):
-        """describe() should report mode and allowed paths in allow-based mode."""
+    def test_wrap_command_includes_dash_D_params(self, monkeypatch):
+        monkeypatch.setattr("sys.platform", "darwin")
+        monkeypatch.setattr("os.path.isfile", lambda p: True)
+        policy = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[],
+            sandbox=SandboxConfig(allow_paths=SandboxPathRules(write=["/tmp"])),
+        )
+        backend = MacOSSandboxBackend(policy)
+        wrapped = backend.wrap_command(["echo", "hello"], policy.sandbox)
+        assert "/usr/bin/sandbox-exec" in wrapped
+        assert "-D" in wrapped
+        d_args = [wrapped[i + 1] for i, v in enumerate(wrapped) if v == "-D"]
+        home_args = [a for a in d_args if a.startswith("HOME=")]
+        assert len(home_args) == 1
+
+    def test_describe_includes_write_and_deny_paths(self, monkeypatch):
+        """describe() should report write paths and denied paths."""
         monkeypatch.setattr("sys.platform", "darwin")
         monkeypatch.setattr(
             "os.path.isfile",
             lambda p: p == "/usr/bin/sandbox-exec",
         )
-        policy = self._policy_with_sandbox(
-            allow_paths=SandboxPathRules(
-                read=["/usr"],
-                write=["/tmp"],
-                execute=["/usr/bin/python3"],
+        policy = PolicyConfig(
+            version="1.0",
+            default_action="allow",
+            policies=[],
+            sandbox=SandboxConfig(
+                allow_paths=SandboxPathRules(write=["/tmp"]),
+                deny_paths=SandboxDenyPaths(read=["~/.ssh"]),
             ),
         )
         backend = MacOSSandboxBackend(policy)
         report = backend.describe(policy.sandbox)
-        assert report["mode"] == "allow-based"
         assert report["sandbox_applied"] is True
-        assert "/usr" in report["allowed_read_paths"]
         assert "/tmp" in report["allowed_write_paths"]
-        assert "/usr/bin/python3" in report["allowed_exec_paths"]
+        assert "~/.ssh" in report["denied_read_paths"]
 
-    def test_describe_deny_mode_no_path_lists(self, monkeypatch):
-        """describe() in deny-based mode should not include allowed_*_paths."""
-        monkeypatch.setattr("sys.platform", "darwin")
-        monkeypatch.setattr(
-            "os.path.isfile",
-            lambda p: p == "/usr/bin/sandbox-exec",
-        )
-        policy = self._policy_with_sandbox(deny_rules=True)
-        backend = MacOSSandboxBackend(policy)
-        report = backend.describe(SandboxConfig())
-        assert report["mode"] == "deny-based"
-        assert "allowed_read_paths" not in report
-
-    def test_has_allow_paths_helper(self):
-        """_has_allow_paths returns True only when paths are non-empty."""
-        assert MacOSSandboxBackend._has_allow_paths(SandboxConfig()) is False
-        assert (
-            MacOSSandboxBackend._has_allow_paths(
-                SandboxConfig(allow_paths=SandboxPathRules(read=["/usr"]))
-            )
-            is True
-        )
-        assert (
-            MacOSSandboxBackend._has_allow_paths(
-                SandboxConfig(allow_paths=SandboxPathRules(write=["/tmp"]))
-            )
-            is True
-        )
-        assert (
-            MacOSSandboxBackend._has_allow_paths(
-                SandboxConfig(allow_paths=SandboxPathRules(execute=["/bin/sh"]))
-            )
-            is True
-        )
-
-    def test_allow_based_profile_includes_network(self, monkeypatch):
-        """Allow-based profile should include network rules when configured."""
+    def test_profile_includes_network(self, monkeypatch):
+        """Profile should include network rules when configured."""
         monkeypatch.setattr("sys.platform", "darwin")
         policy = PolicyConfig(
             version="1.0",
             default_action="allow",
             policies=[],
             sandbox=SandboxConfig(
-                allow_paths=SandboxPathRules(read=["/usr"]),
                 allow_network=SandboxNetworkRules(connect=["api.openai.com:443"]),
             ),
         )

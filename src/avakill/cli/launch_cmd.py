@@ -149,7 +149,6 @@ def _print_dry_run(result, config, profile, cmd_list):
     """Print structured dry-run output."""
     features = result.sandbox_features
     sandbox_applied = features.get("sandbox_applied", False)
-    mode = features.get("mode", "unknown")
 
     click.echo("Sandbox dry-run report:")
     click.echo(f"  Platform:  {features.get('platform', 'unknown')}")
@@ -160,13 +159,11 @@ def _print_dry_run(result, config, profile, cmd_list):
 
     if sandbox_applied:
         click.echo("  Status:    ACTIVE")
-        click.echo(f"  Mode:      {mode}")
 
-        # Show allowed paths when available
+        # Show paths
         for key, label in [
-            ("allowed_read_paths", "Read paths"),
             ("allowed_write_paths", "Write paths"),
-            ("allowed_exec_paths", "Exec paths"),
+            ("denied_read_paths", "Denied reads"),
             ("allowed_network", "Network"),
         ]:
             vals = features.get(key)
