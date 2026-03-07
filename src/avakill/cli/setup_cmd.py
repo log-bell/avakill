@@ -488,14 +488,13 @@ def _offer_sandbox(console: Console, policy_path: Path) -> bool:
     console.print()
     console.print("    [green]\u2713[/green] Sandbox config added to policy")
     console.print()
-    console.print("    [dim]Allowed reads:[/dim]")
-    for p in sandbox_cfg.allow_paths.read[:5]:
-        console.print(f"      {p}")
-    if len(sandbox_cfg.allow_paths.read) > 5:
-        console.print(f"      ... and {len(sandbox_cfg.allow_paths.read) - 5} more")
-    console.print(f"    [dim]Allowed writes:[/dim] {', '.join(sandbox_cfg.allow_paths.write)}")
-    if sandbox_cfg.allow_paths.execute:
-        console.print(f"    [dim]Exec dirs:[/dim]     {', '.join(sandbox_cfg.allow_paths.execute)}")
+    console.print(f"    [dim]Write paths:[/dim]   {', '.join(sandbox_cfg.allow_paths.write)}")
+    if sandbox_cfg.deny_paths.read:
+        console.print("    [dim]Denied reads:[/dim]")
+        for p in sandbox_cfg.deny_paths.read[:5]:
+            console.print(f"      {p}")
+        if len(sandbox_cfg.deny_paths.read) > 5:
+            console.print(f"      ... and {len(sandbox_cfg.deny_paths.read) - 5} more")
     if sandbox_cfg.allow_network.connect:
         nets = ", ".join(sandbox_cfg.allow_network.connect)
         console.print(f"    [dim]Network:[/dim]       {nets}")

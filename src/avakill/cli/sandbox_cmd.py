@@ -74,10 +74,14 @@ def verify(policy: str) -> None:
         raise SystemExit(1)
 
     profile_content = backend.get_profile_content()
-    mode = backend._profile_mode
+
+    # Generate -D params for sandbox-exec
+    from avakill.launcher.backends.darwin_sbpl import generate_sbpl_params
+
+    sbpl_params = generate_sbpl_params(sandbox_cfg)
 
     console.print()
-    console.print(f"  [bold]Sandbox verification[/bold]  [dim](mode: {mode})[/dim]")
+    console.print("  [bold]Sandbox verification[/bold]")
     console.print()
 
     # Write profile to temp file
@@ -91,10 +95,15 @@ def verify(policy: str) -> None:
     failed = 0
 
     try:
+        # Build -D args list
+        d_args: list[str] = []
+        for key, value in sbpl_params.items():
+            d_args.extend(["-D", f"{key}={value}"])
+
         # Test 1: Write to disallowed path (expect failure)
         disallowed = "/usr/local/avakill-verify-test-file"
         result = subprocess.run(
-            ["/usr/bin/sandbox-exec", "-f", profile_path, "/usr/bin/touch", disallowed],
+            ["/usr/bin/sandbox-exec", "-f", profile_path, *d_args, "/usr/bin/touch", disallowed],
             capture_output=True,
             timeout=5,
         )
@@ -114,7 +123,7 @@ def verify(policy: str) -> None:
         # Test 2: Read from allowed path (expect success)
         allowed_read = "/usr/bin/true"
         result = subprocess.run(
-            ["/usr/bin/sandbox-exec", "-f", profile_path, "/bin/cat", allowed_read],
+            ["/usr/bin/sandbox-exec", "-f", profile_path, *d_args, "/bin/cat", allowed_read],
             capture_output=True,
             timeout=5,
         )
@@ -135,7 +144,7 @@ def verify(policy: str) -> None:
             write_dir = sandbox_cfg.allow_paths.write[0]
             test_file = str(Path(write_dir).expanduser().resolve() / ".avakill-verify-test")
             result = subprocess.run(
-                ["/usr/bin/sandbox-exec", "-f", profile_path, "/usr/bin/touch", test_file],
+                ["/usr/bin/sandbox-exec", "-f", profile_path, *d_args, "/usr/bin/touch", test_file],
                 capture_output=True,
                 timeout=5,
             )
