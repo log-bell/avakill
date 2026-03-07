@@ -1,0 +1,103 @@
+name: Linux Sandbox Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/avakill/enforcement/landlock.py"
+      - "src/avakill/launcher/backends/landlock_backend.py"
+      - "src/avakill/launcher/core.py"
+      - ".github/workflows/sandbox-linux-test.yml"
+
+jobs:
+  landlock-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --all-extras --dev
+
+      - name: Check kernel and Landlock support
+        run: |
+          echo "Kernel: $(uname -r)"
+          echo "LSMs: $(cat /sys/kernel/security/lsm 2>/dev/null || echo 'not readable')"
+          echo "Landlock ABI:"
+          uv run python -c "
+          from avakill.enforcement.landlock import LandlockEnforcer
+          e = LandlockEnforcer()
+          print(f'  available: {e.available()}')
+          print(f'  abi_version: {e.abi_version()}')
+          print(f'  features: {e.supported_features(e.abi_version())}')
+          "
+
+      - name: Write test policy
+        run: |
+          cat > /tmp/test-sandbox-policy.yaml << 'EOF'
+          version: "1.0"
+          default_action: deny
+          sandbox:
+            allow_paths:
+              write:
+                - /tmp/avakill-sandbox-test
+              read:
+                - /usr
+                - /etc
+                - /tmp
+              execute:
+                - /usr
+                - /bin
+            allow_network:
+              connect:
+                - "localhost:443"
+          policies:
+            - name: allow-all
+              tools: ["*"]
+              action: allow
+          EOF
+          mkdir -p /tmp/avakill-sandbox-test
+
+      - name: Test 1 - Dry run shows Landlock active
+        run: |
+          output=$(uv run avakill launch --dry-run --policy /tmp/test-sandbox-policy.yaml -- echo hello)
+          echo "$output"
+          echo "$output" | grep -q "ACTIVE" || { echo "FAIL: sandbox not active"; exit 1; }
+          echo "$output" | grep -qi "landlock\|linux" || { echo "FAIL: not using landlock"; exit 1; }
+          echo "PASS: dry-run shows Landlock active"
+
+      - name: Test 2 - Allowed write succeeds
+        run: |
+          uv run avakill launch --policy /tmp/test-sandbox-policy.yaml -- touch /tmp/avakill-sandbox-test/allowed-file
+          test -f /tmp/avakill-sandbox-test/allowed-file
+          echo "PASS: write to allowed path succeeded"
+          rm -f /tmp/avakill-sandbox-test/allowed-file
+
+      - name: Test 3 - Disallowed write is blocked
+        run: |
+          # Attempt to write outside allowed paths - should fail
+          if uv run avakill launch --policy /tmp/test-sandbox-policy.yaml -- touch /var/tmp/avakill-disallowed-test 2>/dev/null; then
+            echo "FAIL: write to disallowed path was allowed"
+            rm -f /var/tmp/avakill-disallowed-test
+            exit 1
+          else
+            echo "PASS: write to disallowed path blocked (exit code: $?)"
+          fi
+
+      - name: Test 4 - Allowed read succeeds
+        run: |
+          uv run avakill launch --policy /tmp/test-sandbox-policy.yaml -- cat /etc/hostname
+          echo "PASS: read from allowed path succeeded"
+
+      - name: Test 5 - Command runs and exits cleanly
+        run: |
+          output=$(uv run avakill launch --policy /tmp/test-sandbox-policy.yaml -- echo "sandbox works")
+          echo "$output"
+          echo "$output" | grep -q "sandbox works" || { echo "FAIL: command output missing"; exit 1; }
+          echo "PASS: sandboxed command ran and exited cleanly"
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf /tmp/avakill-sandbox-test /tmp/test-sandbox-policy.yaml
