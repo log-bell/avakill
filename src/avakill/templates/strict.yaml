@@ -107,19 +107,21 @@ policies:
 # Used with: avakill launch --policy strict.yaml -- <agent>
 sandbox:
   allow_paths:
-    read:
-      - /usr
-      - /bin
-      - /sbin
-      - /private/etc/ssl
-      - /private/etc/resolv.conf
-      - /Library/Apple
-      - /System
     write:
       - /tmp
-    execute:
-      - /usr/bin
-      - /bin
+  deny_paths:
+    read:
+      - "~/.ssh"
+      - "~/.gnupg"
+      - "~/.aws"
+      - "~/.kube"
+      - "~/.gcloud"
+      - "~/.azure"
+      - "~/Library/Keychains"
+      - "~/Library/Mail"
+      - "~/Library/Messages"
+      - "~/Library/Safari"
+      - "~/Library/Cookies"
   allow_network:
     connect:
       - "api.anthropic.com:443"
