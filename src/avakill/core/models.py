@@ -209,6 +209,12 @@ class SandboxPathRules(BaseModel):
     execute: list[str] = Field(default_factory=list)
 
 
+class SandboxDenyPaths(BaseModel):
+    """Paths to deny even when broad reads are enabled."""
+
+    read: list[str] = Field(default_factory=list)
+
+
 class SandboxNetworkRules(BaseModel):
     """Network allowlists for OS-level sandboxing (Landlock ABI 4+)."""
 
@@ -229,6 +235,7 @@ class SandboxConfig(BaseModel):
     """OS-level sandbox configuration. Optional section in policy YAML."""
 
     allow_paths: SandboxPathRules = Field(default_factory=SandboxPathRules)
+    deny_paths: SandboxDenyPaths = Field(default_factory=SandboxDenyPaths)
     allow_network: SandboxNetworkRules = Field(default_factory=SandboxNetworkRules)
     resource_limits: SandboxResourceLimits = Field(default_factory=SandboxResourceLimits)
     inherit_env: bool = True

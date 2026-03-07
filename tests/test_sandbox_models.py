@@ -8,6 +8,7 @@ from avakill.core.models import (
     PolicyConfig,
     PolicyRule,
     SandboxConfig,
+    SandboxDenyPaths,
     SandboxNetworkRules,
     SandboxPathRules,
     SandboxResourceLimits,
@@ -87,6 +88,38 @@ class TestSandboxConfig:
             policies=[PolicyRule(name="allow-all", tools=["*"], action="allow")],
         )
         assert config.sandbox is None
+
+    def test_default_deny_paths_empty(self) -> None:
+        config = SandboxConfig()
+        assert config.deny_paths.read == []
+
+    def test_deny_paths_on_sandbox_config(self) -> None:
+        config = SandboxConfig(
+            deny_paths=SandboxDenyPaths(read=["~/.ssh", "~/.aws"]),
+        )
+        assert "~/.ssh" in config.deny_paths.read
+
+    def test_deny_paths_from_yaml(self) -> None:
+        yaml_str = """\
+version: "1.0"
+default_action: deny
+policies:
+  - name: test
+    tools: ["*"]
+    action: allow
+sandbox:
+  deny_paths:
+    read: ["~/.ssh", "~/.aws"]
+  allow_paths:
+    write: ["/tmp"]
+"""
+        data = yaml.safe_load(yaml_str)
+        config = PolicyConfig(**data)
+        assert config.sandbox.deny_paths.read == ["~/.ssh", "~/.aws"]
+
+    def test_deny_paths_defaults_when_absent(self) -> None:
+        config = SandboxConfig()
+        assert config.deny_paths.read == []
 
     def test_sandbox_from_yaml_round_trip(self) -> None:
         yaml_str = """\

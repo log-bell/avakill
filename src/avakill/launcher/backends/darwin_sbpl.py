@@ -14,7 +14,11 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from avakill.core.models import SandboxConfig, SandboxNetworkRules, SandboxPathRules
+from avakill.core.models import (
+    SandboxConfig,
+    SandboxNetworkRules,
+    SandboxPathRules,
+)
 
 
 def generate_sbpl_profile(config: SandboxConfig) -> str:
