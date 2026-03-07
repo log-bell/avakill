@@ -120,7 +120,7 @@ Wraps any MCP server with policy enforcement. Scans tool responses for secrets, 
 <td>
 
 **OS Sandbox**<br>
-Launch agents in OS-level sandboxes. Landlock on Linux, sandbox-exec on macOS, Tetragon for Kubernetes, AppContainer on Windows.
+Launch agents in OS-level sandboxes. Landlock on Linux, sandbox-exec on macOS, AppContainer on Windows. Deny-default, kernel-level enforcement.
 
 </td>
 </tr>
@@ -381,7 +381,7 @@ avakill validate generated-policy.yaml     # Validate the LLM's output
 - [x] Interactive setup wizard with 81-rule catalog (`avakill setup`)
 - [x] Native agent hooks (Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp, OpenClaw)
 - [x] MCP proxy with `avakill mcp-wrap` and `avakill-shim` (Go binary)
-- [x] OS-level sandboxing — Landlock, sandbox-exec, Tetragon, AppContainer
+- [x] OS-level sandboxing — Landlock, sandbox-exec, AppContainer
 - [x] Standalone hook mode (no daemon required)
 - [x] Persistent daemon with Unix socket (<5ms evaluation)
 - [x] Shell safety (`shell_safe` + `command_allowlist`)

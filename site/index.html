@@ -1964,6 +1964,7 @@
             <button class="terminal-tab active" data-tab="pipx">pipx</button>
             <button class="terminal-tab" data-tab="pip">pip</button>
             <button class="terminal-tab" data-tab="hooks">Hooks</button>
+            <button class="terminal-tab" data-tab="sandbox">Sandbox</button>
           </div>
           <div class="terminal-meta">
             <span class="terminal-os">macOS/Linux/Windows</span>
@@ -1972,7 +1973,7 @@
           </div>
         </div>
         <div class="terminal-code">
-          <div class="terminal-comment"># Install AvaKill and set up hooks for your agents.</div>
+          <div class="terminal-comment"># Install AvaKill and protect your agents.</div>
           <div><span class="terminal-prompt">$ </span><span class="terminal-command" id="terminal-cmd">pipx install avakill &amp;&amp; avakill setup</span></div>
           <button class="terminal-copy" id="copy-btn" aria-label="Copy to clipboard">
             <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2021,7 +2022,7 @@
           <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
         <h3 class="feature-title">OS Sandbox</h3>
-        <p class="feature-desc">Launch agents in OS-level sandboxes. Landlock on Linux, sandbox-exec on macOS, Tetragon for Kubernetes, AppContainer on Windows. Enforce at the kernel.</p>
+        <p class="feature-desc">Launch agents in OS-level sandboxes. Landlock on Linux, sandbox-exec on macOS, AppContainer on Windows. Deny-default, kernel-level enforcement.</p>
       </div>
 
       <div class="feature-card">
@@ -2362,6 +2363,7 @@
       pipx: 'pipx install avakill && avakill setup',
       pip: 'pip install avakill && avakill setup',
       hooks: 'avakill hook install --agent all',
+      sandbox: 'avakill setup && avakill sandbox verify && avakill launch -- aider',
     };
 
     const cmdEl = document.getElementById('terminal-cmd');
