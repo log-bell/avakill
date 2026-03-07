@@ -1,0 +1,113 @@
+name: Windows Sandbox Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/avakill/enforcement/windows.py"
+      - "src/avakill/launcher/backends/windows_backend.py"
+      - "src/avakill/launcher/backends/windows_appcontainer.py"
+      - "src/avakill/launcher/core.py"
+      - ".github/workflows/sandbox-windows-test.yml"
+
+jobs:
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --all-extras --dev
+
+      - name: Check Windows sandbox availability
+        shell: bash
+        run: |
+          uv run python -c "
+          from avakill.enforcement.windows import WindowsEnforcer
+          from avakill.launcher.backends.windows_backend import WindowsSandboxBackend
+          e = WindowsEnforcer()
+          b = WindowsSandboxBackend()
+          print(f'  WindowsEnforcer.available: {e.available()}')
+          print(f'  WindowsSandboxBackend.available: {b.available()}')
+          print(f'  platform: win32')
+          "
+
+      - name: Write test policy
+        shell: bash
+        run: |
+          cat > test-sandbox-policy.yaml << 'EOF'
+          version: "1.0"
+          default_action: deny
+          sandbox:
+            allow_paths:
+              write:
+                - .
+              read:
+                - .
+              execute:
+                - .
+            allow_network:
+              connect:
+                - "localhost:443"
+          policies:
+            - name: allow-all
+              tools: ["*"]
+              action: allow
+          EOF
+
+      - name: Test 1 - Dry run shows sandbox active
+        shell: bash
+        run: |
+          output=$(uv run avakill launch --dry-run --policy test-sandbox-policy.yaml -- cmd /c echo hello)
+          echo "$output"
+          echo "$output" | grep -qi "ACTIVE\|windows" || { echo "FAIL: sandbox not detected"; exit 1; }
+          echo "PASS: dry-run shows Windows sandbox"
+
+      - name: Test 2 - Sandboxed command runs and exits cleanly
+        shell: bash
+        run: |
+          uv run avakill launch --policy test-sandbox-policy.yaml -- cmd /c echo "sandbox works"
+          echo "PASS: sandboxed command ran and exited cleanly"
+
+      - name: Test 3 - AppContainer profile creation
+        shell: bash
+        run: |
+          uv run python -c "
+          from avakill.launcher.backends.windows_appcontainer import (
+              create_app_container, delete_app_container
+          )
+          sid = create_app_container('avakill-ci-smoke-test')
+          assert sid is not None, 'AppContainer SID is None'
+          print(f'PASS: AppContainer created (SID: {sid})')
+          delete_app_container('avakill-ci-smoke-test')
+          print('PASS: AppContainer cleaned up')
+          "
+
+      - name: Test 4 - WindowsEnforcer generate_report
+        shell: bash
+        run: |
+          uv run python -c "
+          from avakill.core.models import PolicyConfig, PolicyRule
+          from avakill.enforcement.windows import WindowsEnforcer
+          config = PolicyConfig(
+              version='1.0',
+              default_action='allow',
+              policies=[PolicyRule(name='deny-write', tools=['file_write'], action='deny')],
+          )
+          enforcer = WindowsEnforcer()
+          report = enforcer.generate_report(config)
+          assert report['platform'] == 'windows'
+          assert report['job_object'] is True
+          assert len(report['privileges_removed']) >= 4
+          print(f'PASS: generate_report correct')
+          print(f'  privileges_removed: {report[\"privileges_removed\"]}')
+          print(f'  job_object: {report[\"job_object\"]}')
+          "
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: rm -f test-sandbox-policy.yaml
