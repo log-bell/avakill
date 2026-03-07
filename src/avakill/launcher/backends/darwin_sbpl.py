@@ -22,133 +22,161 @@ from avakill.core.models import (
 
 
 def generate_sbpl_profile(config: SandboxConfig) -> str:
-    """Generate an allow-based SBPL profile from SandboxConfig.
+    """Generate a deny-default SBPL profile from SandboxConfig.
 
-    The profile denies everything by default, then explicitly allows:
-    - Baseline operations (sysctl, mach, signal, process-fork)
-    - File reads for specified paths
-    - File writes for specified paths
-    - Process execution for specified binaries
-    - Network outbound for specified hosts/ports
+    Uses broad reads (system paths + $HOME) with sensitive path denials,
+    scoped writes via parameters, and enumerated Mach services. Based on
+    research baseline from production sandbox profiles (Codex, ai-jail,
+    Nix, Chromium, Homebrew).
     """
-    # Platform baseline derived from OpenAI Codex's seatbelt policies.
-    # Without these, even basic commands fail because dyld can't load libraries.
     lines: list[str] = [
         "(version 1)",
-        "",
-        ";; AvaKill-generated sandbox profile (allow-based)",
-        ";; Deny everything by default, then allow specific operations",
         "(deny default)",
         "",
-        ";; Baseline: operations required for any process to function",
-        "(allow sysctl-read)",
-        "(allow mach-lookup)",
-        "(allow mach-register)",
-        "(allow signal (target self))",
+        ";; Process operations",
+        "(allow process-exec)",
         "(allow process-fork)",
-        "(allow process-info*)",
-        "(allow file-read-metadata)",
-        "(allow file-read-xattr)",
-        "(allow file-write-xattr)",
+        "(allow process-info* (target same-sandbox))",
+        "(allow signal (target same-sandbox))",
+        "(allow sysctl-read)",
+        "(allow mach-host*)",
+        "",
+        ";; Mach IPC — enumerated service lookups",
+        "(allow mach-lookup",
+        '  (global-name "com.apple.system.opendirectoryd.libinfo")',
+        '  (global-name "com.apple.system.logger")',
+        '  (global-name "com.apple.system.notification_center")',
+        '  (global-name "com.apple.cfprefsd.daemon")',
+        '  (global-name "com.apple.cfprefsd.agent")',
+        '  (global-name "com.apple.trustd")',
+        '  (global-name "com.apple.trustd.agent")',
+        '  (global-name "com.apple.ocspd")',
+        '  (global-name "com.apple.SecurityServer")',
+        '  (global-name "com.apple.securityd")',
+        '  (global-name "com.apple.coreservices.launchservicesd")',
+        '  (global-name "com.apple.lsd.mapdb")',
+        '  (global-name-regex #"^com\\\\.apple\\\\.distributed_notifications")',
+        ")",
+        "(allow mach-register)",
+        "",
+        ";; IPC — shared memory and semaphores",
+        "(allow ipc-posix-shm-read-data)",
+        "(allow ipc-posix-shm-write-data)",
+        "(allow ipc-posix-shm-write-create)",
         "(allow ipc-posix-sem)",
+        "",
+        ";; Terminal / PTY — file-ioctl is critical for interactive tools",
         "(allow pseudo-tty)",
+        "(allow file-ioctl)",
         "",
-        ";; dyld: allow loading system frameworks and shared libraries",
-        '(allow file-map-executable (subpath "/usr/lib"))',
-        '(allow file-map-executable (subpath "/System/Library"))',
-        '(allow file-map-executable (subpath "/Library/Apple/System/Library"))',
-        '(allow file-map-executable (subpath "/Library/Apple/usr/lib"))',
+        "(allow file-read* file-write*",
+        '  (literal "/dev/ptmx")',
+        '  (regex #"/dev/ttys[0-9]+")',
+        '  (literal "/dev/tty")',
+        '  (literal "/dev/null")',
+        '  (literal "/dev/zero"))',
         "",
-        ";; System paths required for basic process operation",
-        '(allow file-read* (subpath "/usr/lib"))',
-        '(allow file-read* (subpath "/usr/share"))',
-        '(allow file-read* (subpath "/private/etc"))',
-        '(allow file-read* (subpath "/private/var/db/timezone"))',
-        '(allow file-read* (literal "/dev/null"))',
-        '(allow file-read* (literal "/dev/urandom"))',
-        '(allow file-read* (literal "/dev/random"))',
-        '(allow file-read* (literal "/"))',
-        '(allow file-write-data (literal "/dev/null"))',
+        "(allow file-read*",
+        '  (literal "/dev/random")',
+        '  (literal "/dev/urandom")',
+        '  (subpath "/dev/fd"))',
         "",
-        ";; PTY support for interactive processes",
-        '(allow file-read* file-write* file-ioctl (literal "/dev/ptmx"))',
-        '(allow file-read* file-write* (regex #"^/dev/ttys[0-9]+"))',
-        '(allow file-ioctl (regex #"^/dev/ttys[0-9]+"))',
+        ";; IOKit — hardware queries",
+        "(allow iokit-open)",
         "",
-        ";; Network: Unix domain sockets for system services",
-        '(allow network-outbound (literal "/private/var/run/syslog"))',
+        ";; File reads — system paths",
+        "(allow file-read*",
+        '  (subpath "/usr/lib")',
+        '  (subpath "/usr/share")',
+        '  (subpath "/System")',
+        '  (subpath "/private/var/db/dyld")',
+        '  (subpath "/System/Volumes/Preboot/Cryptexes/OS")',
+        '  (subpath "/private/etc")',
+        '  (subpath "/Library/Preferences")',
+        '  (subpath "/Library/Managed Preferences")',
+        '  (subpath "/System/Library/Keychains")',
+        '  (subpath "/Library/Keychains")',
+        '  (subpath "/private/var/db/mds")',
+        '  (subpath "/Library/Apple")',
+        '  (subpath "/opt/homebrew")',
+        '  (subpath "/usr/local")',
+        '  (subpath "/Library/Frameworks/Python.framework")',
+        '  (subpath "/Library/Developer/CommandLineTools")',
+        '  (subpath "/Library/Java/JavaVirtualMachines")',
+        '  (subpath "/bin")',
+        '  (subpath "/usr/bin")',
+        '  (subpath "/usr/sbin")',
+        '  (subpath "/sbin")',
+        '  (subpath "/tmp")',
+        '  (subpath "/private/tmp")',
+        '  (subpath "/private/var/folders")',
+        '  (subpath "/private/var/tmp"))',
+        "",
+        ";; File reads — user home (parameterized)",
+        '(allow file-read* (subpath (param "HOME")))',
         "",
     ]
 
-    paths = config.allow_paths
+    # Sensitive path denials — override broad HOME read
+    deny_paths = config.deny_paths.read
+    if deny_paths:
+        lines.append(";; Sensitive path denials")
+        for i in range(len(deny_paths)):
+            lines.append(f'(deny file-read* (subpath (param "DENY_PATH_{i}")))')
+        lines.append("")
+
+    # Scoped writes
+    write_paths = config.allow_paths.write
+    lines.append(";; File writes — scoped")
+    lines.append("(allow file-write*")
+    lines.append('  (subpath "/tmp")')
+    lines.append('  (subpath "/private/tmp")')
+    lines.append('  (subpath "/private/var/tmp")')
+    lines.append('  (subpath "/private/var/folders")')
+    for i in range(len(write_paths)):
+        lines.append(f'  (subpath (param "WRITE_PATH_{i}"))')
+    lines.append(")")
+    lines.append("")
+
+    # Network
     network = config.allow_network
-
-    # File reads
-    read_paths = [str(Path(p).expanduser().resolve()) for p in paths.read]
-    if read_paths:
-        lines.append(";; Allowed read paths")
-        for p in read_paths:
-            lines.append(f'(allow file-read* (subpath "{p}"))')
+    if network.connect or network.bind:
+        lines.append(";; Network")
+        if network.connect:
+            lines.append("(allow network-outbound")
+            lines.append('  (remote tcp "*:443")')
+            lines.append('  (remote tcp "*:80")')
+            lines.append('  (remote udp "*:53")')
+            lines.append('  (remote tcp "localhost:*"))')
+        lines.append('(allow network-bind (local tcp "localhost:*"))')
+        lines.append('(allow network-inbound (local tcp "localhost:*"))')
+        lines.append("(allow system-socket)")
         lines.append("")
 
-    # File writes — also grant read access (you need to list a dir to write into it)
-    write_paths = [str(Path(p).expanduser().resolve()) for p in paths.write]
-    if write_paths:
-        lines.append(";; Allowed write paths (read + write)")
-        for p in write_paths:
-            lines.append(f'(allow file-read* (subpath "{p}"))')
-            lines.append(f'(allow file-write* (subpath "{p}"))')
-        lines.append("")
-
-    # Executables: allow process-exec for read paths (directories) and explicit binaries
-    # Codex uses a broad (allow process-exec) — we scope it to allowed paths.
-    if read_paths:
-        lines.append(";; Allow execution of binaries in readable paths")
-        for p in read_paths:
-            lines.append(f'(allow process-exec (subpath "{p}"))')
-
-    # Build deduplicated list of exec paths: keep originals AND resolved
-    # symlink targets. The original path is needed because execvp() looks
-    # up the shim/wrapper path on $PATH. The resolved path is needed so
-    # node/python can read scripts at the real location.
-    exec_seen: set[str] = set()
-    exec_entries: list[str] = []
-    for p in paths.execute:
-        original = str(Path(p).expanduser())
-        if original not in exec_seen:
-            exec_seen.add(original)
-            exec_entries.append(original)
-        try:
-            resolved = str(Path(p).expanduser().resolve())
-            if resolved not in exec_seen:
-                exec_seen.add(resolved)
-                exec_entries.append(resolved)
-        except (OSError, ValueError):
-            pass
-
-    if exec_entries:
-        lines.append(";; Explicitly allowed executables")
-        for p in exec_entries:
-            lines.append(f'(allow process-exec (subpath "{p}"))')
-            lines.append(f'(allow file-read* (subpath "{p}"))')
-            lines.append(f'(allow file-map-executable (subpath "{p}"))')
-        lines.append("")
-
-    # Network outbound — SBPL inline mode doesn't support host/port filters,
-    # so we allow TCP outbound broadly. Fine-grained host filtering is handled
-    # by the cooperative policy engine (hooks/MCP proxy), not the kernel sandbox.
-    if network.connect:
-        lines.append(";; Allowed outbound network connections (TCP)")
-        lines.append("(allow network-outbound (remote tcp))")
-        lines.append("")
-
-    # Network bind
-    if network.bind:
-        lines.append(";; Allowed network bind")
-        lines.append("(allow network-bind (local tcp))")
-        lines.append("")
+    # User preferences
+    lines.append(";; User preferences")
+    lines.append("(allow user-preference-read")
+    lines.append('  (preference-domain "kCFPreferencesAnyApplication")')
+    lines.append('  (preference-domain "com.apple.security"))')
+    lines.append("")
 
     return "\n".join(lines) + "\n"
+
+
+def generate_sbpl_params(config: SandboxConfig) -> dict[str, str]:
+    """Return the -D parameters for sandbox-exec invocation."""
+    home = str(Path.home())
+    params = {"HOME": home}
+
+    write_paths = [str(Path(p).expanduser().resolve()) for p in config.allow_paths.write]
+    for i, p in enumerate(write_paths):
+        params[f"WRITE_PATH_{i}"] = p
+
+    deny_paths = [str(Path(p).expanduser().resolve()) for p in config.deny_paths.read]
+    for i, p in enumerate(deny_paths):
+        params[f"DENY_PATH_{i}"] = p
+
+    return params
 
 
 # Common AI API endpoints for network allows

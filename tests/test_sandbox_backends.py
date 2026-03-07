@@ -10,6 +10,7 @@ from avakill.core.models import (
     PolicyConfig,
     PolicyRule,
     SandboxConfig,
+    SandboxDenyPaths,
     SandboxNetworkRules,
     SandboxPathRules,
     SandboxResourceLimits,
@@ -385,4 +386,107 @@ class TestMacOSSandboxBackendModes:
         )
         backend = MacOSSandboxBackend(policy)
         profile = backend.get_profile_content()
-        assert "(allow network-outbound (remote tcp))" in profile
+        assert "(allow network-outbound" in profile
+
+
+class TestSBPLProfileContent:
+    """Tests for the rewritten SBPL profile generator."""
+
+    def _config(self, **kwargs):
+        return SandboxConfig(
+            allow_paths=SandboxPathRules(write=["/tmp", "/Users/test/project"]),
+            deny_paths=SandboxDenyPaths(read=["~/.ssh", "~/.aws"]),
+            **kwargs,
+        )
+
+    def test_profile_starts_with_deny_default(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "(deny default)" in profile
+
+    def test_profile_has_process_operations(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "(allow process-exec)" in profile
+        assert "(allow process-fork)" in profile
+
+    def test_profile_has_enumerated_mach_services(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "com.apple.trustd" in profile
+        assert "com.apple.cfprefsd.daemon" in profile
+        assert "com.apple.system.opendirectoryd.libinfo" in profile
+        lines = profile.split("\n")
+        bare_mach = [line for line in lines if line.strip() == "(allow mach-lookup)"]
+        assert bare_mach == []
+
+    def test_profile_has_file_ioctl(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "(allow file-ioctl)" in profile
+
+    def test_profile_has_broad_home_read(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert '(subpath (param "HOME"))' in profile
+
+    def test_profile_has_sensitive_denials(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "(deny file-read*" in profile
+        assert '(param "DENY_PATH_0")' in profile
+
+    def test_profile_has_scoped_writes(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert '(param "WRITE_PATH_0")' in profile
+
+    def test_profile_has_tmpdir_writes(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "/private/var/folders" in profile
+        assert "/private/tmp" in profile
+
+    def test_profile_has_network_bind_for_oauth(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        config = self._config(
+            allow_network=SandboxNetworkRules(
+                connect=["api.anthropic.com:443"],
+            ),
+        )
+        profile = generate_sbpl_profile(config)
+        assert "network-bind" in profile
+        assert "network-outbound" in profile
+
+    def test_profile_has_mach_host_for_os_cpus(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "(allow mach-host*)" in profile
+
+    def test_profile_has_iokit(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "(allow iokit-open)" in profile
+
+    def test_profile_has_posix_shm(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "ipc-posix-shm" in profile
+
+    def test_profile_has_cryptexes_path(self):
+        from avakill.launcher.backends.darwin_sbpl import generate_sbpl_profile
+
+        profile = generate_sbpl_profile(self._config())
+        assert "Cryptexes" in profile
