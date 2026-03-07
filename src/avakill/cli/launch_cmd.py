@@ -8,10 +8,18 @@ import click
 
 
 @click.command()
-@click.option("--policy", default="avakill.yaml", help="Path to policy file.")
+@click.option(
+    "--policy",
+    default="avakill.yaml",
+    help="Policy file (must have a sandbox: section for OS enforcement).",
+)
 @click.option("--agent", default=None, help="Agent profile name (e.g. openclaw, aider).")
 @click.option("--pty/--no-pty", default=False, help="Allocate PTY for interactive agents.")
-@click.option("--dry-run", is_flag=True, help="Show sandbox restrictions without launching.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview sandbox restrictions and generated profile without launching.",
+)
 @click.option("--timeout", type=int, default=None, help="Kill child after N seconds.")
 @click.option(
     "--keep-profile",
@@ -30,9 +38,11 @@ def launch(
 ) -> None:
     """Launch a process inside an OS-level sandbox.
 
-    Everything after -- is the command to run:
+    Uses a deny-default model: all writes and sensitive reads are blocked unless
+    allowed in your policy's sandbox: section. Supports macOS, Linux, and Windows.
 
     \b
+    Everything after -- is the command to run:
         avakill launch --policy hardened.yaml -- openclaw start
         avakill launch --agent openclaw
         avakill launch --agent aider -- aider --model gpt-4
@@ -193,3 +203,5 @@ def _print_dry_run(result, config, profile, cmd_list):
             click.echo("  --agent <name> to load a profile with sandbox paths.")
 
     click.echo(f"  Command:   {' '.join(cmd_list) if cmd_list else '(none)'}")
+    click.echo()
+    click.echo("Verify:  avakill sandbox verify --policy avakill.yaml")

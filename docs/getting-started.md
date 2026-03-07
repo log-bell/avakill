@@ -216,20 +216,54 @@ Wrap MCP servers for your detected agents?
 
 If servers are already wrapped, setup reports their status. Unwrapped servers are listed with a count of how many will be wrapped. You can skip and wrap later with `avakill mcp-wrap --agent all`.
 
-#### Step 5: OS Sandbox guidance
+#### Step 5: OS Sandbox
 
-If sandbox-capable agents were detected (Aider, SWE-Agent), setup shows how to launch them:
+Setup asks whether to add a `sandbox:` section to your policy. If you say yes, it generates deny-default sandbox restrictions tuned to your workspace:
+
+```
+Add OS sandbox restrictions to your policy?
+
+  This blocks all writes except your workspace and /tmp, denies reads
+  to sensitive paths (~/.ssh, ~/.aws, etc.), and limits network access
+  to standard API ports. Enforcement is at the kernel level via
+  sandbox-exec (macOS) or Landlock (Linux).
+
+  Add sandbox? [y/n] (y):
+
+  ✓ Sandbox config added to policy
+
+    Write paths:   /tmp, /Users/you/project
+    Denied reads:
+      ~/.ssh
+      ~/.gnupg
+      ~/.aws
+      ...
+    Network:       api.anthropic.com:443, api.openai.com:443, ...
+```
+
+After setup adds the sandbox config, verify it works:
+
+```bash
+avakill sandbox verify --policy avakill.yaml
+```
+
+If all three tests pass, you're ready to launch agents inside the sandbox:
+
+```bash
+avakill launch --policy avakill.yaml -- aider
+```
+
+The full flow is: **setup adds config** → **verify it works** → **launch with it**. You can also preview restrictions before launching with `avakill launch --dry-run`.
+
+If sandbox-capable agents were detected (Aider, SWE-Agent), setup also shows how to launch them with agent profiles:
 
 ```
 OS Sandbox agents detected
 
-  These agents are protected by running them through AvaKill's
-  OS-level sandbox. No config changes needed — just launch with:
-
   • Aider           avakill launch --agent aider
 ```
 
-No configuration is needed -- OS sandboxing is applied at launch time. OpenClaw uses a native plugin as its primary protection path; sandbox is available as a fallback via `avakill launch --agent openclaw`.
+OpenClaw uses a native plugin as its primary protection path; sandbox is available as a fallback via `avakill launch --agent openclaw`.
 
 #### Step 6: Activity tracking
 
@@ -684,13 +718,46 @@ You now have a working policy, hooks that enforce it, and visibility into what's
 
 Hooks enforce your policy at the tool-call level — they intercept and block before the tool runs. OS sandboxing adds a second layer underneath: it restricts what the agent process itself can do at the operating-system level (filesystem access, network, process creation). Even if a tool call slips past policy, the sandbox catches it.
 
+The sandbox uses a **deny-default model**: everything is blocked, then specific operations are allowed. The defaults (set by `avakill setup`) are:
+
+- **Writes**: only to your workspace directory and `/tmp`
+- **Reads**: broad reads allowed, but sensitive paths blocked (`~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.kube`, keychains)
+- **Network**: HTTPS (port 443) to configured API hosts, DNS (port 53), localhost
+
 AvaKill ships sandbox profiles for Linux (Landlock), macOS (sandbox-exec), and Windows (AppContainer). Each profile defines what an agent is allowed to touch:
 
 ```bash
 avakill profile list                                          # See available agent profiles
 avakill profile show aider                                    # See what a profile restricts
-avakill launch --agent aider --dry-run                        # Test sandbox restrictions
+avakill launch --agent aider --dry-run                        # Preview sandbox restrictions
 avakill launch --agent aider --policy avakill.yaml -- aider   # Launch with OS sandbox
+avakill sandbox verify --policy avakill.yaml                  # Verify sandbox is working
+```
+
+#### Troubleshooting
+
+**`cat <denied-path>` hangs instead of failing** — `cat` reads stdin when `open()` fails silently. Use `ls`, `head`, or `stat` instead to test path access.
+
+**Shell tilde expansion** — `~/.ssh` expands to the full path *before* the sandbox sees the command. When testing manually, use the full path (e.g. `/Users/you/.ssh`) in test commands.
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `126` | Sandbox setup failed (bad profile syntax or missing sandbox-exec) |
+| `127` | Command not found inside the sandbox |
+| Negative | Process killed by signal (sandbox blocked an operation) |
+
+**Inspect the generated profile:**
+
+```bash
+avakill launch --dry-run --policy avakill.yaml -- echo test
+```
+
+**View sandbox denial logs (macOS):**
+
+```bash
+log stream --predicate 'subsystem == "com.apple.sandbox"'
 ```
 
 ### What's next

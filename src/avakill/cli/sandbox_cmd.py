@@ -9,9 +9,12 @@ import click
 
 @click.group()
 def sandbox() -> None:
-    """OS-level sandbox tools.
+    """OS-level sandbox tools (deny-default model).
 
     \b
+    The sandbox blocks all writes and sensitive reads unless explicitly allowed
+    in your policy's sandbox: section.
+
         avakill sandbox verify --policy avakill.yaml
     """
 
@@ -21,9 +24,12 @@ def sandbox() -> None:
 def verify(policy: str) -> None:
     """Verify that OS sandbox restrictions are working.
 
-    Loads the policy, generates the SBPL profile, and runs quick tests
-    inside the sandbox to confirm that disallowed operations are blocked
-    and allowed operations succeed.
+    Loads the policy, generates the SBPL profile, and runs three tests:
+
+    \b
+      1. Disallowed write is blocked (write to /usr/local)
+      2. Allowed read succeeds (read /usr/bin/true)
+      3. Allowed write succeeds (write to first configured write path)
     """
     import subprocess
     import sys
@@ -180,4 +186,13 @@ def verify(policy: str) -> None:
         console.print(f"  [bold green]All {passed} tests passed.[/bold green] Sandbox is working.")
     else:
         console.print(f"  [bold red]{failed} test(s) failed[/bold red], {passed} passed.")
+        console.print()
+        console.print("  [dim]Troubleshooting:[/dim]")
+        console.print(
+            "    Run [cyan]avakill launch --dry-run[/cyan] to inspect the generated profile"
+        )
+        console.print(
+            "    Run [cyan]log stream --predicate 'subsystem == \"com.apple.sandbox\"'[/cyan]"
+            " to see denial logs"
+        )
         raise SystemExit(1)

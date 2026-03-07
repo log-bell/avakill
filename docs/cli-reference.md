@@ -14,9 +14,9 @@ avakill [--version] <command> [options]
 
 **Tier 3 — Security:** [keygen](#avakill-keygen) | [sign](#avakill-sign) | [verify](#avakill-verify) | [harden](#avakill-harden) | [check-hardening](#avakill-check-hardening)
 
-**Tier 4 — Advanced (shipped):** [schema](#avakill-schema) | [profile list](#avakill-profile-list) | [profile show](#avakill-profile-show) | [compliance report](#avakill-compliance-report) | [compliance gaps](#avakill-compliance-gaps) | [mcp-wrap](#avakill-mcp-wrap) | [mcp-unwrap](#avakill-mcp-unwrap)
+**Tier 4 — Advanced (shipped):** [schema](#avakill-schema) | [profile list](#avakill-profile-list) | [profile show](#avakill-profile-show) | [compliance report](#avakill-compliance-report) | [compliance gaps](#avakill-compliance-gaps) | [mcp-wrap](#avakill-mcp-wrap) | [mcp-unwrap](#avakill-mcp-unwrap) | [launch](#avakill-launch) | [sandbox verify](#avakill-sandbox-verify)
 
-**Tier 4 — Advanced (future release):** [enforce landlock](#avakill-enforce-landlock) | [enforce sandbox](#avakill-enforce-sandbox) | [enforce windows](#avakill-enforce-windows) | [enforce tetragon](#avakill-enforce-tetragon) | [launch](#avakill-launch) | [mcp-proxy](#avakill-mcp-proxy) | [metrics](#avakill-metrics)
+**Tier 4 — Advanced (future release):** [enforce landlock](#avakill-enforce-landlock) | [enforce sandbox](#avakill-enforce-sandbox) | [enforce windows](#avakill-enforce-windows) | [enforce tetragon](#avakill-enforce-tetragon) | [mcp-proxy](#avakill-mcp-proxy) | [metrics](#avakill-metrics)
 
 ---
 
@@ -1192,9 +1192,7 @@ kubectl apply -f tetragon-policy.yaml
 
 ## avakill launch
 
-Launch a process inside an OS-level sandbox.
-
-> **Future release** — code-complete but not yet tested in production. May change before general availability. Depends on untested enforce backends.
+Launch a process inside an OS-level sandbox. Uses a deny-default model — all filesystem writes and sensitive reads are blocked unless explicitly allowed in your policy's `sandbox:` section. Supported on macOS (sandbox-exec), Linux (Landlock), and Windows (AppContainer).
 
 ```
 avakill launch [--policy PATH] [--agent NAME] [--pty|--no-pty] [--dry-run] [--timeout N] [--keep-profile] -- COMMAND...
@@ -1240,6 +1238,58 @@ avakill launch --agent openclaw --timeout 3600
 # Keep generated sandbox profile for inspection
 avakill launch --agent openclaw --keep-profile
 ```
+
+---
+
+## avakill sandbox verify
+
+Verify that OS sandbox restrictions are working. Runs three quick tests inside a real sandbox to confirm enforcement:
+
+1. **Disallowed write blocked** — attempts to write to a protected path (expects failure)
+2. **Allowed read works** — reads from a standard system path (expects success)
+3. **Allowed write works** — writes to the first configured write path (expects success)
+
+```
+avakill sandbox verify [--policy PATH]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--policy` | `avakill.yaml` | Path to the policy file (must have a `sandbox:` section) |
+
+**Requirements:**
+
+- macOS (uses `sandbox-exec` under the hood)
+- A `sandbox:` section in your policy — run `avakill setup` to add one
+
+**Example (all tests pass):**
+
+```
+$ avakill sandbox verify --policy avakill.yaml
+
+  Sandbox verification
+
+  ✓ Write to disallowed path blocked  (/usr/local/avakill-verify-test-file)
+  ✓ Read from allowed path succeeded  (/usr/bin/true)
+  ✓ Write to allowed path succeeded   (/tmp/.avakill-verify-test)
+
+  All 3 tests passed. Sandbox is working.
+```
+
+**Example (test failure):**
+
+```
+  ✗ Write to allowed path FAILED  (/tmp/.avakill-verify-test)
+
+  1 test(s) failed, 2 passed.
+```
+
+**When tests fail:**
+
+- Run `avakill launch --dry-run` to inspect the generated SBPL profile
+- Check that the paths in your `sandbox:` section are correct and accessible
+- On macOS, view sandbox denial logs: `log stream --predicate 'subsystem == "com.apple.sandbox"'`
+- See [Troubleshooting](getting-started.md#troubleshooting) in the Getting Started guide
 
 ---
 

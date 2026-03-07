@@ -447,9 +447,14 @@ def _offer_sandbox(console: Console, policy_path: Path) -> bool:
     console.print()
     console.print("  [bold]Add OS sandbox restrictions to your policy?[/bold]")
     console.print()
-    console.print("    This limits what agents can access at the OS level (filesystem,")
+    console.print("    This adds deny-default sandbox restrictions to your policy:")
+    console.print("      [dim]\u2022[/dim] Blocks all writes except your workspace and /tmp")
     console.print(
-        "    network, executables). Works with any agent via [cyan]avakill launch[/cyan]."
+        "      [dim]\u2022[/dim] Blocks reads to sensitive paths (~/.ssh, ~/.aws, ~/.gnupg, etc.)"
+    )
+    console.print("      [dim]\u2022[/dim] Allows network only on standard API ports (443, 53)")
+    console.print(
+        "      [dim]\u2022[/dim] Enforced at the kernel level via sandbox-exec / Landlock"
     )
     console.print()
 
@@ -498,6 +503,9 @@ def _offer_sandbox(console: Console, policy_path: Path) -> bool:
     if sandbox_cfg.allow_network.connect:
         nets = ", ".join(sandbox_cfg.allow_network.connect)
         console.print(f"    [dim]Network:[/dim]       {nets}")
+    console.print()
+    console.print("    Verify it works:")
+    console.print("      [cyan]avakill sandbox verify --policy avakill.yaml[/cyan]")
     console.print()
     console.print("    Run any agent sandboxed:")
     console.print("      [cyan]avakill launch --policy avakill.yaml -- <agent>[/cyan]")

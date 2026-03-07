@@ -103,8 +103,16 @@ policies:
     action: deny
     message: "Destructive operations are blocked in strict mode"
 
-# OS-level sandbox restrictions (deny-default)
-# Used with: avakill launch --policy strict.yaml -- <agent>
+# OS-level sandbox (deny-default, enabled by default in strict mode)
+#
+# Only /tmp is writable — the workspace is NOT writable unless you add it below.
+# To allow workspace writes, add your project directory to allow_paths.write:
+#   write:
+#     - /tmp
+#     - /Users/you/project
+#
+# Verify: avakill sandbox verify --policy strict.yaml
+# Launch: avakill launch --policy strict.yaml -- <agent>
 sandbox:
   allow_paths:
     write:

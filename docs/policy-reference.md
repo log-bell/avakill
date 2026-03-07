@@ -39,7 +39,7 @@ notifications: {}
 | `default_action` | string | No | `"deny"` | Action when no rule matches. Must be `"allow"` or `"deny"`. |
 | `policies` | list | Yes | — | Ordered list of policy rules, evaluated top-to-bottom. |
 | `notifications` | object | No | `{}` | Notification configuration (reserved for future use). |
-| `sandbox` | object | No | `null` | OS-level sandbox configuration (future release). See [Sandbox Configuration](#sandbox-configuration). |
+| `sandbox` | object | No | `null` | OS-level sandbox configuration. See [Sandbox Configuration](#sandbox-configuration). |
 
 ## Policy Rule Fields
 
@@ -1146,9 +1146,17 @@ The `avakill daemon` and hook adapters use the cascade automatically.
 
 ## Sandbox Configuration
 
-> **Future release.** OS-level sandboxing is defined in the policy schema but not yet enforced at runtime. The fields below are accepted and validated but have no effect until a future version.
+The optional `sandbox` top-level field configures OS-level process sandboxing. The sandbox uses a **deny-default model**: all filesystem writes and sensitive reads are blocked unless explicitly allowed. This provides kernel-level enforcement independent of hooks and the MCP proxy — even if a tool call bypasses policy evaluation, the OS sandbox blocks the operation.
 
-The optional `sandbox` top-level field configures OS-level process sandboxing (Landlock on Linux, sandbox-exec on macOS):
+**Supported platforms:**
+
+| Platform | Backend | Enforcement |
+|----------|---------|-------------|
+| macOS | `sandbox-exec` (SBPL profiles) | Kernel-level, deny-default |
+| Linux | Landlock | Kernel-level, deny-default |
+| Windows | AppContainer | Process-level isolation |
+
+The sandbox is an independent enforcement path — it works alongside hooks and the MCP proxy as defense-in-depth. Run `avakill setup` to generate a sandbox configuration, or add one manually:
 
 ```yaml
 version: "1.0"
@@ -1156,28 +1164,21 @@ default_action: deny
 
 sandbox:
   allow_paths:
-    read:
-      - "/usr"
-      - "/etc"
-      - "${HOME}/.config"
     write:
-      - "/tmp"
-      - "${HOME}/projects"
-    execute:
-      - "/usr/bin"
-      - "/usr/local/bin"
+      - /tmp
+      - .                         # current workspace directory
+  deny_paths:
+    read:
+      - "~/.ssh"
+      - "~/.gnupg"
+      - "~/.aws"
+      - "~/.kube"
+      - "~/Library/Keychains"
   allow_network:
     connect:
-      - "api.example.com:443"
-      - "registry.npmjs.org:443"
-    bind: []
-  resource_limits:
-    max_memory_mb: 512
-    max_open_files: 256
-    max_processes: 50
-    timeout_seconds: 300
-  inherit_env: true
-  inject_hooks: true
+      - "api.anthropic.com:443"
+      - "api.openai.com:443"
+      - "api.github.com:443"
 
 policies:
   - name: allow-reads
@@ -1187,10 +1188,11 @@ policies:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `allow_paths.read` | list[string] | `[]` | Filesystem paths the sandboxed process can read. |
-| `allow_paths.write` | list[string] | `[]` | Filesystem paths the sandboxed process can write. |
-| `allow_paths.execute` | list[string] | `[]` | Filesystem paths the sandboxed process can execute. |
-| `allow_network.connect` | list[string] | `[]` | Network endpoints the sandboxed process can connect to. |
+| `allow_paths.read` | list[string] | `[]` | Additional read paths. In the current deny-default SBPL model, broad reads are allowed automatically — this field is only needed for edge cases. |
+| `allow_paths.write` | list[string] | `[]` | Filesystem paths the sandboxed process can write. Typically your workspace and `/tmp`. |
+| `allow_paths.execute` | list[string] | `[]` | Additional execute paths. In the current SBPL model, execution is unrestricted — this field is reserved for future use. |
+| `deny_paths.read` | list[string] | `[]` | Paths blocked from reading even though broad reads are allowed. Use for sensitive directories like `~/.ssh`, `~/.aws`, `~/.gnupg`. |
+| `allow_network.connect` | list[string] | `[]` | Network endpoints the sandboxed process can connect to (`host:port`). |
 | `allow_network.bind` | list[string] | `[]` | Network endpoints the sandboxed process can bind/listen on. |
 | `resource_limits.max_memory_mb` | int | `null` | Maximum memory in megabytes. |
 | `resource_limits.max_open_files` | int | `null` | Maximum number of open file descriptors. |

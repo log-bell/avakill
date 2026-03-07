@@ -158,22 +158,31 @@ policies:
         - stat
     message: "Safe shell commands allowed (no metacharacters)"
 
-# # OS-level sandbox restrictions (uncomment to enable)
-# # Used with: avakill launch --policy avakill.yaml -- <agent>
+# # OS-level sandbox (deny-default model)
+# #
+# # When enabled, the sandbox blocks ALL writes and sensitive reads at the kernel
+# # level, then allows only what you specify below. This is independent of hooks
+# # and the MCP proxy — it's a second layer of defense.
+# #
+# # To enable: uncomment the section below, or run `avakill setup` to generate it.
+# # To verify:  avakill sandbox verify --policy avakill.yaml
+# # To launch:  avakill launch --policy avakill.yaml -- <agent>
+# # To preview: avakill launch --dry-run --policy avakill.yaml -- echo test
+# #
 # sandbox:
 #   allow_paths:
-#     write:
+#     write:                        # Paths the agent can write to (everything else is blocked)
 #       - /tmp
-#       - .    # current directory
+#       - .                         # current workspace directory
 #   deny_paths:
-#     read:
+#     read:                         # Sensitive paths blocked even though broad reads are allowed
 #       - "~/.ssh"
 #       - "~/.gnupg"
 #       - "~/.aws"
 #       - "~/.kube"
 #       - "~/Library/Keychains"
 #   allow_network:
-#     connect:
+#     connect:                      # Network endpoints the agent can reach (host:port)
 #       - "api.anthropic.com:443"
 #       - "api.openai.com:443"
 #       - "generativelanguage.googleapis.com:443"
