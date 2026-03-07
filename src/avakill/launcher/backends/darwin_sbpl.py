@@ -53,7 +53,7 @@ def generate_sbpl_profile(config: SandboxConfig) -> str:
         '  (global-name "com.apple.securityd")',
         '  (global-name "com.apple.coreservices.launchservicesd")',
         '  (global-name "com.apple.lsd.mapdb")',
-        '  (global-name-regex #"^com\\\\.apple\\\\.distributed_notifications")',
+        '  (global-name-regex #"^com\\.apple\\.distributed_notifications")',
         ")",
         "(allow mach-register)",
         "",

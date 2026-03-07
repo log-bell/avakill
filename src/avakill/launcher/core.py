@@ -62,10 +62,6 @@ class ProcessLauncher:
         elif policy.sandbox is not None:
             # Sandbox explicitly configured — use platform backend
             self._backend = get_sandbox_backend(policy=policy)
-        elif sys.platform == "darwin":
-            # On macOS, sandbox-exec can enforce policy deny rules
-            # even without a sandbox section
-            self._backend = get_sandbox_backend(policy=policy)
         else:
             # No sandbox section — no OS-level sandboxing
             from avakill.launcher.backends.noop import NoopSandboxBackend
