@@ -127,8 +127,8 @@ class LandlockEnforcer:
     Translates AvaKill deny rules into Landlock access restrictions.
     """
 
-    @staticmethod
-    def available() -> bool:
+    @classmethod
+    def available(cls) -> bool:
         """Check if Landlock is available on this system.
 
         Returns True only on Linux with kernel 5.13+ that supports
@@ -136,21 +136,7 @@ class LandlockEnforcer:
         """
         if sys.platform != "linux":
             return False
-        try:
-            libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
-            attr = LandlockRulesetAttr(handled_access_fs=0, handled_access_net=0)
-            result = libc.syscall(
-                LANDLOCK_CREATE_RULESET,
-                ctypes.byref(attr),
-                ctypes.sizeof(attr),
-                0,
-            )
-            if result >= 0:
-                os.close(result)
-                return True
-            return False
-        except (OSError, AttributeError):
-            return False
+        return cls.abi_version() > 0
 
     @staticmethod
     def abi_version() -> int:
