@@ -150,7 +150,7 @@
         <!-- Docs link -->
         <mj-text padding="0 0 8px 0">
           <div style="background-color: #111827; border: 1px solid #1A1F3A; border-radius: 8px; padding: 16px 20px;">
-            <a href="https://github.com/log-bell/avakill/blob/main/docs/getting-started.md" style="color: #00D4FF; text-decoration: none; font-weight: 700; font-size: 15px;">
+            <a href="https://avakill.com/docs/getting-started/" style="color: #00D4FF; text-decoration: none; font-weight: 700; font-size: 15px;">
               Getting Started Guide &rarr;
             </a>
             <div style="color: #6B7280; font-size: 13px; margin-top: 4px;">

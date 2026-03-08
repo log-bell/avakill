@@ -1069,7 +1069,7 @@
 <td>object</td>
 <td>No</td>
 <td><code>null</code></td>
-<td>OS-level sandbox configuration (future release). See <a href="#sandbox-configuration">Sandbox Configuration</a>.</td>
+<td>OS-level sandbox configuration. See <a href="#sandbox-configuration">Sandbox Configuration</a>.</td>
 </tr>
 </tbody>
 </table>
@@ -2520,37 +2520,55 @@ avakill<span class="w"> </span>verify<span class="w"> </span>avakill.yaml
 
 <p>The <code>avakill daemon</code> and hook adapters use the cascade automatically.</p>
 <h2 id="sandbox-configuration">Sandbox Configuration</h2>
-<blockquote>
-<p><strong>Future release.</strong> OS-level sandboxing is defined in the policy schema but not yet enforced at runtime. The fields below are accepted and validated but have no effect until a future version.</p>
-</blockquote>
-<p>The optional <code>sandbox</code> top-level field configures OS-level process sandboxing (Landlock on Linux, sandbox-exec on macOS):</p>
+<p>The optional <code>sandbox</code> top-level field configures OS-level process sandboxing. The sandbox uses a <strong>deny-default model</strong>: all filesystem writes and sensitive reads are blocked unless explicitly allowed. This provides kernel-level enforcement independent of hooks and the MCP proxy — even if a tool call bypasses policy evaluation, the OS sandbox blocks the operation.</p>
+<p><strong>Supported platforms:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Backend</th>
+<th>Enforcement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td><code>sandbox-exec</code> (SBPL profiles)</td>
+<td>Kernel-level, deny-default</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>Landlock</td>
+<td>Kernel-level, deny-default</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>AppContainer</td>
+<td>Process-level isolation</td>
+</tr>
+</tbody>
+</table>
+<p>The sandbox is an independent enforcement path — it works alongside hooks and the MCP proxy as defense-in-depth. Run <code>avakill setup</code> to generate a sandbox configuration, or add one manually:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1.0&quot;</span>
 <span class="nt">default_action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
 
 <span class="nt">sandbox</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">allow_paths</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">read</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/usr&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/etc&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;${HOME}/.config&quot;</span>
 <span class="w">    </span><span class="nt">write</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/tmp&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;${HOME}/projects&quot;</span>
-<span class="w">    </span><span class="nt">execute</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/usr/bin&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/usr/local/bin&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/tmp</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.</span><span class="w">                         </span><span class="c1"># current workspace directory</span>
+<span class="w">  </span><span class="nt">deny_paths</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">read</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;~/.ssh&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;~/.gnupg&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;~/.aws&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;~/.kube&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;~/Library/Keychains&quot;</span>
 <span class="w">  </span><span class="nt">allow_network</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">connect</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;api.example.com:443&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;registry.npmjs.org:443&quot;</span>
-<span class="w">    </span><span class="nt">bind</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
-<span class="w">  </span><span class="nt">resource_limits</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">max_memory_mb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">512</span>
-<span class="w">    </span><span class="nt">max_open_files</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">256</span>
-<span class="w">    </span><span class="nt">max_processes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
-<span class="w">    </span><span class="nt">timeout_seconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300</span>
-<span class="w">  </span><span class="nt">inherit_env</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="w">  </span><span class="nt">inject_hooks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;api.anthropic.com:443&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;api.openai.com:443&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;api.github.com:443&quot;</span>
 
 <span class="nt">policies</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">allow-reads</span>
@@ -2572,25 +2590,31 @@ avakill<span class="w"> </span>verify<span class="w"> </span>avakill.yaml
 <td><code>allow_paths.read</code></td>
 <td>list[string]</td>
 <td><code>[]</code></td>
-<td>Filesystem paths the sandboxed process can read.</td>
+<td>Additional read paths. In the current deny-default SBPL model, broad reads are allowed automatically — this field is only needed for edge cases.</td>
 </tr>
 <tr>
 <td><code>allow_paths.write</code></td>
 <td>list[string]</td>
 <td><code>[]</code></td>
-<td>Filesystem paths the sandboxed process can write.</td>
+<td>Filesystem paths the sandboxed process can write. Typically your workspace and <code>/tmp</code>.</td>
 </tr>
 <tr>
 <td><code>allow_paths.execute</code></td>
 <td>list[string]</td>
 <td><code>[]</code></td>
-<td>Filesystem paths the sandboxed process can execute.</td>
+<td>Additional execute paths. In the current SBPL model, execution is unrestricted — this field is reserved for future use.</td>
+</tr>
+<tr>
+<td><code>deny_paths.read</code></td>
+<td>list[string]</td>
+<td><code>[]</code></td>
+<td>Paths blocked from reading even though broad reads are allowed. Use for sensitive directories like <code>~/.ssh</code>, <code>~/.aws</code>, <code>~/.gnupg</code>.</td>
 </tr>
 <tr>
 <td><code>allow_network.connect</code></td>
 <td>list[string]</td>
 <td><code>[]</code></td>
-<td>Network endpoints the sandboxed process can connect to.</td>
+<td>Network endpoints the sandboxed process can connect to (<code>host:port</code>).</td>
 </tr>
 <tr>
 <td><code>allow_network.bind</code></td>

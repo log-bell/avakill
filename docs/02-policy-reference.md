@@ -268,7 +268,7 @@ decision = guard.evaluate(tool="Bash", args={"command": "ls"}, agent_id="claude-
 # "Bash" is normalized to "shell_execute" before rule matching
 ```
 
-See the [API Reference](api-reference.md) for Python SDK details on `normalize_tools` and `ToolNormalizer`.
+See the [API Reference](04-api-reference.md) for Python SDK details on `normalize_tools` and `ToolNormalizer`.
 
 ## Conditions
 

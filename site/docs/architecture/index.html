@@ -941,6 +941,7 @@
     <li><a href="#how-hooks-work" class="sidebar-link sidebar-link--sub">How hooks work</a></li>
     <li><a href="#hook-evaluation-fallback-chain" class="sidebar-link sidebar-link--sub">Hook evaluation fallback chain</a></li>
     <li><a href="#supported-agents" class="sidebar-link sidebar-link--sub">Supported agents</a></li>
+    <li><a href="#openclaw-native-plugin" class="sidebar-link sidebar-link--sub">OpenClaw native plugin</a></li>
     <li><a href="#mcp-proxy" class="sidebar-link">MCP Proxy</a></li>
     <li><a href="#mcp-proxy_1" class="sidebar-link sidebar-link--sub">mcp-proxy</a></li>
     <li><a href="#mcp-wrap" class="sidebar-link sidebar-link--sub">mcp-wrap</a></li>
@@ -978,7 +979,7 @@
 <p>AvaKill enforces a single YAML policy across three independent enforcement paths. Each path works standalone — no daemon required. The daemon adds shared evaluation, audit logging, and visibility tooling.</p>
 <div class="codehilite"><pre><span></span><code>avakill.yaml (one policy file)
     |
-    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex, Kiro, Amp)
+    ├── Hooks (Claude Code, Cursor, Windsurf, Gemini, Codex, Kiro, Amp, OpenClaw)
     |     → work standalone, evaluate in-process
     |
     ├── MCP Proxy (wraps MCP servers)
@@ -1051,15 +1052,31 @@
 <tr>
 <td>Kiro</td>
 <td><code>avakill-hook-kiro</code></td>
-<td><code>execute_command</code>, <code>read_file</code>, <code>write_file</code></td>
+<td>PreToolUse JSON with <code>tool_name</code>, <code>tool_input</code></td>
 </tr>
 <tr>
 <td>Amp</td>
 <td><code>avakill-hook-amp</code></td>
-<td><code>execute_command</code>, <code>read_file</code>, <code>write_file</code></td>
+<td>Env var <code>AGENT_TOOL_NAME</code> + JSON args on stdin</td>
+</tr>
+<tr>
+<td>OpenClaw</td>
+<td><code>avakill-openclaw</code> (native plugin)</td>
+<td>Plugin API with 6 enforcement layers</td>
 </tr>
 </tbody>
 </table>
+<h3 id="openclaw-native-plugin">OpenClaw native plugin</h3>
+<p>OpenClaw uses a deeper integration than other agents. Instead of a hook binary, it uses a native plugin (<a href="https://github.com/log-bell/avakill-openclaw">avakill-openclaw</a>) that provides 6 enforcement layers:</p>
+<ol>
+<li><strong>L1: Hard Block</strong> — intercepts tool calls before execution (equivalent to standard hooks)</li>
+<li><strong>L2: Guard Tool</strong> — registers an <code>avakill_guard</code> tool the agent can call to check permissions</li>
+<li><strong>L3: Output Scan</strong> — scans tool results and redacts secrets</li>
+<li><strong>L4: Message Gate</strong> — blocks outbound messages containing sensitive data</li>
+<li><strong>L5: Spawn Control</strong> — rate-limits subagent spawning</li>
+<li><strong>L6: Context Inject</strong> — injects security rules into the agent's bootstrap context</li>
+</ol>
+<p>This is still a hooks integration (not a fourth enforcement path). The native plugin evaluates the same <code>avakill.yaml</code> policy as all other hooks.</p>
 <h2 id="mcp-proxy">MCP Proxy</h2>
 <p>The MCP proxy sits between an MCP client and an MCP server, intercepting <code>tools/call</code> JSON-RPC requests. Three components:</p>
 <h3 id="mcp-proxy_1">mcp-proxy</h3>
@@ -1117,7 +1134,7 @@
 <h3 id="agent-profiles">Agent profiles</h3>
 <p>Pre-built sandbox profiles ship for common agents:</p>
 <ul>
-<li><code>openclaw</code> — high-risk agent with MCP support</li>
+<li><code>openclaw</code> — high-risk agent with MCP support (fallback — prefer <a href="https://github.com/log-bell/avakill-openclaw">native plugin</a>)</li>
 <li><code>cline</code> — VS Code extension agent</li>
 <li><code>continue</code> — VS Code extension agent</li>
 <li><code>swe-agent</code> — Princeton SWE-Agent</li>

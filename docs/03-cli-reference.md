@@ -1289,7 +1289,7 @@ $ avakill sandbox verify --policy avakill.yaml
 - Run `avakill launch --dry-run` to inspect the generated SBPL profile
 - Check that the paths in your `sandbox:` section are correct and accessible
 - On macOS, view sandbox denial logs: `log stream --predicate 'subsystem == "com.apple.sandbox"'`
-- See [Troubleshooting](getting-started.md#troubleshooting) in the Getting Started guide
+- See [Troubleshooting](01-getting-started.md#troubleshooting) in the Getting Started guide
 
 ---
 
@@ -1370,5 +1370,5 @@ avakill metrics --port 9100 --host 127.0.0.1
 
 ## Further Reading
 
-- **[Getting Started](getting-started.md)** — walkthrough using the CLI
-- **[Policy Reference](policy-reference.md)** — full YAML schema
+- **[Getting Started](01-getting-started.md)** — walkthrough using the CLI
+- **[Policy Reference](02-policy-reference.md)** — full YAML schema

@@ -957,6 +957,7 @@
     <li><a href="#how-hooks-evaluate" class="sidebar-link sidebar-link--sub">How hooks evaluate</a></li>
     <li><a href="#canonical-tool-names" class="sidebar-link sidebar-link--sub">Canonical tool names</a></li>
     <li><a href="#recommended-hook-policy" class="sidebar-link sidebar-link--sub">Recommended hook policy</a></li>
+    <li><a href="#openclaw" class="sidebar-link sidebar-link--sub">OpenClaw</a></li>
     <li><a href="#4-monitor-and-debug" class="sidebar-link">4. Monitor and Debug</a></li>
     <li><a href="#view-audit-logs" class="sidebar-link sidebar-link--sub">View audit logs</a></li>
     <li><a href="#test-tool-calls-from-the-cli" class="sidebar-link sidebar-link--sub">Test tool calls from the CLI</a></li>
@@ -1051,6 +1052,7 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
       ✓ OpenAI Codex      ~/.codex/
       · Kiro              not detected
       · Amp               not detected
+      ✓ OpenClaw          ~/.openclaw/
 
     MCP Proxy (wrap MCP servers):
       ✓ Claude Desktop    ~/Library/Application Support/Claude/
@@ -1058,7 +1060,6 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
       · Continue.dev      not detected
 
     OS Sandbox (avakill launch):
-      ✓ OpenClaw          ~/.openclaw/
       · Aider             not detected
       · SWE-Agent         not detected
 </code></pre></div>
@@ -1175,23 +1176,30 @@ Customize max calls? (500):
 </code></pre></div>
 
 <h4 id="step-3-hook-installation">Step 3: Hook installation</h4>
-<p>For each detected hook agent, setup shows the exact config file it will modify:</p>
+<p>For each detected hook agent, setup shows the exact config file it will modify. All agents start selected — type numbers to toggle individual agents off (or back on), then press Enter to install:</p>
 <div class="codehilite"><pre><span></span><code>Install hooks for your detected agents?
 
   This adds AvaKill as a pre-tool-use check. Your agents will work
   normally — AvaKill only intervenes when a tool call matches a
   block rule.
 
-  • Claude Code     → ~/.claude/settings.json
-  • Gemini CLI      → .gemini/settings.json
-  • OpenAI Codex    → ~/.codex/config.toml
-  • Kiro            → ~/.kiro/settings/hooks.json
-  • Amp             → ~/.amp/settings.json
+  Type numbers to toggle, Enter to confirm.
 
-Install? [y/n] (y):
+    1. ✓ Claude Code     → ~/.claude/settings.json
+    2. ✓ Gemini CLI      → .gemini/settings.json
+    3. ✓ OpenAI Codex    → ~/.codex/config.toml
+    4. ✓ Kiro            → ~/.kiro/agents/avakill.json
+    5. ✓ Amp             → ~/.config/amp/settings.json
+    6. ✓ OpenClaw        → openclaw plugins install avakill-openclaw
+
+  Toggle (Enter to install):
 </code></pre></div>
 
+<p>Type <code>2</code> to deselect Gemini CLI, then Enter to install the remaining agents. Multiple numbers work too — <code>2 5</code> deselects both Gemini and Amp. If you deselect everything and press Enter, hook installation is skipped.</p>
 <p>Each hook is smoke-tested after installation to verify <code>avakill</code> is on your PATH. If you skip this step, you can install later with <code>avakill hook install --agent all</code>.</p>
+<blockquote>
+<p><strong>OpenClaw note:</strong> OpenClaw uses a native plugin (<a href="https://github.com/log-bell/avakill-openclaw">avakill-openclaw</a>) with 6 enforcement layers — hard block, guard tool, output scanning, message gate, spawn control, and context injection. This is deeper than a standard hook and is the preferred integration path. Sandbox (<code>avakill launch --agent openclaw</code>) is available as a fallback.</p>
+</blockquote>
 <h4 id="step-4-mcp-wrapping">Step 4: MCP wrapping</h4>
 <p>If MCP-capable agents were detected (Claude Desktop, Cline, Continue.dev), setup offers to wrap their MCP servers:</p>
 <div class="codehilite"><pre><span></span><code>Wrap MCP servers for your detected agents?
@@ -1204,17 +1212,44 @@ Install? [y/n] (y):
 </code></pre></div>
 
 <p>If servers are already wrapped, setup reports their status. Unwrapped servers are listed with a count of how many will be wrapped. You can skip and wrap later with <code>avakill mcp-wrap --agent all</code>.</p>
-<h4 id="step-5-os-sandbox-guidance">Step 5: OS Sandbox guidance</h4>
-<p>If sandbox-capable agents were detected (OpenClaw, Aider, SWE-Agent), setup shows how to launch them:</p>
-<div class="codehilite"><pre><span></span><code>OS Sandbox agents detected
+<h4 id="step-5-os-sandbox">Step 5: OS Sandbox</h4>
+<p>Setup asks whether to add a <code>sandbox:</code> section to your policy. If you say yes, it generates deny-default sandbox restrictions tuned to your workspace:</p>
+<div class="codehilite"><pre><span></span><code>Add OS sandbox restrictions to your policy?
 
-  These agents are protected by running them through AvaKill&#39;s
-  OS-level sandbox. No config changes needed — just launch with:
+  This blocks all writes except your workspace and /tmp, denies reads
+  to sensitive paths (~/.ssh, ~/.aws, etc.), and limits network access
+  to standard API ports. Enforcement is at the kernel level via
+  sandbox-exec (macOS) or Landlock (Linux).
 
-  • OpenClaw        avakill launch --agent openclaw
+  Add sandbox? [y/n] (y):
+
+  ✓ Sandbox config added to policy
+
+    Write paths:   /tmp, /Users/you/project
+    Denied reads:
+      ~/.ssh
+      ~/.gnupg
+      ~/.aws
+      ...
+    Network:       api.anthropic.com:443, api.openai.com:443, ...
 </code></pre></div>
 
-<p>No configuration is needed -- OS sandboxing is applied at launch time.</p>
+<p>After setup adds the sandbox config, verify it works:</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>sandbox<span class="w"> </span>verify<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml
+</code></pre></div>
+
+<p>If all three tests pass, you're ready to launch agents inside the sandbox:</p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>launch<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>aider
+</code></pre></div>
+
+<p>The full flow is: <strong>setup adds config</strong> → <strong>verify it works</strong> → <strong>launch with it</strong>. You can also preview restrictions before launching with <code>avakill launch --dry-run</code>.</p>
+<p>If sandbox-capable agents were detected (Aider, SWE-Agent), setup also shows how to launch them with agent profiles:</p>
+<div class="codehilite"><pre><span></span><code>OS Sandbox agents detected
+
+  • Aider           avakill launch --agent aider
+</code></pre></div>
+
+<p>OpenClaw uses a native plugin as its primary protection path; sandbox is available as a fallback via <code>avakill launch --agent openclaw</code>.</p>
 <h4 id="step-6-activity-tracking">Step 6: Activity tracking</h4>
 <p>Setup offers to start a lightweight background service that powers diagnostics and monitoring:</p>
 <div class="codehilite"><pre><span></span><code>Enable activity tracking?
@@ -1222,7 +1257,6 @@ Install? [y/n] (y):
   This runs a lightweight background service that powers:
     • avakill fix        See why something was blocked
     • avakill logs       View agent activity history
-    • avakill dashboard  Live monitoring
 
   Without it, hooks still protect you — you just won&#39;t have
   history or diagnostics.
@@ -1241,9 +1275,8 @@ Setup complete. Your agents are now protected.
 
   Policy:     avakill.yaml (67 rules)
   Tracking:   off
-  Hooks:      Claude Code, Gemini CLI, OpenAI Codex, Kiro, Amp
+  Hooks:      Claude Code, Gemini CLI, OpenAI Codex, OpenClaw (native plugin)
   MCP:        Claude Desktop
-  Sandbox:    OpenClaw (protect with: avakill launch --agent openclaw)
 
 If something gets blocked:
   Run  avakill fix            to see why and how to fix it
@@ -1478,7 +1511,7 @@ avakill<span class="w"> </span>approve<span class="w"> </span>policy.proposed.ya
 
 <p>See the <a href="/docs/api-reference/">API Reference</a> for the full <code>Guard</code> constructor options, <code>Decision</code> fields, and framework integrations.</p>
 <h2 id="3-protect-ai-coding-agents">3. Protect AI Coding Agents</h2>
-<p>This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, and Amp. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an <code>avakill.yaml</code> policy file from Section 1 (or written by hand) and one install command.</p>
+<p>This section covers off-the-shelf coding agents — Claude Code, Gemini CLI, Cursor, Windsurf, OpenAI Codex, Kiro, Amp, and OpenClaw. AvaKill protects them through hook scripts (small executables the agent calls before running each tool) that evaluate every tool call against your policy. No Python code required — just an <code>avakill.yaml</code> policy file from Section 1 (or written by hand) and one install command.</p>
 <p>Two paths to get started:</p>
 <ul>
 <li><strong><code>avakill setup</code></strong> (recommended) — interactive wizard that creates a policy and installs hooks in one pass (covered in Section 1)</li>
@@ -1534,6 +1567,53 @@ avakill<span class="w"> </span>hook<span class="w"> </span>install<span class="w
 </code></pre></div>
 
 <p>See the <a href="/docs/policy-reference/">Policy Reference</a> for the full list of conditions.</p>
+<h3 id="openclaw">OpenClaw</h3>
+<p>OpenClaw uses a native plugin instead of a standard hook. The plugin provides 6 enforcement layers:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What It Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>L1: Hard Block</strong></td>
+<td>Blocks dangerous tool calls before they run</td>
+</tr>
+<tr>
+<td><strong>L2: Guard Tool</strong></td>
+<td>Agent checks permissions before risky operations</td>
+</tr>
+<tr>
+<td><strong>L3: Output Scan</strong></td>
+<td>Redacts secrets (API keys, tokens) from tool results</td>
+</tr>
+<tr>
+<td><strong>L4: Message Gate</strong></td>
+<td>Blocks outbound messages containing secrets</td>
+</tr>
+<tr>
+<td><strong>L5: Spawn Control</strong></td>
+<td>Rate-limits subagent spawning (prevents fork bombs)</td>
+</tr>
+<tr>
+<td><strong>L6: Context Inject</strong></td>
+<td>Teaches agents the security rules at session start</td>
+</tr>
+</tbody>
+</table>
+<p>Install the plugin:</p>
+<div class="codehilite"><pre><span></span><code>openclaw<span class="w"> </span>plugins<span class="w"> </span>install<span class="w"> </span>avakill-openclaw
+</code></pre></div>
+
+<p>The plugin activates immediately and auto-discovers <code>avakill.yaml</code> in your project root. For full documentation, see the <a href="https://github.com/log-bell/avakill-openclaw">avakill-openclaw repo</a>:</p>
+<ul>
+<li><a href="https://github.com/log-bell/avakill-openclaw/blob/main/docs/getting-started.md">Getting Started</a></li>
+<li><a href="https://github.com/log-bell/avakill-openclaw/blob/main/docs/policy-guide.md">Policy Guide</a></li>
+<li><a href="https://github.com/log-bell/avakill-openclaw/blob/main/docs/troubleshooting.md">Troubleshooting</a></li>
+</ul>
+<p>OS sandbox (<code>avakill launch --agent openclaw</code>) is available as a fallback if you prefer OS-level enforcement.</p>
 <p>Your coding agents are now protected by AvaKill hooks. Section 4 covers monitoring — viewing audit logs and testing tool calls from the CLI.</p>
 <h2 id="4-monitor-and-debug">4. Monitor and Debug</h2>
 <p>This section covers two tools for visibility into what AvaKill is doing: audit logs (<code>avakill logs</code>) and CLI-based tool call testing (<code>avakill evaluate</code>).</p>
@@ -1577,11 +1657,52 @@ avakill<span class="w"> </span>logs<span class="w"> </span>tail<span class="w"> 
 <p>You now have a working policy, hooks that enforce it, and visibility into what's happening.</p>
 <h3 id="os-sandboxing">OS sandboxing</h3>
 <p>Hooks enforce your policy at the tool-call level — they intercept and block before the tool runs. OS sandboxing adds a second layer underneath: it restricts what the agent process itself can do at the operating-system level (filesystem access, network, process creation). Even if a tool call slips past policy, the sandbox catches it.</p>
+<p>The sandbox uses a <strong>deny-default model</strong>: everything is blocked, then specific operations are allowed. The defaults (set by <code>avakill setup</code>) are:</p>
+<ul>
+<li><strong>Writes</strong>: only to your workspace directory and <code>/tmp</code></li>
+<li><strong>Reads</strong>: broad reads allowed, but sensitive paths blocked (<code>~/.ssh</code>, <code>~/.aws</code>, <code>~/.gnupg</code>, <code>~/.kube</code>, keychains)</li>
+<li><strong>Network</strong>: HTTPS (port 443) to configured API hosts, DNS (port 53), localhost</li>
+</ul>
 <p>AvaKill ships sandbox profiles for Linux (Landlock), macOS (sandbox-exec), and Windows (AppContainer). Each profile defines what an agent is allowed to touch:</p>
 <div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>profile<span class="w"> </span>list<span class="w">                                          </span><span class="c1"># See available agent profiles</span>
 avakill<span class="w"> </span>profile<span class="w"> </span>show<span class="w"> </span>aider<span class="w">                                    </span><span class="c1"># See what a profile restricts</span>
-avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--dry-run<span class="w">                        </span><span class="c1"># Test sandbox restrictions</span>
+avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--dry-run<span class="w">                        </span><span class="c1"># Preview sandbox restrictions</span>
 avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>aider<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span>aider<span class="w">   </span><span class="c1"># Launch with OS sandbox</span>
+avakill<span class="w"> </span>sandbox<span class="w"> </span>verify<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w">                  </span><span class="c1"># Verify sandbox is working</span>
+</code></pre></div>
+
+<h4 id="troubleshooting">Troubleshooting</h4>
+<p><strong><code>cat &lt;denied-path&gt;</code> hangs instead of failing</strong> — <code>cat</code> reads stdin when <code>open()</code> fails silently. Use <code>ls</code>, <code>head</code>, or <code>stat</code> instead to test path access.</p>
+<p><strong>Shell tilde expansion</strong> — <code>~/.ssh</code> expands to the full path <em>before</em> the sandbox sees the command. When testing manually, use the full path (e.g. <code>/Users/you/.ssh</code>) in test commands.</p>
+<p><strong>Exit codes:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>126</code></td>
+<td>Sandbox setup failed (bad profile syntax or missing sandbox-exec)</td>
+</tr>
+<tr>
+<td><code>127</code></td>
+<td>Command not found inside the sandbox</td>
+</tr>
+<tr>
+<td>Negative</td>
+<td>Process killed by signal (sandbox blocked an operation)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Inspect the generated profile:</strong></p>
+<div class="codehilite"><pre><span></span><code>avakill<span class="w"> </span>launch<span class="w"> </span>--dry-run<span class="w"> </span>--policy<span class="w"> </span>avakill.yaml<span class="w"> </span>--<span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+
+<p><strong>View sandbox denial logs (macOS):</strong></p>
+<div class="codehilite"><pre><span></span><code>log<span class="w"> </span>stream<span class="w"> </span>--predicate<span class="w"> </span><span class="s1">&#39;subsystem == &quot;com.apple.sandbox&quot;&#39;</span>
 </code></pre></div>
 
 <h3 id="whats-next">What's next</h3>

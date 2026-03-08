@@ -61,35 +61,35 @@ _ICON_SERVER = (
 DOCS = [
     (
         "getting-started",
-        "getting-started.md",
+        "01-getting-started.md",
         "Getting Started",
         _ICON_BOOK,
         "Install AvaKill, create your first policy, and protect your AI agents.",
     ),
     (
         "policy-reference",
-        "policy-reference.md",
+        "02-policy-reference.md",
         "Policy Reference",
         _ICON_FILE,
         "YAML schema, actions, conditions, rate limits, and sandbox configuration.",
     ),
     (
         "cli-reference",
-        "cli-reference.md",
+        "03-cli-reference.md",
         "CLI Reference",
         _ICON_TERMINAL,
         "All avakill commands, avakill-shim flags, and hook binaries.",
     ),
     (
         "api-reference",
-        "api-reference.md",
+        "04-api-reference.md",
         "API Reference",
         _ICON_CODE,
         "Python SDK: Guard, PolicyEngine, models, and framework wrappers.",
     ),
     (
         "architecture",
-        "architecture.md",
+        "05-architecture.md",
         "Architecture",
         _ICON_SERVER,
         "How hooks, MCP proxy, OS sandbox, and daemon fit together.",
@@ -209,10 +209,10 @@ def rewrite_internal_links(html: str) -> str:
 
     def _replace(m: re.Match) -> str:
         filename = m.group(1)
-        slug = filename.replace(".md", "")
+        slug = re.sub(r"^\d+-", "", filename.replace(".md", ""))
         return f'href="/docs/{slug}/"'
 
-    return re.sub(r'href="([a-z-]+\.md)"', _replace, html)
+    return re.sub(r'href="(\d*-?[a-z-]+\.md)"', _replace, html)
 
 
 def build_doc(slug: str, filename: str, title: str, description: str, template: str) -> None:

@@ -552,7 +552,7 @@ guard = Guard(policy="avakill.yaml", logger=logger)
 guard.evaluate(tool="search_users", args={"query": "test"})
 ```
 
-See the [API Reference](api-reference.md) for the full `Guard` constructor options, `Decision` fields, and framework integrations.
+See the [API Reference](04-api-reference.md) for the full `Guard` constructor options, `Decision` fields, and framework integrations.
 
 ## 3. Protect AI Coding Agents
 
@@ -608,7 +608,7 @@ The daemon is an optional enhancement â€” it adds audit logging and shared evalu
 
 AvaKill normalizes agent-specific tool names so one policy works across all agents. For example, Claude Code's `Bash`, Gemini CLI's `run_shell_command`, and Codex's `shell` all become `shell_execute`. The same applies to file operations (`file_read`, `file_write`, `file_edit`) and other tool categories.
 
-See the [CLI Reference](cli-reference.md) for the full canonical name mapping table.
+See the [CLI Reference](03-cli-reference.md) for the full canonical name mapping table.
 
 ### Recommended hook policy
 
@@ -628,7 +628,7 @@ Use `shell_safe` and `command_allowlist` to control shell access:
                         make, which, whoami, date, uname, head, tail, wc, file, stat]
 ```
 
-See the [Policy Reference](policy-reference.md) for the full list of conditions.
+See the [Policy Reference](02-policy-reference.md) for the full list of conditions.
 
 ### OpenClaw
 
@@ -708,7 +708,7 @@ The `--agent cli` flag identifies the source of the call for logging purposes â€
 
 Exit codes: `0` = allowed, `2` = denied, `1` = error.
 
-For the full set of options, see the [CLI Reference](cli-reference.md) (`avakill logs`, `avakill evaluate`). For writing and tuning rules, see the [Policy Reference](policy-reference.md).
+For the full set of options, see the [CLI Reference](03-cli-reference.md) (`avakill logs`, `avakill evaluate`). For writing and tuning rules, see the [Policy Reference](02-policy-reference.md).
 
 ## Going Further
 
@@ -772,6 +772,6 @@ Run `avakill --help` to see all available commands grouped by category. For adva
 
 ### Reference
 
-- **[Policy Reference](policy-reference.md)** -- YAML format, conditions, rate limiting, examples
-- **[CLI Reference](cli-reference.md)** -- all commands and flags
-- **[API Reference](api-reference.md)** -- Python SDK documentation
+- **[Policy Reference](02-policy-reference.md)** -- YAML format, conditions, rate limiting, examples
+- **[CLI Reference](03-cli-reference.md)** -- all commands and flags
+- **[API Reference](04-api-reference.md)** -- Python SDK documentation

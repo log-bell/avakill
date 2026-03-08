@@ -1270,9 +1270,9 @@ echo '{"tool": "Bash", "args": {"command": "ls"}}' | avakill evaluate --agent cl
 
 ## Doc Links
 
-- [Getting Started](docs/getting-started.md) — Installation, first policy, integration guide
-- [API Reference](docs/api-reference.md) — Python SDK documentation
-- [CLI Reference](docs/cli-reference.md) — All commands and flags
-- [Policy Reference](docs/policy-reference.md) — Full YAML format, conditions, rate limiting, examples
+- [Getting Started](docs/01-getting-started.md) — Installation, first policy, integration guide
+- [API Reference](docs/04-api-reference.md) — Python SDK documentation
+- [CLI Reference](docs/03-cli-reference.md) — All commands and flags
+- [Policy Reference](docs/02-policy-reference.md) — Full YAML format, conditions, rate limiting, examples
 - [GitHub](https://github.com/log-bell/avakill) — Source code, issues, contributing
 - [PyPI](https://pypi.org/project/avakill/) — Package page

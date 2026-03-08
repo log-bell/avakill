@@ -449,7 +449,7 @@ def _print_next_steps(
     else:
         console.print(
             f"  {step}. Add AvaKill to your agent code"
-            " — see https://github.com/log-bell/avakill/blob/main/docs/getting-started.md"
+            " — see https://avakill.com/docs/getting-started/"
         )
     step += 1
 

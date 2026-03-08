@@ -983,6 +983,7 @@
     <li><a href="#avakill-enforce-windows" class="sidebar-link">avakill enforce windows</a></li>
     <li><a href="#avakill-enforce-tetragon" class="sidebar-link">avakill enforce tetragon</a></li>
     <li><a href="#avakill-launch" class="sidebar-link">avakill launch</a></li>
+    <li><a href="#avakill-sandbox-verify" class="sidebar-link">avakill sandbox verify</a></li>
     <li><a href="#avakill-mcp-proxy" class="sidebar-link">avakill mcp-proxy</a></li>
     <li><a href="#avakill-metrics" class="sidebar-link">avakill metrics</a></li>
     <li><a href="#further-reading" class="sidebar-link">Further Reading</a></li>
@@ -1011,8 +1012,8 @@
 <p><strong>Tier 1 — Core:</strong> <a href="#avakill-setup">setup</a> | <a href="#avakill-rules">rules</a> | <a href="#avakill-rules-list">rules list</a> | <a href="#avakill-rules-create">rules create</a> | <a href="#avakill-reset">reset</a> | <a href="#avakill-tracking">tracking</a> | <a href="#avakill-validate">validate</a> | <a href="#avakill-evaluate">evaluate</a> | <a href="#avakill-fix">fix</a> | <a href="#avakill-hook-install">hook install</a> | <a href="#avakill-hook-uninstall">hook uninstall</a> | <a href="#avakill-hook-list">hook list</a> | <a href="#hook-binaries">Hook Binaries</a> | <a href="#avakill-shim">avakill-shim</a></p>
 <p><strong>Tier 2 — Operations:</strong> <a href="#avakill-logs">logs</a> | <a href="#avakill-logs-tail">logs tail</a> | <a href="#avakill-daemon-start">daemon start</a> | <a href="#avakill-daemon-stop">daemon stop</a> | <a href="#avakill-daemon-status">daemon status</a> | <a href="#avakill-review">review</a> | <a href="#avakill-approve">approve</a> | <a href="#avakill-approvals-list">approvals list</a> | <a href="#avakill-approvals-grant">approvals grant</a> | <a href="#avakill-approvals-reject">approvals reject</a></p>
 <p><strong>Tier 3 — Security:</strong> <a href="#avakill-keygen">keygen</a> | <a href="#avakill-sign">sign</a> | <a href="#avakill-verify">verify</a> | <a href="#avakill-harden">harden</a> | <a href="#avakill-check-hardening">check-hardening</a></p>
-<p><strong>Tier 4 — Advanced (shipped):</strong> <a href="#avakill-schema">schema</a> | <a href="#avakill-profile-list">profile list</a> | <a href="#avakill-profile-show">profile show</a> | <a href="#avakill-compliance-report">compliance report</a> | <a href="#avakill-compliance-gaps">compliance gaps</a> | <a href="#avakill-mcp-wrap">mcp-wrap</a> | <a href="#avakill-mcp-unwrap">mcp-unwrap</a></p>
-<p><strong>Tier 4 — Advanced (future release):</strong> <a href="#avakill-enforce-landlock">enforce landlock</a> | <a href="#avakill-enforce-sandbox">enforce sandbox</a> | <a href="#avakill-enforce-windows">enforce windows</a> | <a href="#avakill-enforce-tetragon">enforce tetragon</a> | <a href="#avakill-launch">launch</a> | <a href="#avakill-mcp-proxy">mcp-proxy</a> | <a href="#avakill-metrics">metrics</a></p>
+<p><strong>Tier 4 — Advanced (shipped):</strong> <a href="#avakill-schema">schema</a> | <a href="#avakill-profile-list">profile list</a> | <a href="#avakill-profile-show">profile show</a> | <a href="#avakill-compliance-report">compliance report</a> | <a href="#avakill-compliance-gaps">compliance gaps</a> | <a href="#avakill-mcp-wrap">mcp-wrap</a> | <a href="#avakill-mcp-unwrap">mcp-unwrap</a> | <a href="#avakill-launch">launch</a> | <a href="#avakill-sandbox-verify">sandbox verify</a></p>
+<p><strong>Tier 4 — Advanced (future release):</strong> <a href="#avakill-enforce-landlock">enforce landlock</a> | <a href="#avakill-enforce-sandbox">enforce sandbox</a> | <a href="#avakill-enforce-windows">enforce windows</a> | <a href="#avakill-enforce-tetragon">enforce tetragon</a> | <a href="#avakill-mcp-proxy">mcp-proxy</a> | <a href="#avakill-metrics">metrics</a></p>
 <hr />
 <h2 id="avakill-setup">avakill setup</h2>
 <p>Interactive setup — one command to go from zero to protected.</p>
@@ -1478,11 +1479,11 @@ avakill<span class="w"> </span>fix<span class="w"> </span>--db<span class="w"> <
 </tr>
 <tr>
 <td>Kiro</td>
-<td><code>~/.kiro/settings/hooks.json</code></td>
+<td><code>~/.kiro/agents/avakill.json</code></td>
 </tr>
 <tr>
 <td>Amp</td>
-<td><code>~/.amp/settings.json</code></td>
+<td><code>~/.config/amp/settings.json</code></td>
 </tr>
 </tbody>
 </table>
@@ -2760,10 +2761,7 @@ kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> <
 
 <hr />
 <h2 id="avakill-launch">avakill launch</h2>
-<p>Launch a process inside an OS-level sandbox.</p>
-<blockquote>
-<p><strong>Future release</strong> — code-complete but not yet tested in production. May change before general availability. Depends on untested enforce backends.</p>
-</blockquote>
+<p>Launch a process inside an OS-level sandbox. Uses a deny-default model — all filesystem writes and sensitive reads are blocked unless explicitly allowed in your policy's <code>sandbox:</code> section. Supported on macOS (sandbox-exec), Linux (Landlock), and Windows (AppContainer).</p>
 <div class="codehilite"><pre><span></span><code>avakill launch [--policy PATH] [--agent NAME] [--pty|--no-pty] [--dry-run] [--timeout N] [--keep-profile] -- COMMAND...
 </code></pre></div>
 
@@ -2853,6 +2851,63 @@ avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class=
 avakill<span class="w"> </span>launch<span class="w"> </span>--agent<span class="w"> </span>openclaw<span class="w"> </span>--keep-profile
 </code></pre></div>
 
+<hr />
+<h2 id="avakill-sandbox-verify">avakill sandbox verify</h2>
+<p>Verify that OS sandbox restrictions are working. Runs three quick tests inside a real sandbox to confirm enforcement:</p>
+<ol>
+<li><strong>Disallowed write blocked</strong> — attempts to write to a protected path (expects failure)</li>
+<li><strong>Allowed read works</strong> — reads from a standard system path (expects success)</li>
+<li><strong>Allowed write works</strong> — writes to the first configured write path (expects success)</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>avakill sandbox verify [--policy PATH]
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--policy</code></td>
+<td><code>avakill.yaml</code></td>
+<td>Path to the policy file (must have a <code>sandbox:</code> section)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Requirements:</strong></p>
+<ul>
+<li>macOS (uses <code>sandbox-exec</code> under the hood)</li>
+<li>A <code>sandbox:</code> section in your policy — run <code>avakill setup</code> to add one</li>
+</ul>
+<p><strong>Example (all tests pass):</strong></p>
+<div class="codehilite"><pre><span></span><code>$ avakill sandbox verify --policy avakill.yaml
+
+  Sandbox verification
+
+  ✓ Write to disallowed path blocked  (/usr/local/avakill-verify-test-file)
+  ✓ Read from allowed path succeeded  (/usr/bin/true)
+  ✓ Write to allowed path succeeded   (/tmp/.avakill-verify-test)
+
+  All 3 tests passed. Sandbox is working.
+</code></pre></div>
+
+<p><strong>Example (test failure):</strong></p>
+<div class="codehilite"><pre><span></span><code>  ✗ Write to allowed path FAILED  (/tmp/.avakill-verify-test)
+
+  1 test(s) failed, 2 passed.
+</code></pre></div>
+
+<p><strong>When tests fail:</strong></p>
+<ul>
+<li>Run <code>avakill launch --dry-run</code> to inspect the generated SBPL profile</li>
+<li>Check that the paths in your <code>sandbox:</code> section are correct and accessible</li>
+<li>On macOS, view sandbox denial logs: <code>log stream --predicate 'subsystem == "com.apple.sandbox"'</code></li>
+<li>See <a href="01-getting-started.md#troubleshooting">Troubleshooting</a> in the Getting Started guide</li>
+</ul>
 <hr />
 <h2 id="avakill-mcp-proxy">avakill mcp-proxy</h2>
 <p>Start the MCP transparent proxy.</p>
@@ -3038,6 +3093,7 @@ avakill<span class="w"> </span>metrics<span class="w"> </span>--port<span class=
         <li><a href="#avakill-enforce-windows" class="toc-link">avakill enforce windows</a></li>
         <li><a href="#avakill-enforce-tetragon" class="toc-link">avakill enforce tetragon</a></li>
         <li><a href="#avakill-launch" class="toc-link">avakill launch</a></li>
+        <li><a href="#avakill-sandbox-verify" class="toc-link">avakill sandbox verify</a></li>
         <li><a href="#avakill-mcp-proxy" class="toc-link">avakill mcp-proxy</a></li>
         <li><a href="#avakill-metrics" class="toc-link">avakill metrics</a></li>
         <li><a href="#further-reading" class="toc-link">Further Reading</a></li>

@@ -59,6 +59,9 @@ avakill.yaml
 avakill.yml
 docs/plans/
 docs/audit.md
+docs/internal/
+docs/getting-started-PROPOSED.md
+docs/UX.md
 
 # Compiled Go binaries
 cmd/avakill-shim/avakill-shim

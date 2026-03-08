@@ -288,7 +288,7 @@ policies:
 - **Enforcement levels** — `hard` (default), `soft`, or `advisory`
 - **First-match-wins** — order matters, put specific rules before general ones
 
-> Full reference: [`docs/policy-reference.md`](docs/policy-reference.md)
+> Full reference: [`docs/02-policy-reference.md`](docs/02-policy-reference.md)
 
 ## CLI
 
