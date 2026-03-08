@@ -121,9 +121,21 @@ class TestProcessLauncherSandbox:
 
     @pytest.mark.skipif(not LandlockEnforcer.available(), reason="Landlock not available")
     def test_launch_with_landlock_restricts_child(self) -> None:
+        from avakill.core.models import SandboxConfig, SandboxPathRules
         from avakill.launcher.backends.landlock_backend import LandlockBackend
 
-        launcher = ProcessLauncher(policy=_deny_policy(), backend=LandlockBackend())
+        policy = PolicyConfig(
+            version="1.0",
+            default_action="deny",
+            policies=[PolicyRule(name="deny-write", tools=["file_write"], action="deny")],
+            sandbox=SandboxConfig(
+                allow_paths=SandboxPathRules(
+                    read=["/usr", "/bin", "/lib", "/lib64"],
+                    execute=["/usr/bin", "/bin"],
+                ),
+            ),
+        )
+        launcher = ProcessLauncher(policy=policy, backend=LandlockBackend())
         result = launcher.launch(["true"])
         assert result.sandbox_applied is True
 

@@ -101,14 +101,26 @@ class TestLauncherIntegration:
 class TestLauncherLandlockIntegration:
     """Landlock-conditional integration tests."""
 
+    # Base paths needed for any Landlock test — child must be able to find
+    # and execute binaries, and read shared libraries.
+    _LANDLOCK_BASE_PATHS = SandboxPathRules(
+        read=["/usr", "/bin", "/lib", "/lib64", "/etc"],
+        execute=["/usr/bin", "/bin"],
+    )
+
     @pytest.mark.skipif(
         not LandlockEnforcer.available(),
         reason="Landlock not available",
     )
     def test_child_cannot_write_outside_allowed_paths(self, tmp_path: Path) -> None:
+        base = self._LANDLOCK_BASE_PATHS
         policy = _deny_write_policy(
             sandbox=SandboxConfig(
-                allow_paths=SandboxPathRules(write=[str(tmp_path / "allowed")]),
+                allow_paths=SandboxPathRules(
+                    read=[*base.read, str(tmp_path)],
+                    write=[str(tmp_path / "allowed")],
+                    execute=base.execute,
+                ),
             ),
         )
         # Create the allowed directory
@@ -126,9 +138,13 @@ class TestLauncherLandlockIntegration:
         reason="Landlock not available",
     )
     def test_child_can_read_allowed_paths(self) -> None:
+        base = self._LANDLOCK_BASE_PATHS
         policy = _deny_write_policy(
             sandbox=SandboxConfig(
-                allow_paths=SandboxPathRules(read=["/usr", "/bin", "/lib"]),
+                allow_paths=SandboxPathRules(
+                    read=base.read,
+                    execute=base.execute,
+                ),
             ),
         )
         launcher = ProcessLauncher(policy=policy)
@@ -140,9 +156,13 @@ class TestLauncherLandlockIntegration:
         reason="Landlock not available",
     )
     def test_child_can_execute_allowed_binaries(self) -> None:
+        base = self._LANDLOCK_BASE_PATHS
         policy = _deny_write_policy(
             sandbox=SandboxConfig(
-                allow_paths=SandboxPathRules(execute=["/usr/bin", "/bin"]),
+                allow_paths=SandboxPathRules(
+                    read=base.read,
+                    execute=["/usr/bin", "/bin"],
+                ),
             ),
         )
         launcher = ProcessLauncher(policy=policy)
@@ -154,8 +174,13 @@ class TestLauncherLandlockIntegration:
         reason="Landlock ABI 4+ required",
     )
     def test_child_cannot_connect_to_unauthorized_port(self) -> None:
+        base = self._LANDLOCK_BASE_PATHS
         policy = _deny_write_policy(
             sandbox=SandboxConfig(
+                allow_paths=SandboxPathRules(
+                    read=base.read,
+                    execute=base.execute,
+                ),
                 allow_network=SandboxNetworkRules(connect=["localhost:443"]),
             ),
         )
