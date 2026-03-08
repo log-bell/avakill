@@ -105,7 +105,7 @@ class TestLauncherLandlockIntegration:
     # and execute binaries, and read shared libraries.
     _LANDLOCK_BASE_PATHS = SandboxPathRules(
         read=["/usr", "/bin", "/lib", "/lib64", "/etc"],
-        execute=["/usr/bin", "/bin"],
+        execute=["/usr", "/bin"],
     )
 
     @pytest.mark.skipif(
@@ -161,7 +161,7 @@ class TestLauncherLandlockIntegration:
             sandbox=SandboxConfig(
                 allow_paths=SandboxPathRules(
                     read=base.read,
-                    execute=["/usr/bin", "/bin"],
+                    execute=["/usr", "/bin"],
                 ),
             ),
         )

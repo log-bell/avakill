@@ -131,7 +131,7 @@ class TestProcessLauncherSandbox:
             sandbox=SandboxConfig(
                 allow_paths=SandboxPathRules(
                     read=["/usr", "/bin", "/lib", "/lib64"],
-                    execute=["/usr/bin", "/bin"],
+                    execute=["/usr", "/bin"],
                 ),
             ),
         )
