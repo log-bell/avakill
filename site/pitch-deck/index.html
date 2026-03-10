@@ -3034,9 +3034,12 @@
     }, { passive: true });
   </script>
 
-  <!-- Export FAB -->
-  <button class="export-fab" id="exportFab" title="Export to PDF">
+  <!-- Export FABs -->
+  <button class="export-fab" id="exportFab" title="Export to PDF" style="bottom: 96px;">
     <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  </button>
+  <button class="export-fab" id="exportPptxFab" title="Export to PPTX">
+    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
   </button>
   <div class="export-fab-progress" id="exportProgress"></div>
 
@@ -3757,6 +3760,29 @@ function initVariantSystem() {
 }
 
 initVariantSystem();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/gh/gitbrent/PptxGenJS@3.12.0/dist/pptxgen.bundle.js"></script>
+  <script src="export-pptx.js"></script>
+  <script>
+    document.getElementById('exportPptxFab').addEventListener('click', async function () {
+      var btn = this;
+      var progress = document.getElementById('exportProgress');
+      if (btn.classList.contains('export-fab--exporting')) return;
+      btn.classList.add('export-fab--exporting');
+      progress.textContent = 'Building PPTX...';
+      progress.classList.add('visible');
+      try {
+        var filename = await exportPPTX();
+        progress.textContent = 'Saved ' + filename;
+        setTimeout(function () { progress.classList.remove('visible'); }, 2000);
+      } catch (err) {
+        progress.textContent = 'Export failed: ' + err.message;
+        console.error('PPTX export error:', err);
+        setTimeout(function () { progress.classList.remove('visible'); }, 3000);
+      }
+      btn.classList.remove('export-fab--exporting');
+    });
   </script>
 
 </body>
