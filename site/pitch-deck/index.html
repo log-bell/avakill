@@ -1,0 +1,3140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AvaKill — Pitch Deck</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background: #0A0F1E;
+      color: #F8F8F8;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #particle-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* Slide container */
+    .deck {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 48px;
+      padding: 48px 24px;
+    }
+
+    .slide {
+      width: 960px;
+      height: 540px;
+      background: #0A0F1E;
+      border: none;
+      border-radius: 0;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 212, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.6) 25%, rgba(0,0,0,0.6) 50%, transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.6) 25%, rgba(0,0,0,0.6) 50%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .slide > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .slide-title {
+      position: absolute;
+      top: 24px;
+      left: 32px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: rgba(156, 163, 175, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Slide 1: Title slide */
+    .slide-1-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      padding: 80px 64px 60px;
+      text-align: center;
+    }
+
+    .slide-1-logo-wrap {
+      position: relative;
+      width: 78px;
+      height: 100px;
+      margin-bottom: 12px;
+    }
+
+    .slide-1-logo-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -40px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .slide-1-logo {
+      width: 78px;
+      height: 100px;
+      object-fit: contain;
+      position: relative;
+    }
+
+    .slide-1-brand {
+      font-size: 50px;
+      font-weight: 900;
+      color: #00D4FF;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .slide-1-headline {
+      font-size: 38px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .slide-1-subline {
+      font-size: 22px;
+      font-weight: 500;
+      color: #9CA3AF;
+      line-height: 1.45;
+      max-width: 740px;
+    }
+
+    .slide-1-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(156, 163, 175, 0.5);
+      border-top: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .slide-1-bar .sep {
+      color: rgba(156, 163, 175, 0.2);
+    }
+
+    /* Slide 2: The Problem */
+    .slide-2-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 40px 48px 56px;
+    }
+
+    .slide-2-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 28px;
+    }
+
+    .slide-2-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .slide-2-stat {
+      background: rgba(239, 68, 68, 0.06);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .slide-2-stat-number {
+      font-size: 52px;
+      font-weight: 900;
+      color: #EF4444;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .slide-2-stat-desc {
+      font-size: 12px;
+      font-weight: 500;
+      color: #9CA3AF;
+      line-height: 1.45;
+    }
+
+    .slide-2-context {
+      font-size: 15px;
+      color: #9CA3AF;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .slide-2-context strong {
+      color: #F8F8F8;
+      font-weight: 700;
+    }
+
+    .slide-2-quote {
+      font-size: 13px;
+      font-style: italic;
+      color: rgba(156, 163, 175, 0.5);
+      border-top: 1px solid rgba(0, 212, 255, 0.25);
+      padding-top: 14px;
+    }
+
+    /* Slide 3: Why Now */
+    .slide-3-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 40px 48px 48px;
+    }
+
+    .slide-3-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    .slide-3-columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      align-content: start;
+    }
+
+    .slide-3-col {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .slide-3-col-date {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #00D4FF;
+      margin-bottom: 4px;
+    }
+
+    .slide-3-col-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: #F8F8F8;
+      margin-bottom: 10px;
+    }
+
+    .slide-3-col-anchor {
+      font-size: 26px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+
+    .slide-3-col-points {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: #9CA3AF;
+      line-height: 1.45;
+    }
+
+    .slide-3-col-point {
+      display: flex;
+      gap: 6px;
+      align-items: baseline;
+    }
+
+    .slide-3-col-point::before {
+      content: '';
+      flex-shrink: 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.3);
+      margin-top: 5px;
+    }
+
+    /* Slide 4: The Solution */
+    .slide-4-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 36px 48px 36px;
+    }
+
+    .slide-4-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    /* Architecture diagram — top-down enforcement paths */
+    .slide-4-arch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 16px;
+      flex: 1;
+      gap: 0;
+    }
+
+    .slide-4-policy-box {
+      background: rgba(0, 212, 255, 0.04);
+      border: 1.5px solid rgba(0, 212, 255, 0.25);
+      border-radius: 10px;
+      padding: 12px 28px;
+      text-align: center;
+    }
+
+    .slide-4-policy-title {
+      font-size: 14px;
+      font-weight: 900;
+      color: #00D4FF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .slide-4-policy-title svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: #00D4FF;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .slide-4-policy-sub {
+      font-size: 11px;
+      font-weight: 500;
+      color: #9CA3AF;
+    }
+
+    .slide-4-connector {
+      width: 2px;
+      height: 18px;
+      background: linear-gradient(180deg, rgba(0, 212, 255, 0.5), rgba(0, 212, 255, 0.15));
+    }
+
+    .slide-4-connector-fan {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      height: 16px;
+      position: relative;
+    }
+
+    .slide-4-connector-fan::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 72%;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(0, 212, 255, 0.08), rgba(0, 212, 255, 0.25) 25%, rgba(0, 212, 255, 0.25) 75%, rgba(0, 212, 255, 0.08));
+    }
+
+    .slide-4-connector-fan::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 0;
+      background: transparent;
+    }
+
+    .slide-4-paths {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      width: 100%;
+    }
+
+    .slide-4-path {
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      border-radius: 10px;
+      padding: 14px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .slide-4-path--optional {
+      border-style: dashed;
+      border-color: rgba(0, 212, 255, 0.10);
+    }
+
+    .slide-4-path-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #F8F8F8;
+      margin-bottom: 2px;
+    }
+
+    .slide-4-path-optional-tag {
+      font-size: 9px;
+      font-weight: 600;
+      color: rgba(156, 163, 175, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .slide-4-path-items {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+
+    .slide-4-path-item {
+      font-size: 11px;
+      font-weight: 500;
+      color: #9CA3AF;
+      line-height: 1.3;
+    }
+
+    .slide-4-path-subtitle {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #00D4FF;
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 4px;
+      padding: 3px 10px;
+      margin-top: auto;
+    }
+
+    /* Differentiator pills */
+    .slide-4-pills {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .slide-4-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: #9CA3AF;
+      background: rgba(17, 24, 39, 0.6);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 999px;
+      padding: 6px 14px;
+    }
+
+    .slide-4-tagline {
+      font-size: 15px;
+      font-weight: 500;
+      color: rgba(156, 163, 175, 0.6);
+      text-align: center;
+    }
+
+    /* Slide 5: How It Works */
+    .slide-5-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 36px 40px 36px;
+    }
+
+    .slide-5-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .slide-5-panels {
+      display: flex;
+      gap: 0;
+      align-items: start;
+    }
+
+    .slide-5-panel {
+      display: flex;
+      flex-direction: column;
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .slide-5-chevron {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      align-self: center;
+      color: rgba(0, 212, 255, 0.3);
+      font-size: 18px;
+    }
+
+    .slide-5-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    .slide-5-panel-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.1);
+      color: #00D4FF;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .slide-5-panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #F8F8F8;
+    }
+
+    .slide-5-panel-body {
+      padding: 10px 14px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 10px;
+      line-height: 1.55;
+      color: #E6EDF3;
+      background: rgba(13, 17, 23, 0.5);
+      white-space: pre;
+    }
+
+    .slide-5-panel-body .cm { color: #6B7280; }
+    .slide-5-panel-body .ky { color: #00D4FF; }
+    .slide-5-panel-body .st { color: #22C55E; }
+    .slide-5-panel-body .vl { color: #F59E0B; }
+    .slide-5-panel-body .dn { color: #EF4444; font-weight: 700; }
+    .slide-5-panel-body .al { color: #22C55E; font-weight: 700; }
+    .slide-5-panel-body .lb { color: #9CA3AF; }
+    .slide-5-panel-body .dt { color: #6B7280; }
+
+    .slide-5-panel-caption {
+      padding: 8px 14px 10px;
+      font-size: 11px;
+      color: #9CA3AF;
+      line-height: 1.45;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+    }
+
+    /* Slide 6: Market (was slide 7) */
+    .slide-6-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 36px 40px 36px;
+    }
+
+    .slide-6-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .slide-6-body {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 20px;
+      flex: 1;
+    }
+
+    /* Concentric circles */
+    .slide-6-circles {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding-left: 160px;
+    }
+
+    .slide-6-ring {
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+    }
+
+    .slide-6-ring--tam {
+      width: 380px;
+      height: 380px;
+      border: 1.5px solid rgba(0, 212, 255, 0.12);
+      background: rgba(0, 212, 255, 0.02);
+    }
+
+    .slide-6-ring--sam {
+      width: 260px;
+      height: 260px;
+      border: 1.5px solid rgba(0, 212, 255, 0.2);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .slide-6-ring--som {
+      width: 140px;
+      height: 140px;
+      border: 1.5px solid rgba(0, 212, 255, 0.35);
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    .slide-6-ring-label {
+      text-align: center;
+      padding: 8px;
+    }
+
+    .slide-6-ring-label-tag {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #00D4FF;
+    }
+
+    .slide-6-ring-label-val {
+      font-size: 18px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+    }
+
+    .slide-6-ring-label-val--sm {
+      font-size: 14px;
+    }
+
+    /* TAM and SAM labels positioned adjacent to their rings */
+    .slide-6-tam-label,
+    .slide-6-sam-label {
+      position: absolute;
+      text-align: left;
+    }
+
+    .slide-6-tam-label {
+      top: 10px;
+      left: 0;
+    }
+
+    /* Connector line from TAM label to outer ring */
+    .slide-6-tam-label::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: -152px;
+      width: 148px;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.2);
+    }
+
+    .slide-6-sam-label {
+      bottom: 60px;
+      left: 0;
+    }
+
+    /* Connector line from SAM label to middle ring */
+    .slide-6-sam-label::after {
+      content: '';
+      position: absolute;
+      top: 30%;
+      right: -207px;
+      width: 203px;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.25);
+    }
+
+    .slide-6-market-tag {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #00D4FF;
+    }
+
+    .slide-6-market-val {
+      font-size: 16px;
+      font-weight: 900;
+      color: #F8F8F8;
+    }
+
+    .slide-6-market-desc {
+      font-size: 10px;
+      color: #6B7280;
+      line-height: 1.4;
+      max-width: 160px;
+    }
+
+    /* Side callout */
+    .slide-6-callout {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide-6-callout-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00D4FF;
+      margin-bottom: 14px;
+    }
+
+    .slide-6-callout-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slide-6-callout-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .slide-6-callout-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #F8F8F8;
+    }
+
+    .slide-6-callout-detail {
+      font-size: 10px;
+      color: #6B7280;
+    }
+
+    /* Slide 7: Business Model (was slide 8, consolidated with old slide 10) */
+    .slide-7-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 32px 40px 28px;
+    }
+
+    .slide-7-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+
+    /* Pricing table */
+    .slide-7-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      font-size: 11px;
+    }
+
+    .slide-7-table th {
+      text-align: left;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6B7280;
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    .slide-7-table td {
+      padding: 8px 10px;
+      color: #9CA3AF;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.04);
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    .slide-7-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .slide-7-tier {
+      font-weight: 700;
+      color: #F8F8F8;
+    }
+
+    .slide-7-price {
+      color: #00D4FF;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .slide-7-table tr.slide-7-row-ent td {
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    /* Bottom grid: 2 columns (Path to $1M ARR + Revenue Streams) */
+    .slide-7-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .slide-7-box {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .slide-7-box-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00D4FF;
+      margin-bottom: 10px;
+    }
+
+    .slide-7-math {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 11px;
+      color: #9CA3AF;
+      line-height: 1.4;
+    }
+
+    .slide-7-math-val {
+      color: #F8F8F8;
+      font-weight: 700;
+    }
+
+    .slide-7-math-or {
+      font-size: 9px;
+      color: #8899AA;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .slide-7-streams {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slide-7-stream {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 11px;
+      color: #9CA3AF;
+      line-height: 1.4;
+    }
+
+    .slide-7-stream-tag {
+      flex-shrink: 0;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #00D4FF;
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 4px;
+      padding: 2px 6px;
+      white-space: nowrap;
+    }
+
+    .slide-7-stream strong {
+      color: #F8F8F8;
+      font-weight: 700;
+    }
+
+    .slide-7-agpl-note {
+      font-size: 11px;
+      color: #9CA3AF;
+      line-height: 1.5;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .slide-7-agpl-note strong {
+      color: #F8F8F8;
+      font-weight: 600;
+    }
+
+    /* Slide 8: Competitive Landscape (was slide 9) */
+    .slide-8-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 32px 40px 28px;
+    }
+
+    .slide-8-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    /* Matrix wrapper with external axis labels */
+    .slide-8-matrix-wrap {
+      display: grid;
+      grid-template-columns: 20px 1fr 1fr 20px;
+      grid-template-rows: 20px 1fr 1fr 20px;
+      gap: 0;
+      margin-bottom: 12px;
+    }
+
+    /* External axis labels */
+    .slide-8-axis-top {
+      grid-column: 1 / -1;
+      grid-row: 1;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+    }
+
+    .slide-8-axis-top-left,
+    .slide-8-axis-top-right {
+      flex: 1;
+      text-align: center;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(0, 212, 255, 0.35);
+      padding: 0 20px;
+    }
+
+    .slide-8-axis-left {
+      grid-column: 1;
+      grid-row: 2 / 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slide-8-axis-left span {
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(0, 212, 255, 0.35);
+      white-space: nowrap;
+    }
+
+    .slide-8-axis-right {
+      grid-column: 4;
+      grid-row: 2 / 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slide-8-axis-right span {
+      writing-mode: vertical-lr;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(0, 212, 255, 0.35);
+      white-space: nowrap;
+    }
+
+    .slide-8-axis-bottom {
+      grid-column: 1 / -1;
+      grid-row: 4;
+      display: flex;
+    }
+
+    .slide-8-axis-bottom-left,
+    .slide-8-axis-bottom-right {
+      flex: 1;
+      text-align: center;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(0, 212, 255, 0.35);
+      padding: 0 20px;
+    }
+
+    /* Quadrants */
+    .slide-8-quad {
+      padding: 18px 18px;
+      display: flex;
+      flex-direction: column;
+      background: rgba(17, 24, 39, 0.3);
+    }
+
+    .slide-8-q-tl { grid-column: 2; grid-row: 2; border-right: 1px solid rgba(0, 212, 255, 0.06); border-bottom: 1px solid rgba(0, 212, 255, 0.06); border-radius: 8px 0 0 0; }
+    .slide-8-q-tr { grid-column: 3; grid-row: 2; border-bottom: 1px solid rgba(0, 212, 255, 0.06); border-radius: 0 8px 0 0; }
+    .slide-8-q-bl { grid-column: 2; grid-row: 3; border-right: 1px solid rgba(0, 212, 255, 0.06); border-radius: 0 0 0 8px; }
+    .slide-8-q-br { grid-column: 3; grid-row: 3; border-radius: 0 0 8px 0; }
+
+    /* AvaKill quadrant highlight */
+    .slide-8-quad--ava {
+      background: rgba(0, 212, 255, 0.04);
+      border-left: 2px solid rgba(0, 212, 255, 0.3);
+      border-top: 2px solid rgba(0, 212, 255, 0.3);
+    }
+
+    .slide-8-ava-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 14px;
+      font-weight: 900;
+      color: #00D4FF;
+      margin-bottom: 4px;
+    }
+
+    .slide-8-ava-badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00D4FF;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    }
+
+    .slide-8-ava-sub {
+      font-size: 10px;
+      color: #9CA3AF;
+      line-height: 1.45;
+    }
+
+    .slide-8-ava-sub em {
+      font-style: italic;
+      color: #6B7280;
+    }
+
+    .slide-8-quad-players {
+      font-size: 11px;
+      color: #9CA3AF;
+      line-height: 1.5;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .slide-8-quad-desc {
+      font-size: 10px;
+      color: #6B7280;
+      line-height: 1.45;
+    }
+
+    /* Exit market bar */
+    .slide-8-exit-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 14px;
+    }
+
+    .slide-8-exit-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00D4FF;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .slide-8-exit-items {
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+    }
+
+    .slide-8-exit-item {
+      color: #9CA3AF;
+    }
+
+    .slide-8-exit-item strong {
+      color: #F8F8F8;
+      font-weight: 700;
+    }
+
+    .slide-8-exit-msg {
+      font-size: 10px;
+      font-style: italic;
+      color: #6B7280;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .slide-8-message {
+      font-size: 12px;
+      color: #9CA3AF;
+      line-height: 1.5;
+    }
+
+    .slide-8-message strong {
+      color: #F8F8F8;
+      font-weight: 700;
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0, 212, 255, 0.06);
+      line-height: 1.4;
+    }
+
+    /* Slide 9: Traction & Roadmap (was slide 11) */
+    .slide-9-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 30px 40px 30px;
+    }
+
+    .slide-9-headline {
+      font-size: 24px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+
+    .slide-9-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .slide-9-col {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .slide-9-col--live {
+      border-color: rgba(34, 197, 94, 0.2);
+    }
+
+    .slide-9-col-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .slide-9-col-title--green { color: #22C55E; }
+    .slide-9-col-title--blue { color: #00D4FF; }
+
+    .slide-9-items {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 10.5px;
+      color: #9CA3AF;
+      line-height: 1.45;
+    }
+
+    .slide-9-item {
+      display: flex;
+      gap: 6px;
+      align-items: baseline;
+    }
+
+    .slide-9-item-dot {
+      flex-shrink: 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      margin-top: 5px;
+    }
+
+    .slide-9-item-dot--green { background: #22C55E; }
+    .slide-9-item-dot--blue { background: #00D4FF; }
+
+    .slide-9-item strong {
+      color: #F8F8F8;
+      font-weight: 600;
+    }
+
+    .slide-9-category {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(0, 212, 255, 0.5);
+      margin-top: 6px;
+      margin-bottom: 2px;
+    }
+
+    .slide-9-category:first-child {
+      margin-top: 0;
+    }
+
+    /* Roadmap timeline */
+    .slide-9-roadmap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      padding-left: 70px;
+    }
+
+    .slide-9-roadmap::before {
+      content: '';
+      position: absolute;
+      left: 66px;
+      top: 7px;
+      bottom: 7px;
+      width: 1px;
+      background: rgba(0, 212, 255, 0.15);
+    }
+
+    .slide-9-phase {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      position: relative;
+    }
+
+    .slide-9-phase-date {
+      position: absolute;
+      left: -70px;
+      width: 56px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #00D4FF;
+      text-align: right;
+    }
+
+    .slide-9-phase-dot {
+      flex-shrink: 0;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.3);
+      border: 1.5px solid #00D4FF;
+      position: relative;
+      z-index: 1;
+      margin-left: -3px;
+    }
+
+    .slide-9-phase-text {
+      font-size: 10.5px;
+      color: #9CA3AF;
+      line-height: 1.45;
+      padding-bottom: 2px;
+    }
+
+    .slide-9-phase-text strong {
+      color: #F8F8F8;
+      font-weight: 600;
+    }
+
+    /* Slide 10: Team (NEW) */
+    .slide-10-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 36px 48px 36px;
+    }
+
+    .slide-10-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    .slide-10-split {
+      display: grid;
+      grid-template-columns: 35% 65%;
+      gap: 24px;
+      flex: 1;
+      align-content: start;
+    }
+
+    .slide-10-founder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    .slide-10-headshot-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+
+    .slide-10-headshot-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -20px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, rgba(0, 212, 255, 0.05) 50%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .slide-10-headshot {
+      height: 125px;
+      width: auto;
+      border-radius: 12px;
+      border: 2px solid rgba(0, 212, 255, 0.25);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .slide-10-founder-name {
+      font-size: 24px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .slide-10-founder-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #00D4FF;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .slide-10-founder-statement {
+      font-size: 12px;
+      color: #9CA3AF;
+      line-height: 1.55;
+      font-style: italic;
+      text-align: center;
+    }
+
+    .slide-10-proof {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+
+    .slide-10-proof-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00D4FF;
+      margin-bottom: 14px;
+    }
+
+    .slide-10-proof-items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .slide-10-proof-item {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 12px;
+      color: #9CA3AF;
+      line-height: 1.45;
+    }
+
+    .slide-10-proof-dot {
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22C55E;
+      margin-top: 4px;
+    }
+
+    .slide-10-proof-item strong {
+      color: #F8F8F8;
+      font-weight: 700;
+    }
+
+    .slide-10-bottom {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(0, 212, 255, 0.1);
+      font-size: 14px;
+      font-weight: 700;
+      color: #00D4FF;
+      text-align: center;
+      font-style: italic;
+    }
+
+    /* Slide 11: The Ask (was slide 12) */
+    .slide-11-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 30px 40px 30px;
+    }
+
+    .slide-11-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .slide-11-terms {
+      font-size: 13px;
+      color: #00D4FF;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .slide-11-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .slide-11-box {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide-11-box-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00D4FF;
+      margin-bottom: 10px;
+    }
+
+    /* Use of funds bars */
+    .slide-11-funds {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .slide-11-fund {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slide-11-fund-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .slide-11-fund-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #F8F8F8;
+    }
+
+    .slide-11-fund-pct {
+      font-size: 11px;
+      font-weight: 700;
+      color: #00D4FF;
+    }
+
+    .slide-11-fund-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(0, 212, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .slide-11-fund-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #00D4FF, rgba(0, 212, 255, 0.5));
+    }
+
+    .slide-11-fund-desc {
+      font-size: 9.5px;
+      color: #6B7280;
+      line-height: 1.4;
+    }
+
+    /* Milestones */
+    .slide-11-milestones {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      font-size: 11px;
+    }
+
+    .slide-11-milestone {
+      display: flex;
+      gap: 6px;
+      align-items: baseline;
+      color: #9CA3AF;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .slide-11-milestone-dot {
+      flex-shrink: 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #00D4FF;
+      margin-top: 5px;
+    }
+
+    .slide-11-milestone strong {
+      color: #F8F8F8;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    /* Bottom bar */
+    .slide-11-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .slide-11-closing {
+      font-size: 14px;
+      font-weight: 900;
+      color: #00D4FF;
+      font-style: italic;
+    }
+
+    .slide-11-contact {
+      font-size: 11px;
+      color: #6B7280;
+      display: flex;
+      gap: 16px;
+    }
+
+    .slide-11-contact span {
+      color: #9CA3AF;
+    }
+
+    /* Slide 12: Thank You (was slide 13) */
+    .slide-12-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      padding: 40px 64px;
+      text-align: center;
+    }
+
+    .slide-12-logo-wrap {
+      position: relative;
+      width: 62px;
+      height: 80px;
+      margin-bottom: 24px;
+    }
+
+    .slide-12-logo-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -40px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .slide-12-logo {
+      width: 62px;
+      height: 80px;
+      object-fit: contain;
+      position: relative;
+    }
+
+    .slide-12-headline {
+      font-size: 38px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .slide-12-tagline {
+      font-size: 16px;
+      color: #00D4FF;
+      font-weight: 600;
+      font-style: italic;
+      margin-bottom: 40px;
+    }
+
+    .slide-12-divider {
+      width: 60px;
+      height: 1px;
+      background: rgba(0, 212, 255, 0.3);
+      margin-bottom: 24px;
+    }
+
+    .slide-12-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #F8F8F8;
+      line-height: 1.2;
+    }
+
+    .slide-12-role {
+      font-size: 13px;
+      font-weight: 600;
+      color: #9CA3AF;
+      margin-bottom: 20px;
+    }
+
+    .slide-12-contact {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 14px;
+      color: #9CA3AF;
+    }
+
+    .slide-12-contact-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .slide-12-contact-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(0, 212, 255, 0.5);
+      width: 50px;
+      text-align: right;
+    }
+
+    .slide-12-contact-value {
+      color: #F8F8F8;
+      font-weight: 500;
+    }
+
+    /* Appendix slide */
+    .slide-appendix-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 36px 40px 36px;
+    }
+
+    .slide-appendix-headline {
+      font-size: 28px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.2;
+      margin-bottom: 18px;
+    }
+
+    .slide-appendix-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .slide-appendix-col {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+
+    .slide-appendix-col-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00D4FF;
+      margin-bottom: 12px;
+    }
+
+    .slide-appendix-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slide-appendix-row {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .slide-appendix-row-code {
+      flex-shrink: 0;
+      min-width: 62px;
+      text-align: center;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: #F8F8F8;
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 4px;
+      padding: 3px 8px;
+      white-space: nowrap;
+    }
+
+    .slide-appendix-row-arrow {
+      color: rgba(0, 212, 255, 0.3);
+      flex-shrink: 0;
+    }
+
+    .slide-appendix-row-desc {
+      color: #9CA3AF;
+    }
+
+    .slide-appendix-bottom {
+      font-size: 13px;
+      color: rgba(156, 163, 175, 0.6);
+      text-align: center;
+      margin-top: 16px;
+      font-style: italic;
+    }
+
+    /* Slide number indicator */
+    .slide::after {
+      content: attr(data-slide);
+      position: absolute;
+      bottom: 16px;
+      right: 24px;
+      font-size: 0.75rem;
+      color: rgba(156, 163, 175, 0.4);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Responsive: scale slides down on smaller screens */
+    @media (max-width: 1024px) {
+      .slide {
+        width: 100%;
+        max-width: 960px;
+        height: 0;
+        padding-bottom: 56.25%; /* 9/16 ratio */
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      body::after { display: none; }
+    }
+    /* Export FAB */
+    /* LinkedIn Thumbnail Section */
+    .thumbnail-section {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 24px 48px;
+    }
+
+    .thumbnail-section h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #9CA3AF;
+      margin-bottom: 32px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .thumb-wrapper {
+      width: 960px;
+      height: 540px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 212, 255, 0.15);
+    }
+
+    .linkedin-thumbnail {
+      width: 1920px;
+      height: 1080px;
+      background: #0A0F1E;
+      position: relative;
+      overflow: hidden;
+      transform: scale(0.5);
+      transform-origin: top left;
+    }
+
+    .thumb-grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 212, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.6) 25%, rgba(0,0,0,0.6) 50%, transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.6) 25%, rgba(0,0,0,0.6) 50%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .thumb-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      padding: 60px 80px 60px;
+      text-align: center;
+    }
+
+    .thumb-logo-wrap {
+      position: relative;
+      width: 240px;
+      height: 300px;
+      margin-bottom: 16px;
+    }
+
+    .thumb-logo-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -100px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .thumb-logo {
+      width: 240px;
+      height: 300px;
+      object-fit: contain;
+      position: relative;
+    }
+
+    .thumb-headline {
+      font-size: 108px;
+      font-weight: 900;
+      color: #F8F8F8;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+
+    .thumb-subline {
+      font-size: 48px;
+      font-weight: 500;
+      color: #9CA3AF;
+      margin-bottom: 0;
+    }
+
+    .thumb-shield-arc {
+      position: absolute;
+      top: 540px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1700px;
+      height: 260px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .thumb-agent-row {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .thumb-agent {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      position: absolute;
+      transform: translate(-50%, 0);
+      pointer-events: auto;
+    }
+
+    /* Positions along the wider arc, agents below the curve
+       Arc SVG: 1700px wide, top: 540px, centered at x=960
+       SVG left edge: 960-850=110, bezier: M 0 180 Q 700 -40 1400 180 scaled to 1700px */
+    .thumb-agent:nth-child(1) { left: 322px; top: 760px; }
+    .thumb-agent:nth-child(2) { left: 535px; top: 718px; }
+    .thumb-agent:nth-child(3) { left: 748px; top: 692px; }
+    .thumb-agent:nth-child(4) { left: 960px; top: 684px; }
+    .thumb-agent:nth-child(5) { left: 1172px; top: 692px; }
+    .thumb-agent:nth-child(6) { left: 1385px; top: 718px; }
+    .thumb-agent:nth-child(7) { left: 1598px; top: 760px; }
+
+    .thumb-agent-icon {
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumb-agent-icon svg {
+      width: 80px;
+      height: 80px;
+    }
+
+    .thumb-agent-label {
+      font-size: 26px;
+      font-weight: 600;
+      color: rgba(248, 248, 248, 0.7);
+      white-space: nowrap;
+    }
+
+    .thumb-url {
+      position: absolute;
+      bottom: 30px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 30px;
+      font-weight: 500;
+      color: rgba(156, 163, 175, 0.4);
+      letter-spacing: 0.02em;
+    }
+
+    #downloadThumb {
+      margin-top: 24px;
+      padding: 14px 32px;
+      background: rgba(0, 212, 255, 0.15);
+      border: 1px solid rgba(0, 212, 255, 0.4);
+      border-radius: 8px;
+      color: #00D4FF;
+      font-family: 'Satoshi', system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #downloadThumb:hover {
+      background: rgba(0, 212, 255, 0.25);
+      border-color: rgba(0, 212, 255, 0.7);
+      transform: scale(1.03);
+    }
+
+    #downloadThumb:active {
+      transform: scale(0.97);
+    }
+
+    .export-fab {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.15);
+      border: 1px solid rgba(0, 212, 255, 0.4);
+      color: #00D4FF;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .export-fab:hover {
+      background: rgba(0, 212, 255, 0.25);
+      border-color: rgba(0, 212, 255, 0.7);
+      transform: scale(1.08);
+    }
+
+    .export-fab:active {
+      transform: scale(0.95);
+    }
+
+    .export-fab--exporting {
+      pointer-events: none;
+      animation: fab-pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes fab-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .export-fab svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .export-fab-progress {
+      position: fixed;
+      bottom: 92px;
+      right: 24px;
+      background: rgba(10, 15, 30, 0.9);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #9CA3AF;
+      z-index: 1000;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+    }
+
+    .export-fab-progress.visible {
+      display: block;
+    }
+
+    /* ─── Variant Tab Bar ─── */
+    .variant-tab-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      padding: 16px 24px 12px;
+      background: rgba(10, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    }
+
+    .variant-tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(17, 24, 39, 0.6);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .variant-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 8px 20px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-width: 200px;
+    }
+
+    .variant-tab:hover {
+      background: rgba(0, 212, 255, 0.04);
+    }
+
+    .variant-tab--active {
+      background: rgba(0, 212, 255, 0.08);
+      box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.2);
+    }
+
+    .variant-tab-name {
+      font-family: 'Satoshi', system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #9CA3AF;
+      transition: color 0.15s ease;
+    }
+
+    .variant-tab--active .variant-tab-name {
+      color: #00D4FF;
+    }
+
+    .variant-tab-hint {
+      font-family: 'Satoshi', system-ui, sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(156, 163, 175, 0.45);
+      line-height: 1.3;
+      max-width: 260px;
+      text-align: left;
+    }
+
+    .variant-tab--active .variant-tab-hint {
+      color: rgba(156, 163, 175, 0.65);
+    }
+
+    /* Hide tab bar during PDF export */
+    .exporting .variant-tab-bar {
+      display: none;
+    }
+
+    /* Password gate overlay */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: #0A0F1E;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+    }
+
+    .auth-overlay input {
+      width: 280px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 8px;
+      color: #F8F8F8;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .auth-overlay input:focus {
+      border-color: #00D4FF;
+    }
+
+    .auth-overlay input::placeholder {
+      color: rgba(248, 248, 248, 0.3);
+    }
+
+    .auth-overlay button {
+      margin-top: 12px;
+      width: 280px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      background: #00D4FF;
+      color: #0A0F1E;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .auth-overlay button:hover {
+      opacity: 0.85;
+    }
+
+    .auth-error {
+      margin-top: 12px;
+      font-size: 0.875rem;
+      color: #FF4D6A;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .auth-error.visible {
+      opacity: 1;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="auth-overlay" id="authOverlay">
+    <img src="../avakill-logo.png" style="height:48px;margin-bottom:32px;opacity:0.8" alt="AvaKill">
+    <input type="password" id="authInput" placeholder="Enter password" autofocus>
+    <button onclick="checkAuth()">Access Deck</button>
+    <div class="auth-error" id="authError">Incorrect password</div>
+  </div>
+  <script>
+    (function() {
+      var PASS = 'avakill2026';
+      var overlay = document.getElementById('authOverlay');
+      var input = document.getElementById('authInput');
+      var error = document.getElementById('authError');
+
+      if (sessionStorage.getItem('avakill_auth') === 'ok') {
+        overlay.style.display = 'none';
+      }
+
+      window.checkAuth = function() {
+        if (input.value === PASS) {
+          sessionStorage.setItem('avakill_auth', 'ok');
+          overlay.style.display = 'none';
+        } else {
+          error.classList.add('visible');
+          input.value = '';
+          input.focus();
+        }
+      };
+
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') checkAuth();
+      });
+    })();
+  </script>
+
+  <canvas id="particle-canvas" role="presentation" aria-hidden="true"></canvas>
+
+  <div class="deck">
+    <div class="slide" data-slide="1 / 12">
+      <div class="slide-1-content">
+        <div class="slide-1-logo-wrap"><img src="../avakill-logo.png" alt="AvaKill logo" class="slide-1-logo"></div>
+        <div class="slide-1-brand">AvaKill</div>
+        <h1 class="slide-1-headline">The AI Safety Firewall.</h1>
+        <p class="slide-1-subline">An open-source firewall that intercepts every AI agent tool call and enforces safety policies before damage is done.</p>
+      </div>
+      <div class="slide-1-bar">
+        <span>Logan Bell, Founder</span>
+        <span class="sep">|</span>
+        <span>logan@avakill.com</span>
+        <span class="sep">|</span>
+        <span>310-913-1024</span>
+        <span class="sep">|</span>
+        <span>avakill.com</span>
+      </div>
+    </div>
+    <div class="slide" data-slide="2 / 12">
+      <div class="slide-2-content">
+        <h2 class="slide-2-headline">AI Agents Execute Code Autonomously — With Zero Safety Enforcement</h2>
+        <div class="slide-2-stats">
+          <div class="slide-2-stat">
+            <div class="slide-2-stat-number">1,184</div>
+            <div class="slide-2-stat-desc">Malicious skills uploaded to ClawHub in 72 hours (ClawHavoc, Jan 2026)</div>
+          </div>
+          <div class="slide-2-stat">
+            <div class="slide-2-stat-number">9,000+</div>
+            <div class="slide-2-stat-desc">Installations compromised — credentials, SSH keys, wallets stolen</div>
+          </div>
+          <div class="slide-2-stat">
+            <div class="slide-2-stat-number">17,500+</div>
+            <div class="slide-2-stat-desc">Instances exposed to one-click RCE via CVE-2026-25253 (CVSS 8.8)</div>
+          </div>
+        </div>
+        <p class="slide-2-context"><strong>Every engineering team shipping AI agents has zero policy enforcement between the agent and their infrastructure.</strong> 91% of ClawHavoc payloads used prompt injection to execute commands autonomously &mdash; no human clicked &ldquo;approve.&rdquo;</p>
+      </div>
+    </div>
+    <div class="slide" data-slide="3 / 12">
+      <div class="slide-3-content">
+        <h2 class="slide-3-headline">Three Forces Converging in 2026</h2>
+        <div class="slide-3-columns">
+          <div class="slide-3-col">
+            <span class="slide-3-col-date">Jan 27, 2026</span>
+            <h3 class="slide-3-col-title">The Crisis</h3>
+            <div class="slide-3-col-anchor">9,000+ compromised in 72 hours</div>
+            <div class="slide-3-col-points">
+              <span class="slide-3-col-point">First large-scale AI agent supply chain attack</span>
+              <span class="slide-3-col-point">Kakao, Naver banned OpenClaw on corporate networks</span>
+            </div>
+          </div>
+          <div class="slide-3-col">
+            <span class="slide-3-col-date">Aug 2, 2026</span>
+            <h3 class="slide-3-col-title">The Regulation</h3>
+            <div class="slide-3-col-anchor">&euro;35M fines activate Aug 2, 2026</div>
+            <div class="slide-3-col-points">
+              <span class="slide-3-col-point">EU AI Act high-risk AI compliance enforcement</span>
+              <span class="slide-3-col-point">Conformity assessments + national enforcement powers</span>
+            </div>
+          </div>
+          <div class="slide-3-col">
+            <span class="slide-3-col-date">2024 &rarr; 2028</span>
+            <h3 class="slide-3-col-title">The Market</h3>
+            <div class="slide-3-col-anchor">&lt;$1B &rarr; $51.5B by 2028</div>
+            <div class="slide-3-col-points">
+              <span class="slide-3-col-point">AI security market at 74% CAGR (Gartner)</span>
+              <span class="slide-3-col-point">$18B invested in cybersecurity startups in 2025</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="4 / 12">
+      <div class="slide-4-content">
+        <h2 class="slide-4-headline">One Policy File Controls Every AI Agent</h2>
+        <div class="slide-4-arch">
+          <div class="slide-4-policy-box">
+            <div class="slide-4-policy-title">
+              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              avakill.yaml
+            </div>
+            <div class="slide-4-policy-sub">One policy file &mdash; single source of truth</div>
+          </div>
+          <div class="slide-4-connector"></div>
+          <div class="slide-4-connector-fan"></div>
+          <div class="slide-4-paths">
+            <div class="slide-4-path">
+              <div class="slide-4-path-title">Hooks</div>
+              <div class="slide-4-path-items">
+                <span class="slide-4-path-item">Claude Code, Cursor,</span>
+                <span class="slide-4-path-item">+ 5 more platforms</span>
+              </div>
+              <div class="slide-4-path-subtitle">Standalone &middot; In-process</div>
+            </div>
+            <div class="slide-4-path">
+              <div class="slide-4-path-title">MCP Proxy</div>
+              <div class="slide-4-path-items">
+                <span class="slide-4-path-item">Wraps any</span>
+                <span class="slide-4-path-item">MCP server</span>
+                <span class="slide-4-path-item">transparently</span>
+              </div>
+              <div class="slide-4-path-subtitle">Standalone &middot; In-process</div>
+            </div>
+            <div class="slide-4-path">
+              <div class="slide-4-path-title">OS Sandbox</div>
+              <div class="slide-4-path-items">
+                <span class="slide-4-path-item">Linux, macOS,</span>
+                <span class="slide-4-path-item">Windows</span>
+              </div>
+              <div class="slide-4-path-subtitle">Standalone &middot; OS-level</div>
+            </div>
+            <div class="slide-4-path slide-4-path--optional">
+              <div class="slide-4-path-title">Daemon</div>
+              <div class="slide-4-path-optional-tag">(optional)</div>
+              <div class="slide-4-path-items">
+                <span class="slide-4-path-item">Shared evaluation</span>
+                <span class="slide-4-path-item">Audit logging</span>
+                <span class="slide-4-path-item">Approvals</span>
+                <span class="slide-4-path-item">Metrics</span>
+              </div>
+              <div class="slide-4-path-subtitle">Optional &middot; Shared eval</div>
+            </div>
+          </div>
+        </div>
+        <p class="slide-4-tagline">Open-source. Deterministic. Zero code changes. Sub-millisecond enforcement.</p>
+      </div>
+    </div>
+    <div class="slide" data-slide="5 / 12">
+      <div class="slide-5-content">
+        <h2 class="slide-5-headline">From Install to Enforcing in 60 Seconds</h2>
+        <div class="slide-5-panels">
+          <div class="slide-5-panel">
+            <div class="slide-5-panel-header">
+              <span class="slide-5-panel-num">1</span>
+              <span class="slide-5-panel-title">Define Policy</span>
+            </div>
+            <div class="slide-5-panel-body"><span class="ky">rules:</span>
+  - <span class="ky">tool:</span> <span class="st">shell_execute</span>
+    <span class="ky">action:</span> <span class="vl">deny</span>
+    <span class="ky">args_match:</span>
+      <span class="ky">command:</span> <span class="st">"rm -rf *"</span>
+  - <span class="ky">tool:</span> <span class="st">shell_execute</span>
+    <span class="ky">action:</span> <span class="vl">deny</span>
+    <span class="ky">shell_safe:</span> <span class="vl">false</span>
+  - <span class="ky">tool:</span> <span class="st">file_write</span>
+    <span class="ky">action:</span> <span class="vl">allow</span>
+    <span class="ky">args_match:</span>
+      <span class="ky">path:</span> <span class="st">"./src/**"</span></div>
+            <div class="slide-5-panel-caption">Human-readable. Version-controlled. One policy works across all agents.</div>
+          </div>
+          <div class="slide-5-chevron">&rsaquo;</div>
+          <div class="slide-5-panel">
+            <div class="slide-5-panel-header">
+              <span class="slide-5-panel-num">2</span>
+              <span class="slide-5-panel-title">Agent Makes Tool Call</span>
+            </div>
+            <div class="slide-5-panel-body"><span class="lb">Agent request:</span> <span class="st">shell_execute("rm -rf /")</span>
+
+<span class="lb">&rarr; AvaKill intercepts</span>
+<span class="lb">&rarr; Evaluates against policy</span>
+<span class="lb">&rarr; Match: block-destructive-shell</span>
+<span class="lb">&rarr; Latency: <span class="st">0.2ms</span></span>
+
+<span class="dn">&cross; DENIED</span></div>
+            <div class="slide-5-panel-caption">Every tool call intercepted. First-match-wins evaluation.</div>
+          </div>
+          <div class="slide-5-chevron">&rsaquo;</div>
+          <div class="slide-5-panel">
+            <div class="slide-5-panel-header">
+              <span class="slide-5-panel-num">3</span>
+              <span class="slide-5-panel-title">Full Audit Trail</span>
+            </div>
+            <div class="slide-5-panel-body"><span class="dt">[14:32:07]</span> <span class="lb">agent:</span> <span class="st">claude-code</span>
+<span class="lb">tool:</span> <span class="st">shell_execute</span> | <span class="lb">args:</span> <span class="st">"rm -rf /"</span>
+<span class="lb">policy:</span> <span class="st">block-destructive-shell</span>
+<span class="lb">action:</span> <span class="dn">DENIED</span> | <span class="lb">latency:</span> <span class="st">0.2ms</span>
+
+<span class="dt">[14:32:09]</span> <span class="lb">agent:</span> <span class="st">claude-code</span>
+<span class="lb">tool:</span> <span class="st">file_write</span> | <span class="lb">args:</span> <span class="st">"./src/main.py"</span>
+<span class="lb">policy:</span> <span class="st">allow-src-writes</span>
+<span class="lb">action:</span> <span class="al">&check; ALLOWED</span></div>
+            <div class="slide-5-panel-caption">Every decision logged. Queryable. Exportable. Compliance-ready.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="6 / 12">
+      <div class="slide-6-content">
+        <h2 class="slide-6-headline">$160B Market. Six Acquisitions in 12 Months.</h2>
+        <div class="slide-6-body">
+          <div class="slide-6-circles">
+            <div class="slide-6-ring slide-6-ring--tam"></div>
+            <div class="slide-6-ring slide-6-ring--sam"></div>
+            <div class="slide-6-ring slide-6-ring--som">
+              <div class="slide-6-ring-label">
+                <div class="slide-6-ring-label-tag">SOM</div>
+                <div class="slide-6-ring-label-val slide-6-ring-label-val--sm">$500M+</div>
+              </div>
+            </div>
+            <div class="slide-6-tam-label">
+              <div class="slide-6-market-tag">TAM</div>
+              <div class="slide-6-market-val">$160B by 2029</div>
+              <div class="slide-6-market-desc">AI security market (Gartner). 74% CAGR — second-fastest in Gartner's entire AI spending model.</div>
+            </div>
+            <div class="slide-6-sam-label">
+              <div class="slide-6-market-tag">SAM</div>
+              <div class="slide-6-market-val">$52.6B by 2030</div>
+              <div class="slide-6-market-desc">Agentic AI security &amp; governance (MarketsandMarkets). From $7.84B in 2025.</div>
+            </div>
+          </div>
+          <div class="slide-6-callout">
+            <div class="slide-6-callout-title">Acquirers Are Buying</div>
+            <div class="slide-6-callout-rows">
+              <div class="slide-6-callout-row">
+                <span class="slide-6-callout-name">Protect AI &rarr; Palo Alto</span>
+                <span class="slide-6-callout-detail">~$500M+, 2025</span>
+              </div>
+              <div class="slide-6-callout-row">
+                <span class="slide-6-callout-name">CalypsoAI &rarr; F5</span>
+                <span class="slide-6-callout-detail">$180M, Sept 2025</span>
+              </div>
+              <div class="slide-6-callout-row">
+                <span class="slide-6-callout-name">Lakera &rarr; Check Point</span>
+                <span class="slide-6-callout-detail">Q4 2025</span>
+              </div>
+              <div class="slide-6-callout-row">
+                <span class="slide-6-callout-name">Aim Security &rarr; Cato Networks</span>
+                <span class="slide-6-callout-detail">2025</span>
+              </div>
+              <div class="slide-6-callout-row">
+                <span class="slide-6-callout-name">Acuvity &rarr; Proofpoint</span>
+                <span class="slide-6-callout-detail">Feb 2026</span>
+              </div>
+              <div class="slide-6-callout-row">
+                <span class="slide-6-callout-name">ServiceNow security M&amp;A</span>
+                <span class="slide-6-callout-detail">$11.6B in 2025</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="7 / 12">
+      <div class="slide-7-content">
+        <h2 class="slide-7-headline">Developers Adopt Free. Enterprises Pay for Governance.</h2>
+        <table class="slide-7-table">
+          <thead>
+            <tr>
+              <th>Tier</th>
+              <th>Price</th>
+              <th>Target Buyer</th>
+              <th>Key Features</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="slide-7-tier">Community</td>
+              <td class="slide-7-price">Free (AGPL)</td>
+              <td>Individual developers</td>
+              <td>Core firewall, YAML policies, single-agent, CLI, basic audit</td>
+            </tr>
+            <tr>
+              <td class="slide-7-tier">Team</td>
+              <td class="slide-7-price">$49/mo</td>
+              <td>Dev teams, startups</td>
+              <td>Cloud dashboard, shared policies, analytics, multi-agent</td>
+            </tr>
+            <tr class="slide-7-row-ent">
+              <td class="slide-7-tier">Enterprise</td>
+              <td class="slide-7-price">$25K+/yr</td>
+              <td>CISOs, compliance teams</td>
+              <td>SSO, RBAC, audit trails, compliance reports, SLAs, dual-license option</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="slide-7-bottom">
+          <div class="slide-7-box">
+            <div class="slide-7-box-title">Path to $1M ARR</div>
+            <div class="slide-7-math">
+              <div><span class="slide-7-math-val">40</span> enterprise &times; $25K = <span class="slide-7-math-val">$1M</span></div>
+              <div class="slide-7-math-or">or</div>
+              <div><span class="slide-7-math-val">1,700</span> team &times; $588/yr = <span class="slide-7-math-val">$1M</span></div>
+              <div class="slide-7-math-or">or blend</div>
+              <div><span class="slide-7-math-val">20</span> enterprise + <span class="slide-7-math-val">850</span> team = <span class="slide-7-math-val">$1M</span></div>
+            </div>
+          </div>
+          <div class="slide-7-box">
+            <div class="slide-7-agpl-note"><strong>AGPL from day one</strong> — prevents cloud free-riding, drives dual-license revenue. Three streams: SaaS subscriptions, commercial dual-license ($10K&ndash;$100K/yr), premium policy libraries.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="8 / 12">
+      <div class="slide-8-content">
+        <h2 class="slide-8-headline">The Only Open-Source, Agent-Agnostic Player</h2>
+        <div class="slide-8-matrix-wrap">
+          <!-- Top axis -->
+          <div class="slide-8-axis-top">
+            <span class="slide-8-axis-top-left">Open Source</span>
+            <span class="slide-8-axis-top-right">Proprietary</span>
+          </div>
+          <!-- Left axis -->
+          <div class="slide-8-axis-left"><span>Agent-Agnostic</span></div>
+          <!-- TL: Open Source + Agent-Agnostic -->
+          <div class="slide-8-quad slide-8-q-tl slide-8-quad--ava">
+            <div class="slide-8-ava-badge"><span class="slide-8-ava-badge-dot"></span> AvaKill</div>
+            <div class="slide-8-ava-sub"><em>Alone in this quadrant.</em><br>Agent-agnostic middleware, YAML policies, &lt;1ms</div>
+          </div>
+          <!-- TR: Proprietary + Agent-Agnostic -->
+          <div class="slide-8-quad slide-8-q-tr">
+            <div class="slide-8-quad-players">Noma ($100M), Zenity ($55M)</div>
+            <div class="slide-8-quad-desc">Enterprise SaaS, 6-figure contracts</div>
+          </div>
+          <!-- Right axis -->
+          <div class="slide-8-axis-right"><span>Agent-Specific</span></div>
+          <!-- BL: Open Source + Agent-Specific -->
+          <div class="slide-8-quad slide-8-q-bl">
+            <div class="slide-8-quad-players">Rampart, agentsh</div>
+            <div class="slide-8-quad-desc">OS-level syscall interception, coding agents only</div>
+          </div>
+          <!-- BR: Proprietary + Agent-Specific -->
+          <div class="slide-8-quad slide-8-q-br">
+            <div class="slide-8-quad-players">CyberArk, Silverfort</div>
+            <div class="slide-8-quad-desc">MCP gateways tied to enterprise identity (Okta, Entra ID)</div>
+          </div>
+          <!-- Bottom axis -->
+          <div class="slide-8-axis-bottom">
+            <span class="slide-8-axis-bottom-left"></span>
+            <span class="slide-8-axis-bottom-right"></span>
+          </div>
+        </div>
+        <div class="slide-8-exit-bar">
+          <span class="slide-8-exit-label">Proven Exit Market</span>
+          <div class="slide-8-exit-items">
+            <span class="slide-8-exit-item"><strong>CalypsoAI &rarr; F5</strong> ($180M)</span>
+            <span class="slide-8-exit-item"><strong>Acuvity &rarr; Proofpoint</strong> (Feb 2026)</span>
+            <span class="slide-8-exit-item"><strong>Invariant Labs &rarr; Snyk</strong> (2025)</span>
+          </div>
+          <span class="slide-8-exit-msg">"The exit market is already proven."</span>
+        </div>
+        <p class="slide-8-message"><strong>They sell to CISOs top-down.</strong> We win developers bottom-up. The Snyk playbook.</p>
+      </div>
+    </div>
+    <div class="slide" data-slide="9 / 12">
+      <div class="slide-9-content">
+        <h2 class="slide-9-headline">Shipped: Production-Grade v1.0.0</h2>
+        <div class="slide-9-body">
+          <div class="slide-9-col slide-9-col--live">
+            <div class="slide-9-col-title slide-9-col-title--green">Live Today (Mar 2026)</div>
+            <div class="slide-9-items">
+              <div class="slide-9-category">Core Engine</div>
+              <div class="slide-9-item"><span class="slide-9-item-dot slide-9-item-dot--green"></span><span>Policy engine: <strong>&lt;1ms evaluation</strong>, first-match-wins, 4-level cascade</span></div>
+              <div class="slide-9-item"><span class="slide-9-item-dot slide-9-item-dot--green"></span><span><strong>7 native agent hooks:</strong> Claude Code, Gemini CLI, Windsurf, Codex, Cursor, Kiro, Amp</span></div>
+
+              <div class="slide-9-category">Infrastructure</div>
+              <div class="slide-9-item"><span class="slide-9-item-dot slide-9-item-dot--green"></span><span>Persistent daemon + <strong>2.7MB</strong> Go shim binary (cross-platform)</span></div>
+
+              <div class="slide-9-category">Quality &amp; Coverage</div>
+              <div class="slide-9-item"><span class="slide-9-item-dot slide-9-item-dot--green"></span><span><strong>40+ CLI commands</strong>, 94 test files, ~25,400 lines of tests</span></div>
+            </div>
+          </div>
+          <div class="slide-9-col">
+            <div class="slide-9-col-title slide-9-col-title--blue">Roadmap</div>
+            <div class="slide-9-roadmap">
+              <div class="slide-9-phase">
+                <span class="slide-9-phase-date">Q2 2026</span>
+                <span class="slide-9-phase-dot"></span>
+                <span class="slide-9-phase-text"><strong>v1.0 shipped.</strong> MCP HTTP transport proxy, governance dashboard alpha</span>
+              </div>
+              <div class="slide-9-phase">
+                <span class="slide-9-phase-date">Q3 2026</span>
+                <span class="slide-9-phase-dot"></span>
+                <span class="slide-9-phase-text"><strong>Governance dashboard beta</strong> (Next.js), first 3 design partners</span>
+              </div>
+              <div class="slide-9-phase">
+                <span class="slide-9-phase-date">Q4 2026</span>
+                <span class="slide-9-phase-dot"></span>
+                <span class="slide-9-phase-text"><strong>EU AI Act compliance module</strong>, Slack/webhook notifications, first enterprise contracts</span>
+              </div>
+              <div class="slide-9-phase">
+                <span class="slide-9-phase-date">2027</span>
+                <span class="slide-9-phase-dot"></span>
+                <span class="slide-9-phase-text"><strong>Seed round ($3&ndash;5M)</strong>, 20+ agent platforms, SOC 2 Type II certification, web dashboard GA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="10 / 12">
+      <div class="slide-10-content">
+        <h2 class="slide-10-headline">Solo-Built. First Customer in 14 Days.</h2>
+        <div class="slide-10-split">
+          <div class="slide-10-founder">
+            <div class="slide-10-headshot-wrap"><img src="IMG_6464.JPG" alt="Logan Bell" style="height:125px;border-radius:12px;border:2px solid rgba(0,212,255,0.25);display:block;"></div>
+            <div class="slide-10-founder-name">Logan Bell</div>
+            <div class="slide-10-founder-title">Founder &amp; CEO</div>
+            <div class="slide-10-founder-statement">Built this entire platform with AI agents — and discovered firsthand why they need a safety layer.</div>
+          </div>
+          <div class="slide-10-proof">
+            <div class="slide-10-proof-title">Proof Stack</div>
+            <div class="slide-10-proof-items">
+              <div class="slide-10-proof-item"><span class="slide-10-proof-dot"></span><span><strong>Production-grade v1.0.0</strong> shipped</span></div>
+              <div class="slide-10-proof-item"><span class="slide-10-proof-dot"></span><span><strong>25,400+ lines of tests</strong> across 94 test files</span></div>
+              <div class="slide-10-proof-item"><span class="slide-10-proof-dot"></span><span><strong>7 native agent integrations:</strong> Claude Code, Cursor, Windsurf, Gemini CLI, Codex, Kiro, Amp</span></div>
+              <div class="slide-10-proof-item"><span class="slide-10-proof-dot"></span><span><strong>First paying customer:</strong> 12-month contract signed within 14 days of launch</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-10-bottom">One engineer. Production-grade product. Paying customer. Ready to scale.</div>
+      </div>
+    </div>
+    <div class="slide" data-slide="11 / 12">
+      <div class="slide-11-content">
+        <h2 class="slide-11-headline">Raising $1M Pre-Seed</h2>
+        <div class="slide-11-terms">SAFE note, $8M post-money cap</div>
+        <div class="slide-11-body">
+          <div class="slide-11-box">
+            <div class="slide-11-box-title">Use of Funds</div>
+            <div class="slide-11-funds">
+              <div class="slide-11-fund">
+                <div class="slide-11-fund-header">
+                  <span class="slide-11-fund-label">Engineering</span>
+                  <span class="slide-11-fund-pct">60%</span>
+                </div>
+                <div class="slide-11-fund-bar"><div class="slide-11-fund-bar-fill" style="width: 60%;"></div></div>
+                <div class="slide-11-fund-desc">Hire 1&ndash;2 security engineers (Go + Python), accelerate v1.0 and governance dashboard</div>
+              </div>
+              <div class="slide-11-fund">
+                <div class="slide-11-fund-header">
+                  <span class="slide-11-fund-label">Community &amp; GTM</span>
+                  <span class="slide-11-fund-pct">25%</span>
+                </div>
+                <div class="slide-11-fund-bar"><div class="slide-11-fund-bar-fill" style="width: 25%;"></div></div>
+                <div class="slide-11-fund-desc">Developer advocacy, ClawHavoc campaign, conference presence, documentation</div>
+              </div>
+              <div class="slide-11-fund">
+                <div class="slide-11-fund-header">
+                  <span class="slide-11-fund-label">Infrastructure</span>
+                  <span class="slide-11-fund-pct">15%</span>
+                </div>
+                <div class="slide-11-fund-bar"><div class="slide-11-fund-bar-fill" style="width: 15%;"></div></div>
+                <div class="slide-11-fund-desc">CI/CD, cloud hosting for SaaS dashboard, security audits</div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-11-box">
+            <div class="slide-11-box-title">12-Month Milestones</div>
+            <div class="slide-11-milestones">
+              <div class="slide-11-milestone"><span class="slide-11-milestone-dot"></span><span><strong>1,000+</strong> open-source deployments</span></div>
+              <div class="slide-11-milestone"><span class="slide-11-milestone-dot"></span><span><strong>10</strong> paying customers</span></div>
+              <div class="slide-11-milestone"><span class="slide-11-milestone-dot"></span><span><strong>$100K+</strong> ARR</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-11-bottom">
+          <div class="slide-11-contact">
+            <span>avakill.com</span>
+            <span>github.com/log-bell/avakill</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="12 / 12">
+      <div class="slide-12-content">
+        <div class="slide-12-logo-wrap"><img src="../avakill-logo.png" alt="AvaKill logo" class="slide-12-logo"></div>
+        <h2 class="slide-12-headline">Thank You</h2>
+        <div class="slide-12-tagline">"The question isn't whether enterprises will deploy AI agents. It's whether they'll deploy them securely."</div>
+        <div class="slide-12-divider"></div>
+        <div class="slide-12-contact">
+          <div class="slide-12-contact-item">
+            <span class="slide-12-contact-label">Email</span>
+            <span class="slide-12-contact-value">logan@avakill.com</span>
+          </div>
+          <div class="slide-12-contact-item">
+            <span class="slide-12-contact-label">Phone</span>
+            <span class="slide-12-contact-value">310-913-1024</span>
+          </div>
+          <div class="slide-12-contact-item">
+            <span class="slide-12-contact-label">Web</span>
+            <span class="slide-12-contact-value">avakill.com</span>
+          </div>
+          <div class="slide-12-contact-item">
+            <span class="slide-12-contact-label">GitHub</span>
+            <span class="slide-12-contact-value">github.com/log-bell/avakill</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide" data-slide="Appendix">
+      <div class="slide-appendix-content">
+        <h2 class="slide-appendix-headline">Appendix: Compliance Framework Mapping</h2>
+        <div class="slide-appendix-columns">
+          <div class="slide-appendix-col">
+            <div class="slide-appendix-col-title">OWASP Agentic Security Top 10</div>
+            <div class="slide-appendix-rows">
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">ASI02</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Tool-call interception + YAML deny/allow policies</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">ASI03</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Least-privilege policy templates + approval workflows</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">ASI04</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Plugin/skill allowlisting + HMAC-SHA256 hash verification</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">ASI07</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Deterministic enforcement layer + containment profiles</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">ASI09</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">SQLite audit logger + full event bus</span>
+              </div>
+            </div>
+          </div>
+          <div class="slide-appendix-col">
+            <div class="slide-appendix-col-title">Regulatory &amp; Compliance Alignment</div>
+            <div class="slide-appendix-rows">
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">Art. 9</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Policy-as-code risk controls (EU AI Act Risk Management)</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">Art. 12</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Immutable audit trail with JSON export (Record-Keeping)</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">Art. 14</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">require_approval action + human-in-the-loop workflows</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">ISO 42001</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Built-in compliance reports (SOC 2, NIST AI RMF, EU AI Act)</span>
+              </div>
+              <div class="slide-appendix-row">
+                <span class="slide-appendix-row-code">CoSAI</span>
+                <span class="slide-appendix-row-arrow">&rarr;</span>
+                <span class="slide-appendix-row-desc">Default-deny policy templates ("Least Agency" Principle)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="slide-appendix-bottom">AvaKill already generates compliance reports in Table, JSON, and Markdown formats.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LinkedIn Video Thumbnail -->
+  <div class="thumbnail-section">
+    <h2>LinkedIn Video Thumbnail</h2>
+    <div class="thumb-wrapper">
+      <div class="linkedin-thumbnail" id="linkedinThumb">
+        <div class="thumb-grid-overlay"></div>
+        <div class="thumb-content">
+          <div class="thumb-logo-wrap"><img src="avakill-logo.png" alt="AvaKill logo" class="thumb-logo"></div>
+          <h1 class="thumb-headline" style="color: #00D4FF;">AvaKill</h1>
+          <p class="thumb-subline">The Open-Source AI Agent Safety Firewall</p>
+
+          <!-- Shield arc connecting AvaKill to agents -->
+          <svg class="thumb-shield-arc" viewBox="0 0 1400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="arcGrad" x1="0" y1="0" x2="1400" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00D4FF" stop-opacity="0"/>
+                <stop offset="20%" stop-color="#00D4FF" stop-opacity="0.4"/>
+                <stop offset="50%" stop-color="#00D4FF" stop-opacity="0.6"/>
+                <stop offset="80%" stop-color="#00D4FF" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="#00D4FF" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M 0 180 Q 700 -40 1400 180" stroke="url(#arcGrad)" stroke-width="4" fill="none"/>
+          </svg>
+
+          <div class="thumb-agent-row">
+            <!-- Claude Code — official Anthropic mark -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z" fill="#D97757"/>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Claude Code</span>
+            </div>
+
+            <!-- Cursor — official mark -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23" fill="#6366F1"/>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Cursor</span>
+            </div>
+
+            <!-- Windsurf — official symbol -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 512 297" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M507.28 0.143H502.4C476.721 0.103 455.882 20.899 455.882 46.575V150.416C455.882 171.153 438.743 187.95 418.344 187.95C406.224 187.95 394.125 181.851 386.945 171.613L280.889 20.139C272.089 7.561 257.77 0.063 242.271 0.063C218.091 0.063 196.332 20.619 196.332 45.995V150.436C196.332 171.173 179.333 187.97 158.794 187.97C146.634 187.97 134.555 181.871 127.375 171.633L8.7 2.122C6.02 -1.717 0 0.183 0 4.862V95.426C0 100.005 1.4 104.444 4.02 108.204L120.815 274.995C127.715 284.853 137.895 292.172 149.634 294.831C179.013 301.51 206.052 278.894 206.052 250.079V145.697C206.052 124.961 222.851 108.164 243.59 108.164H243.65C256.15 108.164 267.87 114.263 275.049 124.501L381.125 275.955C389.945 288.552 403.524 296.031 419.724 296.031C444.443 296.031 465.622 275.455 465.622 250.099V145.677C465.622 124.941 482.421 108.144 503.16 108.144H507.3C509.9 108.144 512 106.044 512 103.445V4.842C512 2.242 509.9 0.143 507.3 0.143H507.28Z" fill="#22C55E"/>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Windsurf</span>
+            </div>
+
+            <!-- Gemini CLI — official Google Gemini mark -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" fill="#4285F4"/>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Gemini CLI</span>
+            </div>
+
+            <!-- Codex — official OpenAI mark -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" fill="#22C55E"/>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Codex</span>
+            </div>
+
+            <!-- Kiro — official mark from kiro.dev -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="1200" height="1200" rx="260" fill="#9046FF"/>
+                  <mask id="kiroMask" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="272" y="202" width="655" height="796">
+                    <path d="M926.578 202.793H272.637V997.857H926.578V202.793Z" fill="white"/>
+                  </mask>
+                  <g mask="url(#kiroMask)">
+                    <path d="M398.554 818.914C316.315 1001.03 491.477 1046.74 620.672 940.156C658.687 1059.66 801.052 970.473 852.234 877.795C964.787 673.567 919.318 465.357 907.64 422.374C827.637 129.443 427.623 128.946 358.8 423.865C342.651 475.544 342.402 534.18 333.458 595.051C328.986 625.86 325.507 645.488 313.83 677.785C306.873 696.424 297.68 712.819 282.773 740.645C259.915 783.881 269.604 867.113 387.87 823.883L399.051 818.914H398.554Z" fill="white"/>
+                    <path d="M636.123 549.353C603.328 549.353 598.359 510.097 598.359 486.742C598.359 465.623 602.086 448.977 609.293 438.293C615.504 428.852 624.697 424.131 636.123 424.131C647.555 424.131 657.492 428.852 664.447 438.541C672.398 449.474 676.623 466.12 676.623 486.742C676.623 525.998 661.471 549.353 636.375 549.353H636.123Z" fill="black"/>
+                    <path d="M771.24 549.353C738.445 549.353 733.477 510.097 733.477 486.742C733.477 465.623 737.203 448.977 744.41 438.293C750.621 428.852 759.814 424.131 771.24 424.131C782.672 424.131 792.609 428.852 799.564 438.541C807.516 449.474 811.74 466.12 811.74 486.742C811.74 525.998 796.588 549.353 771.492 549.353H771.24Z" fill="black"/>
+                  </g>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Kiro</span>
+            </div>
+
+            <!-- Amp — official Sourcegraph Amp mark -->
+            <div class="thumb-agent">
+              <div class="thumb-agent-icon">
+                <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#F6833B" d="m5.923 29.218 7.568-7.674L16.245 32l4-1.094-3.986-15.182-14.94-4.046-1.064 4.087 10.28 2.793L3 26.221l2.923 2.997Z"/>
+                  <path fill="#F6833B" d="M27.745 20.322l4-1.094L27.76 4.046 12.82 0l-1.064 4.088 12.617 3.427 3.373 12.807Z"/>
+                  <path fill="#F6833B" d="m22.003 26.157 4-1.094-3.986-15.181-14.94-4.047-1.064 4.088 12.616 3.427 3.373 12.807Z"/>
+                </svg>
+              </div>
+              <span class="thumb-agent-label">Amp</span>
+            </div>
+          </div>
+
+          <div class="thumb-url">github.com/log-bell/avakill</div>
+        </div>
+      </div>
+    </div>
+    <button id="downloadThumb">Download Thumbnail (1920×1080)</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    const PARTICLE_COUNT = 80;
+    let particles = [];
+    let w, h;
+    let particleFrameId;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        window.innerHeight
+      );
+    }
+
+    function createParticle(startAtBottom) {
+      return {
+        x: Math.random() * w,
+        y: startAtBottom ? h + Math.random() * 40 : Math.random() * h,
+        r: 1 + Math.random(),
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: -(0.15 + Math.random() * 0.35),
+        alpha: 0.15 + Math.random() * 0.15
+      };
+    }
+
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        particles.push(createParticle(false));
+      }
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.y + p.r < 0) {
+          p.x = Math.random() * w;
+          p.y = h + Math.random() * 20;
+        }
+        if (p.x < -10) p.x = w + 10;
+        if (p.x > w + 10) p.x = -10;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 212, 255, ${p.alpha})`;
+        ctx.fill();
+      }
+      particleFrameId = requestAnimationFrame(drawParticles);
+    }
+
+    resize();
+    initParticles();
+    drawParticles();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        cancelAnimationFrame(particleFrameId);
+      } else {
+        drawParticles();
+      }
+    });
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(resize, 100);
+    }, { passive: true });
+
+    window.addEventListener('scroll', () => {
+      const newH = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        window.innerHeight
+      );
+      if (Math.abs(newH - h) > 50) {
+        h = canvas.height = newH;
+      }
+    }, { passive: true });
+  </script>
+
+  <!-- Export FAB -->
+  <button class="export-fab" id="exportFab" title="Export to PDF">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  </button>
+  <div class="export-fab-progress" id="exportProgress"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
+  <script>
+    document.getElementById('exportFab').addEventListener('click', async function () {
+      const fab = this;
+      const progress = document.getElementById('exportProgress');
+      const slides = document.querySelectorAll('.slide');
+
+      if (fab.classList.contains('export-fab--exporting')) return;
+      fab.classList.add('export-fab--exporting');
+      progress.classList.add('visible');
+
+      try {
+        if (!window.jspdf || !window.html2canvas) {
+          throw new Error('Libraries still loading — try again in a moment.');
+        }
+        var jsPDF = window.jspdf.jsPDF;
+        // 16:9 landscape PDF — dimensions in mm (338.67 x 190.5 matches 16:9)
+        var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [190.5, 338.67] });
+
+        for (let i = 0; i < slides.length; i++) {
+          progress.textContent = 'Capturing slide ' + (i + 1) + ' / ' + slides.length + '...';
+
+          // Scroll slide into view
+          slides[i].scrollIntoView({ block: 'center' });
+          await new Promise(function (r) { setTimeout(r, 400); });
+
+          var canvas = await html2canvas(slides[i], {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: null,
+            logging: false,
+          });
+
+          var imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+          if (i > 0) pdf.addPage([190.5, 338.67], 'landscape');
+          pdf.addImage(imgData, 'JPEG', 0, 0, 338.67, 190.5, undefined, 'FAST');
+        }
+
+        progress.textContent = 'Saving PDF...';
+        pdf.save('avakill-deck.pdf');
+        progress.textContent = 'Done!';
+        setTimeout(function () { progress.classList.remove('visible'); }, 1500);
+
+      } catch (err) {
+        progress.textContent = 'Export failed: ' + err.message;
+        console.error('PDF export error:', err);
+        setTimeout(function () { progress.classList.remove('visible'); }, 3000);
+      }
+
+      fab.classList.remove('export-fab--exporting');
+    });
+  </script>
+
+  <script>
+    document.getElementById('downloadThumb').addEventListener('click', async function () {
+      const btn = this;
+      const origText = btn.textContent;
+      btn.textContent = 'Capturing...';
+      btn.disabled = true;
+
+      try {
+        const thumb = document.getElementById('linkedinThumb');
+        // Temporarily remove the CSS transform so html2canvas captures at full 1920x1080
+        thumb.style.transform = 'none';
+
+        const canvas = await html2canvas(thumb, {
+          width: 1920,
+          height: 1080,
+          scale: 1,
+          useCORS: true,
+          backgroundColor: '#0A0F1E',
+          logging: false,
+        });
+
+        // Restore the transform
+        thumb.style.transform = '';
+
+        const link = document.createElement('a');
+        link.download = 'avakill-linkedin-thumbnail.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        btn.textContent = 'Downloaded!';
+        setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
+      } catch (err) {
+        console.error('Thumbnail export error:', err);
+        btn.textContent = 'Export failed — ' + err.message;
+        setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+      }
+    });
+  </script>
+
+  <script src="variants.js"></script>
+
+</body>
+</html>
