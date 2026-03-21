@@ -1,0 +1,28 @@
+# src/avakill/templates/data_science.yaml
+name: Data Science Workflow
+description: Policy allowing read-heavy data science operations while blocking destructive actions.
+
+allow:
+  - file_read: "**/*"
+  - shell: ["grep", "cat", "head", "tail", "ls"]
+  - sql: ["SELECT"]
+  - library: ["pandas", "matplotlib", "numpy", "scipy"]
+
+block:
+  - file_write: ["/etc/**", "/var/**", "/usr/**", "/bin/**"]
+  - shell: ["rm", "mv", "chmod", "chown"]
+  - sql: ["DROP", "DELETE", "TRUNCATE", "ALTER", "UPDATE", "INSERT"]
+
+rate_limits:
+  - operation: sql_query
+    limit: 50
+    period: 1h
+  - operation: api_call
+    limit: 100
+    period: 1m
+
+advisory:
+  - file_write: 
+      pattern: "${PROJECT_DIR}/**"
+      message: "Writing to project directory. Ensure no raw data is overwritten."
+      
