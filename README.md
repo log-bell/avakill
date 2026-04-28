@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/log-bell-avakill-badge.png)](https://mseep.ai/app/log-bell-avakill)
+
 <div align="center">
 
 # AvaKill
